@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Pretendard Font */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css');
+
+@layer base {
+  :root {
+    --color-primary: #635BFF;
+    --color-secondary: #16CDC7;
+    --color-accent: #F8C653;
+    --color-success: #4CD471;
+    --color-warning: #F8C653;
+    --color-error: #FF6B6B;
+    --color-info: #1F99FF;
+    --color-border: #E5E8EB;
+    --color-bg: #F8FAFC;
+    --color-surface: #FFFFFF;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Pretendard', system-ui, sans-serif;
+  }
+}
