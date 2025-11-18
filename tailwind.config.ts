@@ -9,65 +9,129 @@ const config: Config = {
     './src/**/*.{ts,tsx}',
   ],
   theme: {
-    extend: {
-      colors: {
-        // MUST Access 브랜드 컬러
-        primary: {
-          DEFAULT: '#635BFF',
-          foreground: '#FFFFFF',
-        },
-        secondary: {
-          DEFAULT: '#16CDC7',
-          foreground: '#FFFFFF',
-        },
-        accent: {
-          DEFAULT: '#F8C653',
-          foreground: '#29363D',
-        },
-        success: {
-          DEFAULT: '#4CD471',
-          foreground: '#FFFFFF',
-        },
-        warning: {
-          DEFAULT: '#F8C653',
-          foreground: '#29363D',
-        },
-        error: {
-          DEFAULT: '#FF6B6B',
-          foreground: '#FFFFFF',
-        },
-        info: {
-          DEFAULT: '#1F99FF',
-          foreground: '#FFFFFF',
-        },
-        border: '#E5E8EB',
-        background: '#F8FAFC',
-        surface: '#FFFFFF',
-        gray: {
-          100: '#F6F8F9',
-          300: '#D3D9DC',
-          500: '#A0ACB3',
-        },
-      },
-      fontFamily: {
-        sans: ['Pretendard', 'system-ui', 'sans-serif'],
-      },
-      borderRadius: {
-        card: '16px',
-        button: '8px',
-      },
-      spacing: {
-        xs: '4px',
-        sm: '8px',
-        md: '16px',
-        lg: '24px',
-        xl: '32px',
-        '2xl': '48px',
-        '3xl': '64px',
-      },
-    },
+  	extend: {
+  		colors: {
+  			border: 'var(--border)',
+  			input: 'var(--input)',
+  			ring: 'var(--ring)',
+  			background: 'var(--background)',
+  			foreground: 'var(--foreground)',
+  			primary: {
+  				DEFAULT: 'var(--primary)',
+  				foreground: 'var(--primary-foreground)'
+  			},
+  			secondary: {
+  				DEFAULT: 'var(--secondary)',
+  				foreground: 'var(--secondary-foreground)'
+  			},
+  			muted: {
+  				DEFAULT: 'var(--muted)',
+  				foreground: 'var(--muted-foreground)'
+  			},
+  			accent: {
+  				DEFAULT: 'var(--accent)',
+  				foreground: 'var(--accent-foreground)'
+  			},
+  			success: {
+  				DEFAULT: 'var(--success)'
+  			},
+  			error: {
+  				DEFAULT: 'var(--error)'
+  			},
+  			warning: {
+  				DEFAULT: 'var(--warning)'
+  			},
+  			card: {
+  				DEFAULT: 'var(--card)',
+  				foreground: 'var(--card-foreground)'
+  			},
+  			popover: {
+  				DEFAULT: 'var(--popover)',
+  				foreground: 'var(--popover-foreground)'
+  			},
+  			destructive: {
+  				DEFAULT: 'var(--destructive)',
+  				foreground: 'var(--destructive-foreground)'
+  			},
+  			chart: {
+  				'1': 'var(--chart-1)',
+  				'2': 'var(--chart-2)',
+  				'3': 'var(--chart-3)',
+  				'4': 'var(--chart-4)',
+  				'5': 'var(--chart-5)'
+  			}
+  		},
+  		fontFamily: {
+  			sans: [
+  				'Pretendard',
+  				'-apple-system',
+  				'BlinkMacSystemFont',
+  				'system-ui',
+  				'sans-serif'
+  			]
+  		},
+  		fontSize: {
+  			h1: [
+  				'22px',
+  				{
+  					lineHeight: '1.25',
+  					fontWeight: '500'
+  				}
+  			],
+  			h2: [
+  				'20px',
+  				{
+  					lineHeight: '1.3',
+  					fontWeight: '500'
+  				}
+  			],
+  			body: [
+  				'16px',
+  				{
+  					lineHeight: '1.5',
+  					fontWeight: '400'
+  				}
+  			],
+  			caption: [
+  				'14px',
+  				{
+  					lineHeight: '1.4',
+  					fontWeight: '400'
+  				}
+  			]
+  		},
+		borderRadius: {
+			lg: 'var(--radius)',
+			md: 'calc(var(--radius) - 2px)',
+			sm: 'calc(var(--radius) - 4px)',
+			card: '16px',
+			button: '8px'
+		},
+  		spacing: {
+  			xs: '4px',
+  			sm: '8px',
+  			md: '16px',
+  			lg: '24px',
+  			xl: '32px',
+  			'2xl': '48px',
+  			'3xl': '64px'
+  		},
+  		maxWidth: {
+  			container: '1280px'
+  		},
+  		transitionDuration: {
+  			fast: '150ms',
+  			modal: '200ms'
+  		},
+  		transitionTimingFunction: {
+  			smooth: 'ease-in-out'
+  		},
+  		boxShadow: {
+  			card: '0 2px 8px rgba(0, 0, 0, 0.08)'
+  		}
+  	}
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 }
 
 export default config
