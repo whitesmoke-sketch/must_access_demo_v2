@@ -81,18 +81,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8FAFC' }}>
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-6">
           {/* 로고 */}
           <div className="text-center mb-12">
             <h1 
-              className="font-bold"
+              className="font-bold text-primary"
               style={{
                 fontSize: '40px',
-                letterSpacing: '-0.02em',
-                color: '#827ADC'
+                letterSpacing: '-0.02em'
               }}
             >
               MUST Access
@@ -133,19 +132,13 @@ export default function LoginPage() {
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="w-full px-6 py-3 text-center font-semibold rounded-button transition-all interactive"
-              style={{
-                backgroundColor: '#827ADC',
-                color: '#FFFFFF',
-                fontSize: '16px',
-                lineHeight: 1.5,
-              }}
+              className="w-full"
               disabled={loading}
             >
               {loading ? '로그인 중...' : '로그인'}
-            </button>
+            </Button>
           </form>
 
           {/* 구분선 */}
@@ -154,10 +147,7 @@ export default function LoginPage() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span 
-                className="px-4 text-muted-foreground"
-                style={{ backgroundColor: '#F8FAFC' }}
-              >
+              <span className="px-4 text-muted-foreground bg-background">
                 또는
               </span>
             </div>
