@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import type { EmployeeWithRole } from '@/types/database'
@@ -81,16 +80,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--background)' }}>
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md space-y-6">
+        <div className="w-full max-w-md">
           {/* 로고 */}
-          <div className="text-center mb-12">
+          <div className="flex justify-center mb-12">
             <h1 
-              className="font-bold text-primary"
-              style={{
-                fontSize: '40px',
+              style={{ 
+                fontSize: '40px', 
+                fontWeight: 700,
+                color: '#827adc',
                 letterSpacing: '-0.02em'
               }}
             >
@@ -101,8 +101,13 @@ export default function LoginPage() {
           {/* 에러 메시지 */}
           {error && (
             <div 
-              className="p-3 text-error rounded-lg text-sm"
-              style={{ backgroundColor: '#FFF0ED' }}
+              className="px-4 py-2 rounded-lg text-sm"
+              style={{ 
+                backgroundColor: '#FFF0ED',
+                color: 'var(--error)',
+                fontSize: 'var(--font-size-caption)',
+                lineHeight: 1.4,
+              }}
             >
               {error}
             </div>
@@ -132,13 +137,35 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button
+            <button
               type="submit"
-              className="w-full"
+              className="w-full px-6 py-3 text-center transition-all"
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--font-size-body)',
+                lineHeight: 1.5,
+                transitionDuration: '150ms',
+                transitionTimingFunction: 'ease-in-out',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.filter = 'brightness(0.9)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.filter = 'brightness(1)';
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.98)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
               disabled={loading}
             >
               {loading ? '로그인 중...' : '로그인'}
-            </Button>
+            </button>
           </form>
 
           {/* 구분선 */}
@@ -146,51 +173,71 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="px-4 text-muted-foreground bg-background">
+            <div className="relative flex justify-center">
+              <span 
+                className="px-4" 
+                style={{ 
+                  backgroundColor: 'var(--background)', 
+                  fontSize: 'var(--font-size-caption)', 
+                  color: 'var(--muted-foreground)' 
+                }}
+              >
                 또는
               </span>
             </div>
           </div>
 
-          {/* Google 로그인 */}
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="currentColor"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              />
-            </svg>
-            Google로 로그인
-          </Button>
+        {/* Google 로그인 */}
+        <button
+          type="button"
+          className="w-full px-6 py-3 flex items-center justify-center gap-3 border transition-all"
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderColor: 'var(--border)',
+            color: '#29363D',
+            fontWeight: 600,
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--font-size-body)',
+            lineHeight: 1.5,
+            transitionDuration: '150ms',
+            transitionTimingFunction: 'ease-in-out',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#F6F8F9';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#FFFFFF';
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'scale(0.98)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          onClick={handleGoogleLogin}
+          disabled={loading}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18.1713 8.36788H17.5001V8.33329H10.0001V11.6666H14.7096C14.0225 13.607 12.1763 15 10.0001 15C7.23882 15 5.00007 12.7612 5.00007 9.99996C5.00007 7.23871 7.23882 4.99996 10.0001 4.99996C11.2746 4.99996 12.4342 5.48079 13.3171 6.26621L15.6742 3.90913C14.1859 2.52204 12.1951 1.66663 10.0001 1.66663C5.39799 1.66663 1.66675 5.39788 1.66675 9.99996C1.66675 14.602 5.39799 18.3333 10.0001 18.3333C14.6022 18.3333 18.3334 14.602 18.3334 9.99996C18.3334 9.44121 18.2755 8.89579 18.1713 8.36788Z" fill="#FFC107"/>
+            <path d="M2.62756 6.12121L5.36548 8.12913C6.10631 6.29496 7.90215 4.99996 10.0001 4.99996C11.2746 4.99996 12.4342 5.48079 13.3171 6.26621L15.6742 3.90913C14.1859 2.52204 12.1951 1.66663 10.0001 1.66663C6.79923 1.66663 4.02339 3.47371 2.62756 6.12121Z" fill="#FF3D00"/>
+            <path d="M10.0001 18.3333C12.1526 18.3333 14.1101 17.5095 15.5876 16.162L13.0084 13.9875C12.1432 14.6452 11.0865 15.0008 10.0001 15C7.83258 15 5.99175 13.6179 5.29883 11.6891L2.58008 13.7829C3.96091 16.4816 6.76133 18.3333 10.0001 18.3333Z" fill="#4CAF50"/>
+            <path d="M18.1713 8.36796H17.5001V8.33337H10.0001V11.6667H14.7096C14.3809 12.5902 13.7889 13.3972 13.0067 13.9879L13.0084 13.9871L15.5876 16.1617C15.4042 16.3275 18.3334 14.1667 18.3334 10C18.3334 9.44129 18.2755 8.89587 18.1713 8.36796Z" fill="#1976D2"/>
+          </svg>
+          Google로 로그인
+        </button>
 
-          {/* 테스트 계정 안내 */}
-          <div className="text-center text-xs text-muted-foreground">
-            <p>테스트 계정: admin@must.com / password</p>
-          </div>
+        {/* 테스트 계정 안내 */}
+        <div className="mt-6 text-center">
+          <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+            테스트 계정: admin@must.com / password
+          </p>
+        </div>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="bg-white py-6" style={{ borderTop: '1px solid var(--border)' }}>
-        <div className="text-center text-xs text-muted-foreground">
+        <div className="text-center" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
           © 2024 MUST Access. All rights reserved.
         </div>
       </footer>
