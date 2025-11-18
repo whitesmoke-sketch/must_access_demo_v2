@@ -7,51 +7,74 @@
 
 @layer base {
   :root {
-    /* Design Tokens - Colors */
-    --color-primary: #635BFF;
-    --color-secondary: #16CDC7;
-    --color-success: #4CD471;
-    --color-warning: #F8C653;
-    --color-error: #FF6B6B;
-    --color-info: #1F99FF;
-    --color-border: #E5E8EB;
-    --color-bg: #F8FAFC;
-    --color-surface: #FFFFFF;
-    
-    /* Gray Scale */
-    --color-gray-500: #A0ACB3;
-    --color-gray-300: #D3D9DC;
-    --color-gray-100: #F6F8F9;
-    
-    /* Dashboard Colors */
-    --color-purple: #9B51E0;
-    --color-purple-light: #F3E8FF;
-    --color-orange: #FF8A5C;
-    --color-orange-light: #FFF4EF;
-    --color-cyan: #16CDC7;
-    --color-cyan-light: #E0F7F6;
-    --color-pink: #FF6BA9;
-    --color-pink-light: #FFE8F3;
-    --color-green: #4CD471;
-    --color-green-light: #E8F9ED;
-    
-    /* Spacing */
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 16px;
-    --space-lg: 24px;
-    --space-xl: 32px;
-    --space-2xl: 48px;
-    --space-3xl: 64px;
-    
-    /* Typography */
-    --font-family: Pretendard, -apple-system, sans-serif;
-    --font-size-h1: 22px;
-    --font-size-h2: 20px;
-    --font-size-body: 16px;
-    --font-size-caption: 14px;
-    --line-height-h1: 1.25;
-    --line-height-body: 1.5;
+    /* shadcn/ui Compatible Colors (HSL) - Phase 0 Design Tokens */
+    --background: 210 17% 97%; /* #F8FAFC */
+    --foreground: 210 11% 15%; /* #29363D */
+
+    --primary: 245 58% 67%; /* #635BFF */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --secondary: 177 79% 46%; /* #16CDC7 */
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 43 96% 65%; /* #F8C653 */
+    --accent-foreground: 210 11% 15%;
+
+    --success: 141 71% 58%; /* #4CD471 */
+    --error: 0 79% 71%; /* #FF6B6B */
+    --warning: 43 96% 65%; /* #F8C653 */
+
+    --muted: 210 17% 97%; /* #F6F8F9 */
+    --muted-foreground: 207 11% 40%; /* #5B6A72 */
+
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 210 11% 15%;
+
+    --border: 210 16% 87%; /* #D3D9DC */
+    --input: 210 16% 87%;
+    --ring: 245 58% 67%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 11% 15%;
+
+    --destructive: 0 79% 71%; /* Same as error */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border Radius */
+    --radius: 1rem; /* 16px */
+
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 
   * {
@@ -59,24 +82,7 @@
   }
 
   body {
-    @apply bg-background;
-    font-family: var(--font-family);
-    font-size: var(--font-size-body);
-    line-height: var(--line-height-body);
-    color: #29363D;
-  }
-
-  /* Typography Styles */
-  h1 {
-    font-size: var(--font-size-h1);
-    line-height: var(--line-height-h1);
-    font-weight: 500;
-  }
-
-  h2 {
-    font-size: var(--font-size-h2);
-    line-height: 1.3;
-    font-weight: 500;
+    @apply bg-background text-foreground;
   }
 }
 

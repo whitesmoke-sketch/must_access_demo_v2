@@ -3,13 +3,13 @@ import { cn } from '@/lib/utils'
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger'
   size?: 'sm' | 'md' | 'lg'
 }
 
 /**
  * Button - Figma Guidelines
- * - Variants: Primary / Secondary / Ghost
+ * - Variants: Primary / Secondary / Ghost / Outline
  * - Radius: 8px
  * - Transition: 150ms ease-in-out
  * - Hover: 10-15% darker
@@ -23,6 +23,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       primary: 'bg-primary text-white hover:bg-primary/90 focus-visible:outline-primary',
       secondary: 'bg-secondary text-white hover:bg-secondary/90 focus-visible:outline-secondary',
       ghost: 'bg-transparent border-2 border-gray-300 text-gray-700 hover:bg-gray-100',
+      outline: 'bg-white border-2 border-border text-foreground hover:bg-muted',
       danger: 'bg-error text-white hover:bg-error/90 focus-visible:outline-error',
     }
     

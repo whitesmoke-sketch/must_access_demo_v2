@@ -33,8 +33,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // 로그인이 필요한 페이지에 대한 보호 로직은 여기서 구현
-  // 예: if (!user && request.nextUrl.pathname.startsWith('/dashboard')) { ... }
+  // 보호된 경로 목록
+  const protectedPaths = ['/dashboard', '/admin', '/leave', '/resources', '/attendance']
+  const isProtectedPath = protectedPaths.some(path =>
+    request.nextUrl.pathname.startsWith(path)
+  )
+
+  // 인증되지 않은 사용자가 보호된 페이지 접근 시 로그인으로 리다이렉트
+  if (isProtectedPath && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // 이미 로그인한 사용자가 로그인 페이지 접근 시 대시보드로 리다이렉트
+  if (request.nextUrl.pathname === '/login' && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
