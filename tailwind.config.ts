@@ -11,7 +11,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // MUST Access 브랜드 컬러
+        // MUST Access 브랜드 컬러 (Figma Guidelines)
         primary: {
           DEFAULT: '#635BFF',
           foreground: '#FFFFFF',
@@ -48,9 +48,36 @@ const config: Config = {
           300: '#D3D9DC',
           500: '#A0ACB3',
         },
+        // Dashboard 추가 컬러
+        purple: {
+          DEFAULT: '#9B51E0',
+          light: '#F3E8FF',
+        },
+        orange: {
+          DEFAULT: '#FF8A5C',
+          light: '#FFF4EF',
+        },
+        cyan: {
+          DEFAULT: '#16CDC7',
+          light: '#E0F7F6',
+        },
+        pink: {
+          DEFAULT: '#FF6BA9',
+          light: '#FFE8F3',
+        },
+        green: {
+          DEFAULT: '#4CD471',
+          light: '#E8F9ED',
+        },
       },
       fontFamily: {
-        sans: ['Pretendard', 'system-ui', 'sans-serif'],
+        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        'h1': ['22px', { lineHeight: '1.25', fontWeight: '500' }],
+        'h2': ['20px', { lineHeight: '1.3', fontWeight: '500' }],
+        'body': ['16px', { lineHeight: '1.5', fontWeight: '400' }],
+        'caption': ['14px', { lineHeight: '1.4', fontWeight: '400' }],
       },
       borderRadius: {
         card: '16px',
@@ -64,6 +91,19 @@ const config: Config = {
         xl: '32px',
         '2xl': '48px',
         '3xl': '64px',
+      },
+      maxWidth: {
+        container: '1280px',
+      },
+      transitionDuration: {
+        'fast': '150ms',
+        'modal': '200ms',
+      },
+      transitionTimingFunction: {
+        'smooth': 'ease-in-out',
+      },
+      boxShadow: {
+        'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
       },
     },
   },
