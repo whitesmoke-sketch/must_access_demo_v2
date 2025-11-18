@@ -85,15 +85,23 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-card">
         {/* 로고 */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-primary">MUST Access</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            통합 HR & GA 관리 시스템
-          </p>
+          <h1 
+            className="font-bold text-primary"
+            style={{
+              fontSize: '40px',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            MUST Access
+          </h1>
         </div>
 
         {/* 에러 메시지 */}
         {error && (
-          <div className="p-3 bg-red-50 text-error rounded-md text-sm border border-red-200">
+          <div 
+            className="p-3 text-error rounded-lg text-sm"
+            style={{ backgroundColor: '#FFF0ED' }}
+          >
             {error}
           </div>
         )}
@@ -170,15 +178,13 @@ export default function LoginPage() {
         </Button>
 
         {/* 테스트 계정 안내 */}
-        <div className="text-center text-xs text-muted-foreground space-y-1">
-          <p className="font-medium">테스트 계정</p>
-          <p>employee@must.com / test1234</p>
-          <p>admin@must.com / test1234</p>
+        <div className="text-center text-xs text-muted-foreground">
+          <p>테스트 계정: admin@must.com / password</p>
         </div>
 
         {/* 저작권 */}
         <div className="text-center text-xs text-muted-foreground pt-4 border-t border-border">
-          <p>© 2025 MUST Access. All rights reserved.</p>
+          <p>© 2024 MUST Access. All rights reserved.</p>
         </div>
       </div>
     </div>

@@ -20,11 +20,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-button font-medium interactive'
     
     const variants = {
-      primary: 'bg-primary text-white hover:bg-primary/90 focus-visible:outline-primary',
-      secondary: 'bg-secondary text-white hover:bg-secondary/90 focus-visible:outline-secondary',
+      primary: 'bg-primary text-white hover:brightness-90 focus-visible:outline-primary',
+      secondary: 'bg-secondary text-white hover:brightness-90 focus-visible:outline-secondary',
       ghost: 'bg-transparent border-2 border-gray-300 text-gray-700 hover:bg-gray-100',
       outline: 'bg-white border-2 border-border text-foreground hover:bg-muted',
-      danger: 'bg-error text-white hover:bg-error/90 focus-visible:outline-error',
+      danger: 'bg-error text-white hover:brightness-90 focus-visible:outline-error',
     }
     
     const sizes = {
