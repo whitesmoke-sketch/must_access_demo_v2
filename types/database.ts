@@ -48,3 +48,14 @@ export type EmployeeWithRole = {
     name: string
   }
 }
+
+// User Status Types
+export type UserStatus = 'online' | 'in_meeting' | 'lunch' | 'away' | 'offline' | 'vacation'
+
+// Notification Type
+export interface Notification {
+  id: string
+  message: string
+  timestamp: string
+  read: boolean
+}

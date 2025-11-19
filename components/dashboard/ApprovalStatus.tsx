@@ -1,0 +1,183 @@
+import { createClient } from '@/lib/supabase/server'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
+import { ChevronRight, Calendar } from 'lucide-react'
+
+type LeaveStatus = 'pending' | 'approved' | 'rejected'
+type LeaveType = 'annual' | 'half_day' | 'reward'
+
+interface LeaveRequest {
+  id: string
+  leave_type: LeaveType
+  start_date: string
+  end_date: string
+  status: LeaveStatus
+  employee?: {
+    name: string
+  }[] | { name: string } | null
+}
+
+interface ApprovalStatusProps {
+  employeeId: string
+}
+
+export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
+  const supabase = await createClient()
+
+  // Parallel queries for better performance
+  const [myRequestsResult, employeeResult] = await Promise.all([
+    // 내가 요청한 문서 (최근 3건)
+    supabase
+      .from('leave_request')
+      .select('id, leave_type, start_date, end_date, status')
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })
+      .limit(3),
+    // 사용자 역할 확인
+    supabase
+      .from('employee')
+      .select('role:role_id(code)')
+      .eq('id', employeeId)
+      .maybeSingle()
+  ])
+
+  const myRequests = (myRequestsResult.data || []) as LeaveRequest[]
+
+  // Type-safe role check
+  const role = employeeResult.data?.role as { code: string } | { code: string }[] | null
+  const isAdmin = role
+    ? Array.isArray(role)
+      ? role[0]?.code === 'admin'
+      : role?.code === 'admin'
+    : false
+
+  // 결재 대기 문서 (관리자만, RLS가 권한 확인)
+  let pendingRequests: LeaveRequest[] = []
+  if (isAdmin) {
+    const { data } = await supabase
+      .from('leave_request')
+      .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(3)
+
+    pendingRequests = (data || []) as LeaveRequest[]
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>결재 현황</span>
+          <Link href="/documents">
+            <Button variant="ghost" size="sm">
+              전체보기
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </Link>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* 내가 요청한 문서 */}
+        <div>
+          <h4 className="font-semibold mb-3">내가 요청한 문서</h4>
+          <div className="space-y-2">
+            {myRequests && myRequests.length > 0 ? (
+              myRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {getLeaveTypeLabel(request.leave_type)}
+                    </p>
+                    <div className="flex items-center text-xs text-muted-foreground mt-1">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {request.start_date} ~ {request.end_date}
+                    </div>
+                  </div>
+                  <StatusBadge status={request.status} />
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                신청 내역이 없습니다
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* 결재 대기 문서 (관리자만) */}
+        {isAdmin && (
+          <div>
+            <h4 className="font-semibold mb-3">결재 대기 문서</h4>
+            <div className="space-y-2">
+              {pendingRequests.length > 0 ? (
+                pendingRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {Array.isArray(request.employee)
+                          ? request.employee[0]?.name ?? '알 수 없음'
+                          : request.employee?.name ?? '알 수 없음'} - {getLeaveTypeLabel(request.leave_type)}
+                      </p>
+                      <div className="flex items-center text-xs text-muted-foreground mt-1">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {request.start_date} ~ {request.end_date}
+                      </div>
+                    </div>
+                    <StatusBadge status={request.status} />
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  대기 중인 문서가 없습니다
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function StatusBadge({ status }: { status: LeaveStatus }) {
+  const configs: Record<LeaveStatus, { label: string; className: string }> = {
+    pending: {
+      label: '대기',
+      className: 'bg-yellow-100 text-yellow-700'
+    },
+    approved: {
+      label: '승인',
+      className: 'bg-green-100 text-green-700'
+    },
+    rejected: {
+      label: '반려',
+      className: 'bg-red-100 text-red-700'
+    }
+  }
+
+  const config = configs[status]
+
+  return (
+    <Badge className={config.className}>
+      {config.label}
+    </Badge>
+  )
+}
+
+function getLeaveTypeLabel(type: LeaveType): string {
+  const labels: Record<LeaveType, string> = {
+    annual: '연차',
+    half_day: '반차',
+    reward: '포상휴가'
+  }
+  return labels[type]
+}
