@@ -14,7 +14,7 @@ CREATE TABLE visitor (
   email VARCHAR(255) NOT NULL,
   phone VARCHAR(20),
   purpose TEXT,
-  host_employee_id BIGINT NOT NULL REFERENCES employee(id),
+  host_employee_id UUID NOT NULL REFERENCES employee(id),
   visit_date DATE NOT NULL,
   visit_start_time TIME,
   visit_end_time TIME,
@@ -47,7 +47,7 @@ CREATE INDEX idx_point_active ON access_point(is_active);
 -- Access credential table
 CREATE TABLE access_credential (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employee(id) ON DELETE CASCADE,
   visitor_id BIGINT REFERENCES visitor(id) ON DELETE CASCADE,
   credential_type VARCHAR(20) NOT NULL,
   credential_value VARCHAR(255) NOT NULL UNIQUE,
@@ -112,7 +112,7 @@ CREATE TABLE locker (
   area VARCHAR(50),
   locker_type VARCHAR(20) DEFAULT 'medium',
   usage_type VARCHAR(20) DEFAULT 'equipment' CHECK (usage_type IN ('equipment', 'personal')),
-  assigned_employee_id BIGINT REFERENCES employee(id),
+  assigned_employee_id UUID REFERENCES employee(id),
   assigned_equipment_id BIGINT REFERENCES equipment(id),
   is_locked BOOLEAN DEFAULT TRUE,
   lock_device_id VARCHAR(100),
@@ -128,7 +128,7 @@ CREATE INDEX idx_locker_usage ON locker(usage_type);
 CREATE TABLE locker_access_log (
   id BIGSERIAL PRIMARY KEY,
   locker_id BIGINT NOT NULL REFERENCES locker(id),
-  employee_id BIGINT NOT NULL REFERENCES employee(id),
+  employee_id UUID NOT NULL REFERENCES employee(id),
   credential_id BIGINT NOT NULL REFERENCES access_credential(id),
   action VARCHAR(10) NOT NULL,
   result VARCHAR(10) NOT NULL,
@@ -166,7 +166,7 @@ CREATE INDEX idx_seat_amenities_gin ON seat USING GIN (amenities);
 CREATE TABLE seat_reservation (
   id BIGSERIAL PRIMARY KEY,
   seat_id BIGINT NOT NULL REFERENCES seat(id),
-  employee_id BIGINT NOT NULL REFERENCES employee(id),
+  employee_id UUID NOT NULL REFERENCES employee(id),
   reservation_date DATE NOT NULL,
   start_time TIME,
   end_time TIME,
@@ -187,7 +187,7 @@ CREATE TABLE digital_nameplate (
   device_id VARCHAR(100) NOT NULL UNIQUE,
   device_ip VARCHAR(45),
   api_endpoint VARCHAR(255),
-  current_employee_id BIGINT REFERENCES employee(id),
+  current_employee_id UUID REFERENCES employee(id),
   display_status VARCHAR(20) DEFAULT 'active',
   last_updated TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -205,7 +205,7 @@ CREATE INDEX idx_nameplate_device ON digital_nameplate(device_id);
 CREATE TABLE project (
   id BIGSERIAL PRIMARY KEY,
   project_name VARCHAR(100) NOT NULL,
-  leader_id BIGINT NOT NULL REFERENCES employee(id),
+  leader_id UUID NOT NULL REFERENCES employee(id),
   department_id BIGINT REFERENCES department(id),
   start_date DATE,
   end_date DATE,
@@ -223,7 +223,7 @@ CREATE INDEX idx_proj_status ON project(status);
 -- Project member table
 CREATE TABLE project_member (
   project_id BIGINT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
   position VARCHAR(100),
   join_date DATE,
   leave_date DATE,
@@ -243,7 +243,7 @@ CREATE INDEX idx_pm_project ON project_member(project_id);
 -- Welfare request table
 CREATE TABLE welfare_request (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
   welfare_type VARCHAR(20) NOT NULL,
   event_type VARCHAR(50),
   event_date DATE NOT NULL,
@@ -263,7 +263,7 @@ CREATE INDEX idx_welfare_status ON welfare_request(status);
 CREATE TABLE welfare_approval (
   id BIGSERIAL PRIMARY KEY,
   welfare_request_id BIGINT NOT NULL REFERENCES welfare_request(id) ON DELETE CASCADE,
-  approver_id BIGINT NOT NULL REFERENCES employee(id),
+  approver_id UUID NOT NULL REFERENCES employee(id),
   approval_step INT NOT NULL,
   approved_amount DECIMAL(10,2),
   status VARCHAR(20) NOT NULL,

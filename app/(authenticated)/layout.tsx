@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Header } from '@/components/common/Header'
-import { Sidebar } from '@/components/common/Sidebar'
+import { LayoutClient } from '@/components/common/LayoutClient'
 import type { EmployeeWithRole } from '@/types/database'
 
 export default async function AuthenticatedLayout({
@@ -36,19 +35,6 @@ export default async function AuthenticatedLayout({
 
   // 타입 단언
   const employeeData = employee as unknown as EmployeeWithRole | null
-  const roleCode = employeeData?.role?.code
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header user={user} employee={employeeData} />
-
-      <div className="flex">
-        <Sidebar role={roleCode} />
-
-        <main className="flex-1 p-6">
-          {children}
-        </main>
-      </div>
-    </div>
-  )
+  return <LayoutClient user={user} employee={employeeData}>{children}</LayoutClient>
 }

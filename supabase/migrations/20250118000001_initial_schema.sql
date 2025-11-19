@@ -59,8 +59,9 @@ CREATE TABLE role_permission (
 );
 
 -- Employee table
+-- id is UUID that references auth.users(id) directly
 CREATE TABLE employee (
-  id BIGSERIAL PRIMARY KEY,
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   department_id BIGINT NOT NULL REFERENCES department(id),
   role_id BIGINT NOT NULL REFERENCES role(id),
 
@@ -105,7 +106,7 @@ CREATE INDEX idx_status ON employee(status);
 CREATE INDEX idx_employment_date ON employee(employment_date);
 
 -- 이제 department.manager_id 추가 가능
-ALTER TABLE department ADD COLUMN manager_id BIGINT REFERENCES employee(id);
+ALTER TABLE department ADD COLUMN manager_id UUID REFERENCES employee(id);
 CREATE INDEX idx_dept_manager ON department(manager_id);
 
 -- ============================================
@@ -137,7 +138,7 @@ CREATE TABLE document_template (
   action_type VARCHAR(50) CHECK (action_type IN ('deduct_leave', 'grant_leave', 'process_welfare', 'none', 'custom')),
   action_config JSONB,
 
-  created_by BIGINT REFERENCES employee(id),
+  created_by UUID REFERENCES employee(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -150,7 +151,7 @@ CREATE INDEX idx_doctemp_active ON document_template(is_active);
 CREATE TABLE document_submission (
   id BIGSERIAL PRIMARY KEY,
   template_id BIGINT NOT NULL REFERENCES document_template(id),
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
   submission_title VARCHAR(255) NOT NULL,
 
   -- 폼 데이터
@@ -167,7 +168,7 @@ CREATE TABLE document_submission (
 
   -- 상태
   status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'processing', 'completed', 'rejected', 'error')),
-  reviewer_id BIGINT REFERENCES employee(id),
+  reviewer_id UUID REFERENCES employee(id),
   review_comment TEXT,
 
   submitted_at TIMESTAMPTZ,
@@ -215,7 +216,7 @@ CREATE TABLE document_approval_instance (
   step_order INT NOT NULL,
 
   -- 실제 승인자
-  approver_id BIGINT NOT NULL REFERENCES employee(id),
+  approver_id UUID NOT NULL REFERENCES employee(id),
 
   -- 승인 상태
   status VARCHAR(20) NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'pending', 'approved', 'rejected', 'skipped')),
@@ -244,7 +245,7 @@ CREATE INDEX idx_approval_inst_status ON document_approval_instance(status);
 -- Annual leave grant table
 CREATE TABLE annual_leave_grant (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
 
   -- 연차 유형
   grant_type VARCHAR(20) NOT NULL CHECK (grant_type IN ('monthly', 'proportional', 'annual', 'award_overtime', 'award_attendance')),
@@ -262,8 +263,8 @@ CREATE TABLE annual_leave_grant (
   reason VARCHAR(255),
 
   -- 승인 관련 (포상휴가 부여 신청)
-  requester_id BIGINT REFERENCES employee(id),
-  approver_id BIGINT REFERENCES employee(id),
+  requester_id UUID REFERENCES employee(id),
+  approver_id UUID REFERENCES employee(id),
   approval_status VARCHAR(20) DEFAULT 'approved',
   approval_date TIMESTAMPTZ,
   rejection_reason TEXT,
@@ -283,7 +284,7 @@ CREATE INDEX idx_grant_expiry ON annual_leave_grant(expiration_date);
 -- Leave request table
 CREATE TABLE leave_request (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
 
   -- 연차 타입
   leave_type VARCHAR(20) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
@@ -303,7 +304,7 @@ CREATE TABLE leave_request (
   attachment_url VARCHAR(500),
 
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
-  approver_id BIGINT REFERENCES employee(id),
+  approver_id UUID REFERENCES employee(id),
   rejection_reason TEXT,
 
   requested_at TIMESTAMPTZ NOT NULL,
@@ -337,7 +338,7 @@ CREATE INDEX idx_usage_date ON annual_leave_usage(used_date);
 
 -- Annual leave balance
 CREATE TABLE annual_leave_balance (
-  employee_id BIGINT PRIMARY KEY REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID PRIMARY KEY REFERENCES employee(id) ON DELETE CASCADE,
   total_days DECIMAL(6,2) NOT NULL DEFAULT 0,
   used_days DECIMAL(6,2) NOT NULL DEFAULT 0,
   remaining_days DECIMAL(6,2) NOT NULL DEFAULT 0,
@@ -370,7 +371,7 @@ CREATE INDEX idx_job_started ON batch_job_log(started_at);
 -- Attendance award table
 CREATE TABLE attendance_award (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
 
   -- 평가 기간
   award_period VARCHAR(10) NOT NULL,
@@ -403,7 +404,7 @@ CREATE INDEX idx_award_qualified ON attendance_award(is_qualified);
 -- Overtime conversion table
 CREATE TABLE overtime_conversion (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
 
   -- 전환 기간
   period_start DATE NOT NULL,
@@ -432,7 +433,7 @@ CREATE INDEX idx_conversion_period ON overtime_conversion(period_start, period_e
 -- Leave of absence table
 CREATE TABLE leave_of_absence (
   id BIGSERIAL PRIMARY KEY,
-  employee_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
   absence_type VARCHAR(20) NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE,
@@ -440,7 +441,7 @@ CREATE TABLE leave_of_absence (
   reason TEXT,
   attachment_url VARCHAR(500),
   status VARCHAR(20) DEFAULT 'pending',
-  approver_id BIGINT REFERENCES employee(id),
+  approver_id UUID REFERENCES employee(id),
   approval_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -455,7 +456,7 @@ CREATE INDEX idx_absence_status ON leave_of_absence(status);
 
 CREATE TABLE notification (
   id BIGSERIAL PRIMARY KEY,
-  recipient_id BIGINT NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  recipient_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
   type VARCHAR(20) NOT NULL,
   title VARCHAR(255) NOT NULL,
   message TEXT NOT NULL,
