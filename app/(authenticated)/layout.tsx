@@ -27,7 +27,8 @@ export default async function AuthenticatedLayout({
       email,
       role:role_id!inner (
         code,
-        name
+        name,
+        level
       )
     `)
     .eq('id', user.id)

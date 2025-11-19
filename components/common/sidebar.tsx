@@ -31,6 +31,7 @@ import {
 
 interface SidebarProps {
   role?: string
+  roleLevel?: number
   collapsed: boolean
   onToggleCollapse: () => void
   mobileOpen: boolean
@@ -39,6 +40,7 @@ interface SidebarProps {
 
 export function Sidebar({
   role,
+  roleLevel = 1,
   collapsed,
   onToggleCollapse,
   mobileOpen,
@@ -169,9 +171,20 @@ export function Sidebar({
       },
     ]
 
-    return [...baseItems, ...adminItems, ...superAdminItems].filter((item) =>
-      item.roles.includes(role || 'employee')
-    )
+    // Role level 기반 필터링
+    // level 1: 모든 메뉴
+    // level 3+: admin 메뉴 포함
+    // level 5+: super_admin 메뉴 포함
+    return [...baseItems, ...adminItems, ...superAdminItems].filter((item) => {
+      // level 5 (CEO, HR): 모든 메뉴 접근
+      if (roleLevel >= 5) return true
+
+      // level 3-4 (부서리더, 사업리더): admin 메뉴까지
+      if (roleLevel >= 3 && !item.roles.includes('super_admin')) return true
+
+      // level 1-2 (일반사원, 팀리더): employee 메뉴만
+      return item.roles.includes('employee')
+    })
   }
 
   const menuItems = getMenuItems()
