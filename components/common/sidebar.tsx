@@ -56,10 +56,10 @@ export function Sidebar({
         roles: ['employee', 'admin', 'super_admin'],
       },
       {
-        id: 'my-dashboard',
-        label: '내 대시보드',
+        id: 'admin-dashboard',
+        label: '관리자 대시보드',
         icon: LayoutDashboard,
-        href: '/my-dashboard',
+        href: '/admin/dashboard',
         roles: ['admin', 'super_admin'],
       },
       {
