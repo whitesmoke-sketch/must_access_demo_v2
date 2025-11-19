@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import {
   Users,
   UserCheck,
@@ -54,6 +55,7 @@ export function Sidebar({
         icon: LayoutPanelLeft,
         href: '/dashboard',
         roles: ['employee', 'admin', 'super_admin'],
+        implemented: true,
       },
       {
         id: 'admin-dashboard',
@@ -61,6 +63,7 @@ export function Sidebar({
         icon: LayoutDashboard,
         href: '/admin/dashboard',
         roles: ['admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'seats',
@@ -68,6 +71,7 @@ export function Sidebar({
         icon: Armchair,
         href: '/resources/seats',
         roles: ['employee', 'admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'lockers',
@@ -75,6 +79,7 @@ export function Sidebar({
         icon: Lock,
         href: '/resources/lockers',
         roles: ['employee', 'admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'meeting-rooms',
@@ -82,6 +87,7 @@ export function Sidebar({
         icon: DoorOpen,
         href: '/resources/meeting-rooms',
         roles: ['employee', 'admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'my-leave',
@@ -89,13 +95,15 @@ export function Sidebar({
         icon: Calendar,
         href: '/leave/my-leave',
         roles: ['employee', 'admin', 'super_admin'],
+        implemented: true,
       },
       {
         id: 'request-form',
         label: '신청서 작성',
         icon: FilePlus,
-        href: '/leave/request',
+        href: '/request',
         roles: ['employee', 'admin', 'super_admin'],
+        implemented: true,
       },
       {
         id: 'leave',
@@ -103,6 +111,7 @@ export function Sidebar({
         icon: Calendar,
         href: '/admin/leave',
         roles: ['admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'approval-inbox',
@@ -110,16 +119,18 @@ export function Sidebar({
         icon: FileCheck,
         href: '/documents',
         roles: ['admin', 'super_admin'],
+        implemented: false,
       },
     ]
 
     const adminItems = [
       {
-        id: 'members',
+        id: 'employees',
         label: '조직구성원',
         icon: Users,
-        href: '/admin/members',
+        href: '/admin/employees',
         roles: ['admin', 'super_admin'],
+        implemented: true,
       },
       {
         id: 'visitors',
@@ -127,6 +138,7 @@ export function Sidebar({
         icon: UserCheck,
         href: '/admin/visitors',
         roles: ['admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'access',
@@ -134,6 +146,7 @@ export function Sidebar({
         icon: ClipboardList,
         href: '/admin/access',
         roles: ['admin', 'super_admin'],
+        implemented: false,
       },
       {
         id: 'attendance',
@@ -141,6 +154,7 @@ export function Sidebar({
         icon: Clock,
         href: '/admin/attendance',
         roles: ['admin', 'super_admin'],
+        implemented: false,
       },
     ]
 
@@ -151,6 +165,7 @@ export function Sidebar({
         icon: Shield,
         href: '/admin/permissions',
         roles: ['super_admin'],
+        implemented: false,
       },
     ]
 
@@ -195,13 +210,23 @@ export function Sidebar({
               const isActive = pathname === item.href
               const isHovered = hoveredItem === item.id
 
+              const handleClick = (e: React.MouseEvent) => {
+                if (!item.implemented) {
+                  e.preventDefault()
+                  toast.info(`${item.label} 기능은 곧 제공될 예정입니다`, {
+                    description: '현재 개발 중인 기능입니다.',
+                  })
+                }
+              }
+
               const menuButton = (
                 <Link
                   key={item.id}
-                  href={item.href}
+                  href={item.implemented ? item.href : '#'}
+                  onClick={handleClick}
                   className={`w-full flex items-center gap-3 rounded-lg transition-all duration-150 relative ${
                     collapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'
-                  }`}
+                  } ${!item.implemented ? 'opacity-60 cursor-not-allowed' : ''}`}
                   style={{
                     backgroundColor: isActive ? '#635BFF' : 'transparent',
                     color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#5B6A72',
@@ -228,7 +253,14 @@ export function Sidebar({
                       color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#A0ACB3',
                     }}
                   />
-                  {!collapsed && <span>{item.label}</span>}
+                  {!collapsed && (
+                    <span className="flex-1">{item.label}</span>
+                  )}
+                  {!collapsed && !item.implemented && (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                      준비중
+                    </span>
+                  )}
                 </Link>
               )
 
@@ -328,12 +360,25 @@ export function Sidebar({
               const Icon = item.icon
               const isActive = pathname === item.href
 
+              const handleClick = (e: React.MouseEvent) => {
+                if (!item.implemented) {
+                  e.preventDefault()
+                  toast.info(`${item.label} 기능은 곧 제공될 예정입니다`, {
+                    description: '현재 개발 중인 기능입니다.',
+                  })
+                } else {
+                  onMobileClose()
+                }
+              }
+
               return (
                 <Link
                   key={item.id}
-                  href={item.href}
-                  onClick={onMobileClose}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150 relative"
+                  href={item.implemented ? item.href : '#'}
+                  onClick={handleClick}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150 relative ${
+                    !item.implemented ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                   style={{
                     backgroundColor: isActive ? '#635BFF' : 'transparent',
                     color: isActive ? '#ffffff' : '#5B6A72',
@@ -354,7 +399,12 @@ export function Sidebar({
                     className="w-5 h-5"
                     style={{ color: isActive ? '#ffffff' : '#A0ACB3' }}
                   />
-                  <span>{item.label}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {!item.implemented && (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                      준비중
+                    </span>
+                  )}
                 </Link>
               )
             })}
