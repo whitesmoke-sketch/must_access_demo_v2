@@ -262,6 +262,12 @@ export default function LoginPage() {
           <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
             테스트 계정: admin@must.com / password
           </p>
+          <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+            테스트 계정: employee@must.com / password
+          </p>
+          <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+            테스트 계정: designer@must.com / password
+          </p>
         </div>
         </div>
       </main>
