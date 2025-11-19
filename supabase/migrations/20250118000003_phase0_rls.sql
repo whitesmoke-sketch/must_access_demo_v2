@@ -1,6 +1,6 @@
 -- Phase 0: Authentication & Layout RLS Policies
 -- Created: 2025-01-18
--- Updated: 2025-01-18 (Post-Codex Review)
+-- Updated: 2025-01-19 (employee.id changed to UUID)
 
 -- ================================================
 -- employee 테이블 RLS
@@ -8,28 +8,7 @@
 
 ALTER TABLE employee ENABLE ROW LEVEL SECURITY;
 
--- 사용자는 본인 정보만 조회 가능
-CREATE POLICY "Users can view own profile"
-ON employee FOR SELECT
-USING (auth.uid()::text = id::text);
-
--- Admin은 모든 employee 조회 가능
-CREATE POLICY "Admins can view all employees"
-ON employee FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM employee e
-    INNER JOIN role r ON e.role_id = r.id
-    WHERE e.id = auth.uid()::text
-    AND r.code IN ('admin', 'super_admin')
-  )
-);
-
--- 사용자는 본인 정보 수정 가능 (이름, 팀, 포지션 등)
-CREATE POLICY "Users can update own profile"
-ON employee FOR UPDATE
-USING (auth.uid()::text = id::text)
-WITH CHECK (auth.uid()::text = id::text);
+-- NOTE: employee 상세 RLS 정책은 20250119000008_fix_rls_recursion.sql에서 설정됨
 
 -- ================================================
 -- role 테이블 RLS

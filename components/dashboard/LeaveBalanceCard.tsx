@@ -10,13 +10,10 @@ interface LeaveBalanceCardProps {
 export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
   const supabase = await createClient()
 
-  const currentYear = new Date().getFullYear()
-
   const { data: balance, error } = await supabase
     .from('annual_leave_balance')
-    .select('total_days, remaining_days, reward_leave_balance')
+    .select('total_days, remaining_days')
     .eq('employee_id', employeeId)
-    .eq('year', currentYear)
     .maybeSingle()
 
   if (error) {
@@ -24,11 +21,11 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
   }
 
   const remainingAnnual = balance?.remaining_days || 0
-  const remainingReward = balance?.reward_leave_balance || 0
+  // const remainingReward = balance?.reward_leave_balance || 0
   const usedAnnual = (balance?.total_days || 0) - remainingAnnual
   const totalAnnual = balance?.total_days || 0
-  const usedReward = 0 // TODO: DB에 used_reward_leave 컬럼 추가 필요
-  const totalReward = balance?.reward_leave_balance || 0
+  // const usedReward = 0 // TODO: DB에 used_reward_leave 컬럼 추가 필요
+  // const totalReward = balance?.reward_leave_balance || 0
 
   return (
     <Card
@@ -83,17 +80,17 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
         </div>
 
         {/* 세로 구분선 */}
-        <div
+        {/* <div
           style={{
             width: '1px',
             height: '50px',
             backgroundColor: '#E5E8EB',
             alignSelf: 'center'
           }}
-        />
+        /> */}
 
         {/* 잔여 포상휴가 */}
-        <div className="flex-1 flex flex-col gap-1.5">
+        {/* <div className="flex-1 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
               잔여 포상휴가
@@ -110,7 +107,7 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
               {usedReward} / {totalReward}
             </p>
           </div>
-        </div>
+        </div> */}
       </CardContent>
     </Card>
   )
