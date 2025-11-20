@@ -56,7 +56,7 @@ export function Sidebar({
         label: '대시보드',
         icon: LayoutPanelLeft,
         href: '/dashboard',
-        roles: ['employee', 'admin', 'super_admin'],
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: true,
       },
       {
@@ -72,7 +72,7 @@ export function Sidebar({
         label: '자유석',
         icon: Armchair,
         href: '/resources/seats',
-        roles: ['employee', 'admin', 'super_admin'],
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: false,
       },
       {
@@ -80,7 +80,7 @@ export function Sidebar({
         label: '사물함',
         icon: Lock,
         href: '/resources/lockers',
-        roles: ['employee', 'admin', 'super_admin'],
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: false,
       },
       {
@@ -88,7 +88,7 @@ export function Sidebar({
         label: '회의실 예약',
         icon: DoorOpen,
         href: '/resources/meeting-rooms',
-        roles: ['employee', 'admin', 'super_admin'],
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: false,
       },
       {
@@ -96,7 +96,7 @@ export function Sidebar({
         label: '내 연차 조회',
         icon: Calendar,
         href: '/leave/my-leave',
-        roles: ['employee', 'admin', 'super_admin'],
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: true,
       },
       {
@@ -104,7 +104,7 @@ export function Sidebar({
         label: '신청서 작성',
         icon: FilePlus,
         href: '/request',
-        roles: ['employee', 'admin', 'super_admin'],
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: true,
       },
       {
@@ -120,7 +120,7 @@ export function Sidebar({
         label: '결재함',
         icon: FileCheck,
         href: '/documents',
-        roles: ['admin', 'super_admin'],
+        roles: ['team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: false,
       },
     ]
@@ -131,7 +131,7 @@ export function Sidebar({
         label: '조직구성원',
         icon: Users,
         href: '/admin/employees',
-        roles: ['admin', 'super_admin'],
+        roles: ['team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
         implemented: true,
       },
       {

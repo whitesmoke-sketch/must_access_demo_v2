@@ -1,0 +1,150 @@
+-- Test Accounts Creation Script
+-- Creates test users with different organizational roles for approval line testing
+
+-- 이 스크립트를 실행하기 전에 먼저 기존 role과 department 데이터를 확인해야 합니다
+-- SELECT * FROM role ORDER BY level;
+-- SELECT * FROM department;
+
+-- ============================================
+-- 1. Auth Users 생성 (Supabase Auth)
+-- ============================================
+-- 주의: Supabase Auth에서 사용자를 생성하려면 다음 방법 중 하나를 사용해야 합니다:
+-- 1) Supabase Dashboard에서 수동 생성
+-- 2) auth.users 테이블에 직접 INSERT (보안상 권장하지 않음)
+-- 3) Supabase Admin API 사용
+
+-- 임시로 auth.users에 직접 삽입하는 방법 (개발 환경에서만!)
+-- 실제로는 Supabase Dashboard 또는 API를 사용해야 합니다
+
+-- ============================================
+-- 2. Employee 레코드 생성
+-- ============================================
+
+-- 테스트 사용자 ID들 (UUID)
+-- 실제 사용 시 Supabase Auth에서 생성된 UUID로 교체해야 합니다
+
+-- 예시: 일반 사원 (level 1)
+-- INSERT INTO employee (
+--   id,
+--   department_id,
+--   role_id,
+--   name,
+--   email,
+--   phone,
+--   employment_date,
+--   status
+-- ) VALUES (
+--   'USER_UUID_HERE',  -- Supabase Auth에서 생성된 UUID
+--   1,                 -- department_id (실제 department ID로 교체)
+--   1,                 -- role_id (level 1 role의 ID로 교체)
+--   '김일반',
+--   'test.staff@example.com',
+--   '010-1111-1111',
+--   CURRENT_DATE,
+--   'active'
+-- );
+
+-- 예시: 팀 리더 (level 2)
+-- INSERT INTO employee (
+--   id,
+--   department_id,
+--   role_id,
+--   name,
+--   email,
+--   phone,
+--   employment_date,
+--   status
+-- ) VALUES (
+--   'USER_UUID_HERE',  -- Supabase Auth에서 생성된 UUID
+--   1,                 -- department_id
+--   2,                 -- role_id (level 2 role의 ID로 교체)
+--   '박팀장',
+--   'test.team@example.com',
+--   '010-2222-2222',
+--   CURRENT_DATE,
+--   'active'
+-- );
+
+-- 예시: 부서 리더 (level 3)
+-- INSERT INTO employee (
+--   id,
+--   department_id,
+--   role_id,
+--   name,
+--   email,
+--   phone,
+--   employment_date,
+--   status
+-- ) VALUES (
+--   'USER_UUID_HERE',  -- Supabase Auth에서 생성된 UUID
+--   1,                 -- department_id
+--   3,                 -- role_id (level 3 role의 ID로 교체)
+--   '최부장',
+--   'test.dept@example.com',
+--   '010-3333-3333',
+--   CURRENT_DATE,
+--   'active'
+-- );
+
+-- 예시: 사업부 리더 (level 4)
+-- INSERT INTO employee (
+--   id,
+--   department_id,
+--   role_id,
+--   name,
+--   email,
+--   phone,
+--   employment_date,
+--   status
+-- ) VALUES (
+--   'USER_UUID_HERE',  -- Supabase Auth에서 생성된 UUID
+--   1,                 -- department_id
+--   4,                 -- role_id (level 4 role의 ID로 교체)
+--   '정본부장',
+--   'test.biz@example.com',
+--   '010-4444-4444',
+--   CURRENT_DATE,
+--   'active'
+-- );
+
+-- 예시: HR (level 5)
+-- INSERT INTO employee (
+--   id,
+--   department_id,
+--   role_id,
+--   name,
+--   email,
+--   phone,
+--   employment_date,
+--   status
+-- ) VALUES (
+--   'USER_UUID_HERE',  -- Supabase Auth에서 생성된 UUID
+--   2,                 -- HR department_id
+--   5,                 -- role_id (HR role의 ID로 교체)
+--   '이인사',
+--   'test.hr@example.com',
+--   '010-5555-5555',
+--   CURRENT_DATE,
+--   'active'
+-- );
+
+-- ============================================
+-- 실제 사용 가이드:
+-- ============================================
+-- 1. 먼저 현재 role과 department 데이터 확인:
+--    SELECT * FROM role ORDER BY level;
+--    SELECT * FROM department;
+--
+-- 2. Supabase Dashboard에서 각 테스트 사용자 생성 (Email + Password)
+--    - test.staff@example.com (일반 사원용)
+--    - test.team@example.com (팀 리더용)
+--    - test.dept@example.com (부서 리더용)
+--    - test.biz@example.com (사업부 리더용)
+--    - test.hr@example.com (HR용)
+--
+-- 3. 생성된 각 사용자의 UUID 확인:
+--    SELECT id, email FROM auth.users WHERE email LIKE 'test.%@example.com';
+--
+-- 4. 위 템플릿의 'USER_UUID_HERE'를 실제 UUID로 교체
+-- 5. department_id와 role_id를 실제 값으로 교체
+-- 6. 주석 제거하고 실행

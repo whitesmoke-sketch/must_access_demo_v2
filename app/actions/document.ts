@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { createApprovalSteps } from './approval'
 
 interface ApprovalStep {
   order: number
@@ -33,6 +34,56 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
   try {
     const supabase = await createClient()
 
+    // 연차 신청의 경우 새로운 승인 시스템 사용
+    if (['annual_leave', 'half_day', 'reward_leave'].includes(data.document_type)) {
+      // 1. leave_request 생성
+      const { data: leaveRequest, error: leaveError } = await supabase
+        .from('leave_request')
+        .insert({
+          employee_id: data.employee_id,
+          leave_type: data.form_data.leave_type as string,
+          requested_days: data.form_data.requested_days as number,
+          start_date: data.form_data.start_date as string,
+          end_date: data.form_data.end_date as string,
+          half_day_slot: data.form_data.half_day_slot as string | undefined,
+          reason: data.form_data.reason as string,
+          status: 'pending',
+          requested_at: new Date().toISOString(),
+          current_step: 1,
+        })
+        .select('id')
+        .single()
+
+      if (leaveError) {
+        console.error('Leave request creation error:', leaveError)
+        return { success: false, error: leaveError.message }
+      }
+
+      // 2. 승인 단계 생성 (새로운 approval_step 테이블 사용)
+      const approverIds = data.approval_steps.map(step =>
+        step.isDelegated && step.delegateId ? step.delegateId : step.approverId
+      )
+
+      const approvalResult = await createApprovalSteps(
+        'leave',
+        leaveRequest.id,
+        approverIds
+      )
+
+      if (!approvalResult.success) {
+        console.error('Approval steps creation error:', approvalResult.error)
+        return { success: false, error: approvalResult.error || '승인 단계 생성 실패' }
+      }
+
+      // 3. 캐시 재검증
+      revalidatePath('/request')
+      revalidatePath('/leave/my-leave')
+      revalidatePath('/dashboard')
+
+      return { success: true, data: leaveRequest }
+    }
+
+    // 다른 문서 타입은 기존 방식 유지 (추후 마이그레이션 필요)
     // 1. 문서 제출 생성
     const { data: submission, error: submissionError } = await supabase
       .from('document_submission')
@@ -71,32 +122,8 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
       return { success: false, error: instanceError.message }
     }
 
-    // 3. 연차 신청인 경우 leave_request 테이블에도 저장
-    if (['annual_leave', 'half_day', 'reward_leave'].includes(data.document_type)) {
-      const { error: leaveError } = await supabase
-        .from('leave_request')
-        .insert({
-          employee_id: data.employee_id,
-          leave_type: data.form_data.leave_type,
-          requested_days: data.form_data.requested_days,
-          start_date: data.form_data.start_date,
-          end_date: data.form_data.end_date,
-          half_day_slot: data.form_data.half_day_slot,
-          reason: data.form_data.reason,
-          status: 'pending',
-          requested_at: new Date().toISOString(),
-          document_submission_id: submission.id,
-        })
-
-      if (leaveError) {
-        console.error('Leave request creation error:', leaveError)
-        // 연차 요청 생성 실패는 에러로 처리하지 않고 로그만 기록
-      }
-    }
-
-    // 4. 캐시 재검증
+    // 3. 캐시 재검증
     revalidatePath('/request')
-    revalidatePath('/leave/my-leave')
     revalidatePath('/dashboard')
 
     return { success: true, data: submission }

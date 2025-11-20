@@ -53,17 +53,33 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
       : role?.code === 'admin'
     : false
 
-  // 결재 대기 문서 (관리자만, RLS가 권한 확인)
+  // 결재 대기 문서 (내가 승인자인 문서, approval_step 기반)
   let pendingRequests: LeaveRequest[] = []
-  if (isAdmin) {
-    const { data } = await supabase
+
+  // approval_step에서 내가 승인자인 pending 건 조회
+  const { data: myApprovalSteps, error: approvalError } = await supabase
+    .from('approval_step')
+    .select('request_id, request_type, step_order, status')
+    .eq('approver_id', employeeId)
+    .eq('status', 'pending')
+    .eq('request_type', 'leave')
+    .limit(3)
+
+
+
+  if (myApprovalSteps && myApprovalSteps.length > 0) {
+    // approval_step의 request_id로 leave_request 조회
+    const requestIds = myApprovalSteps.map(s => s.request_id)
+    const { data: leaveRequests, error: leaveError } = await supabase
       .from('leave_request')
       .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(3)
+      .in('id', requestIds)
 
-    pendingRequests = (data || []) as LeaveRequest[]
+
+
+    if (leaveRequests) {
+      pendingRequests = leaveRequests as LeaveRequest[]
+    }
   }
 
   return (
@@ -110,8 +126,8 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
           </div>
         </div>
 
-        {/* 결재 대기 문서 (관리자만) */}
-        {isAdmin && (
+        {/* 결재 대기 문서 (내가 승인자인 문서) */}
+        {pendingRequests.length > 0 && (
           <div>
             <h4 className="font-semibold mb-3">결재 대기 문서</h4>
             <div className="space-y-2">

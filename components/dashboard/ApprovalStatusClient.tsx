@@ -102,13 +102,7 @@ export function ApprovalStatusClient({
         {/* 결재 대기 문서 탭 */}
         {approvalTab === 'pending' && (
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {!isAdmin ? (
-              <div className="text-center py-8">
-                <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
-                  관리자 권한이 필요합니다
-                </p>
-              </div>
-            ) : pendingRequests.length === 0 ? (
+            {pendingRequests.length === 0 ? (
               <div className="text-center py-8">
                 <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
                   결재할 문서가 없습니다
