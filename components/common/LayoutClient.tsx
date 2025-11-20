@@ -20,6 +20,7 @@ export function LayoutClient({ user, employee, children }: LayoutClientProps) {
     <div className="flex h-screen" style={{ backgroundColor: '#F8FAFC' }}>
       <Sidebar
         role={employee?.role?.code}
+        roleLevel={employee?.role?.level}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileMenuOpen}
