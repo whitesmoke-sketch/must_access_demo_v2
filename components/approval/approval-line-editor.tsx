@@ -4,7 +4,7 @@ import * as React from "react";
 import { X, ArrowUp, ArrowDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ApproverSelector, type Approver } from "@/components/approver-selector";
+import { ApproverSelector, type Approver } from "./approver-selector";
 import { cn } from "@/lib/utils";
 
 export interface ApprovalStep {

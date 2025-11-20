@@ -10,8 +10,8 @@ import { MemberCombobox } from '@/components/ui/member-combobox'
 import { User, Plus, Edit2, ChevronRight, Upload, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateDefaultApprovers } from '@/app/actions/approval'
-import { ApprovalTemplateLoadModal } from '@/components/approval-template-modal'
-import { ApprovalTemplateSaveModal } from '@/components/approval-template-save-modal'
+import { ApprovalTemplateLoadModal } from '@/components/approval/approval-template-modal'
+import { ApprovalTemplateSaveModal } from '@/components/approval/approval-template-save-modal'
 
 interface ApprovalStep {
   order: number
