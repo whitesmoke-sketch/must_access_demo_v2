@@ -906,3 +906,19 @@ CREATE TABLE meeting_room_booking_attendee (
 
 CREATE INDEX idx_attendee_booking ON meeting_room_booking_attendee(booking_id);
 CREATE INDEX idx_attendee_employee ON meeting_room_booking_attendee(employee_id);
+
+-- Add btree_gist extension for exclusion constraint
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- Add exclusion constraint to prevent overlapping bookings
+ALTER TABLE meeting_room_booking
+ADD CONSTRAINT no_overlapping_bookings
+EXCLUDE USING gist (
+  room_id WITH =,
+  booking_date WITH =,
+  tsrange(
+    (booking_date || ' ' || start_time::text)::timestamp,
+    (booking_date || ' ' || end_time::text)::timestamp
+  ) WITH &&
+)
+WHERE (status = 'confirmed');
