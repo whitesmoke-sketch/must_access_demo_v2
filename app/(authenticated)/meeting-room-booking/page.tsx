@@ -5,9 +5,10 @@ import { redirect } from 'next/navigation'
 export default async function MeetingRoomBookingPage({
   searchParams,
 }: {
-  searchParams: { roomId?: string }
+  searchParams: Promise<{ roomId?: string }>
 }) {
-  const roomId = searchParams.roomId
+  const params = await searchParams
+  const roomId = params.roomId
 
   if (!roomId) {
     redirect('/meeting-rooms')

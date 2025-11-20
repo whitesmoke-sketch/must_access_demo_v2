@@ -258,7 +258,6 @@ export async function getEmployees(searchTerm?: string) {
   let query = supabase
     .from('employee')
     .select('id, name, email, department:department_id(name)')
-    .eq('is_active', true)
     .order('name', { ascending: true })
 
   if (searchTerm) {
