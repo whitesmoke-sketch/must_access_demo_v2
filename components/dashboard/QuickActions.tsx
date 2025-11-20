@@ -3,26 +3,39 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { DoorOpen, Armchair, FileText } from 'lucide-react'
+import { toast } from 'sonner'
 
 const actions = [
   {
     icon: DoorOpen,
     label: '회의실 예약',
-    href: '/resources/meeting-rooms'
+    href: '/meeting-rooms',
+    implemented: true
   },
   {
     icon: Armchair,
     label: '좌석 등록',
-    href: '/resources/seats'
+    href: '/resources/seats',
+    implemented: false
   },
   {
     icon: FileText,
     label: '결재 문서',
-    href: '/documents'
+    href: '/documents',
+    implemented: false
   }
 ]
 
 export function QuickActions() {
+  const handleClick = (action: typeof actions[0]) => (e: React.MouseEvent) => {
+    if (!action.implemented) {
+      e.preventDefault()
+      toast.info('기능 준비중입니다', {
+        description: '곧 제공될 예정입니다.'
+      })
+    }
+  }
+
   return (
     <Card
       className="rounded-2xl"
@@ -47,11 +60,15 @@ export function QuickActions() {
           return (
             <Link
               key={action.href}
-              href={action.href}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-4 transition-all hover:brightness-95"
+              href={action.implemented ? action.href : '#'}
+              onClick={handleClick(action)}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-4 transition-all hover:brightness-95 ${
+                !action.implemented ? 'cursor-pointer' : ''
+              }`}
               style={{
                 backgroundColor: '#F6F8F9',
-                borderRadius: '8px'
+                borderRadius: '8px',
+                opacity: action.implemented ? 1 : 0.7
               }}
             >
               <Icon
