@@ -275,15 +275,23 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
 
   // Submit booking
   const handleSubmit = async () => {
-    if (!selectedTimeSlots.length) {
+    // Check if time is selected either via timeline or form fields
+    let calculatedStartTime: string
+    let calculatedEndTime: string
+
+    if (selectedTimeSlots.length > 0) {
+      // Time selected from timeline
+      const sortedSlots = [...selectedTimeSlots].sort()
+      calculatedStartTime = sortedSlots[0]
+      calculatedEndTime = addMinutes(sortedSlots[sortedSlots.length - 1], 30)
+    } else if (startTime && endTime) {
+      // Time entered in form fields
+      calculatedStartTime = startTime
+      calculatedEndTime = endTime
+    } else {
       toast.error('시간을 선택해주세요')
       return
     }
-
-    // Calculate start and end time from selectedTimeSlots
-    const sortedSlots = [...selectedTimeSlots].sort()
-    const calculatedStartTime = sortedSlots[0]
-    const calculatedEndTime = addMinutes(sortedSlots[sortedSlots.length - 1], 30)
 
     // Use default title if empty
     const bookingTitle = purpose.trim() || '회의'
