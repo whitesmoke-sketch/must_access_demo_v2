@@ -449,14 +449,12 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
     }
   }
 
-  // Time slots (09:00 ~ 18:00, 30min intervals)
+  // Time slots (00:00 ~ 23:30, 30min intervals) - 24 hour availability
   const timeSlots = useMemo(() => {
     const slots = []
-    for (let hour = 9; hour <= 18; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      if (hour < 18) {
-        slots.push(`${hour.toString().padStart(2, '0')}:30`)
-      }
+      slots.push(`${hour.toString().padStart(2, '0')}:30`)
     }
     return slots
   }, [])
