@@ -69,3 +69,42 @@ GRANT EXECUTE ON FUNCTION create_approval_steps(text, bigint, uuid[]) TO anon;
 GRANT EXECUTE ON FUNCTION create_approval_steps(text, bigint, uuid[]) TO service_role;
 
 COMMENT ON FUNCTION create_approval_steps IS 'Creates approval steps for a request with specified approvers in order';
+
+-- ================================================================
+-- 2. MEETING ROOM FUNCTIONS
+-- ================================================================
+
+-- Check for overlapping bookings
+-- Returns true if there's an overlap, false otherwise
+CREATE OR REPLACE FUNCTION check_booking_overlap(
+  p_room_id UUID,
+  p_booking_date DATE,
+  p_start_time TIME,
+  p_end_time TIME,
+  p_exclude_booking_id UUID DEFAULT NULL
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM meeting_room_booking
+    WHERE room_id = p_room_id
+      AND booking_date = p_booking_date
+      AND status = 'confirmed'
+      AND (p_exclude_booking_id IS NULL OR id != p_exclude_booking_id)
+      AND (
+        (p_start_time >= start_time AND p_start_time < end_time)
+        OR (p_end_time > start_time AND p_end_time <= end_time)
+        OR (p_start_time <= start_time AND p_end_time >= end_time)
+      )
+  );
+END;
+$$;
+
+-- Grant execution permissions
+GRANT EXECUTE ON FUNCTION check_booking_overlap(UUID, DATE, TIME, TIME, UUID) TO authenticated;
+
+COMMENT ON FUNCTION check_booking_overlap IS 'Checks if a booking time overlaps with existing confirmed bookings';
