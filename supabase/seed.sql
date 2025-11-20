@@ -1,25 +1,6 @@
 -- Test Data Seed
 -- Description: Create test accounts with proper auth and employee data
-
--- ================================================
--- 1. Roles (역할)
--- ================================================
-INSERT INTO role (id, name, code, level, description) VALUES
-(1, 'Super Admin', 'super_admin', 100, '시스템 최고 관리자'),
-(2, 'Admin', 'admin', 90, '관리자'),
-(3, 'Manager', 'manager', 50, '매니저'),
-(4, 'Employee', 'employee', 10, '일반 직원'),
-(5, 'Designer', 'designer', 10, '디자이너')
-ON CONFLICT (id) DO NOTHING;
-
--- ================================================
--- 2. Departments (부서)
--- ================================================
-INSERT INTO department (id, name, code) VALUES
-(1, '경영지원팀', 'ADMIN'),
-(2, '개발팀', 'DEV'),
-(3, '디자인팀', 'DESIGN')
-ON CONFLICT (id) DO NOTHING;
+-- Note: Roles and Departments are created by migration files, not here
 
 -- ================================================
 -- 3. Create Test Users using Supabase Auth Admin API
@@ -197,6 +178,16 @@ END $$;
 -- ================================================
 -- 4. Employees (직원 정보)
 -- ================================================
+-- Role IDs from migration:
+--   1: 일반사원 (employee, level 1)
+--   2: 팀리더 (team_leader, level 2)
+--   3: 부서리더 (department_leader, level 3)
+--   4: 사업리더 (business_leader, level 4)
+--   5: 대표 (ceo, level 5)
+--   6: HR (hr, level 5)
+-- Department IDs from migration:
+--   1: SI사업, 2: AI팀, 3: A-1팀, 8: HR팀 등
+
 INSERT INTO employee (
   id,
   department_id,
@@ -207,9 +198,9 @@ INSERT INTO employee (
   employment_date,
   status
 ) VALUES
-  ('a1111111-1111-1111-1111-111111111111', 1, 2, '관리자', 'admin@must.com', 'KR', '2024-01-01', 'active'),
-  ('e2222222-2222-2222-2222-222222222222', 2, 4, '김직원', 'employee@must.com', 'KR', '2024-03-01', 'active'),
-  ('d3333333-3333-3333-3333-333333333333', 3, 5, '박디자이너', 'designer@must.com', 'KR', '2024-06-01', 'active')
+  ('a1111111-1111-1111-1111-111111111111', 1, 5, '대표', 'admin@must.com', 'KR', '2020-01-01', 'active'),
+  ('e2222222-2222-2222-2222-222222222222', 3, 1, '김직원', 'employee@must.com', 'KR', '2023-03-01', 'active'),
+  ('d3333333-3333-3333-3333-333333333333', 8, 2, '박팀리더', 'designer@must.com', 'KR', '2022-06-01', 'active')
 ON CONFLICT (id) DO NOTHING;
 
 -- ================================================
@@ -230,23 +221,8 @@ ON CONFLICT (employee_id) DO NOTHING;
 -- ================================================
 -- 6. Permissions (권한)
 -- ================================================
-INSERT INTO permission (id, name, code, resource, action) VALUES
-(1, '직원 조회', 'employee.read', 'employee', 'read'),
-(2, '직원 생성', 'employee.create', 'employee', 'create'),
-(3, '직원 수정', 'employee.update', 'employee', 'update'),
-(4, '직원 삭제', 'employee.delete', 'employee', 'delete'),
-(5, '연차 조회', 'leave.read', 'leave', 'read'),
-(6, '연차 승인', 'leave.approve', 'leave', 'approve')
-ON CONFLICT (id) DO NOTHING;
-
--- ================================================
--- 7. Role-Permission Mapping (역할-권한 매핑)
--- ================================================
-INSERT INTO role_permission (role_id, permission_id) VALUES
--- Admin: all permissions
-(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6),
--- Employee: basic permissions
-(4, 1), (4, 5),
--- Designer: basic permissions
-(5, 1), (5, 5)
-ON CONFLICT DO NOTHING;
+-- Note: Permissions are managed through RLS policies based on role levels
+-- Level-based permissions:
+--   Level 1-2 (일반사원, 팀리더): employee menus only
+--   Level 3-4 (부서리더, 사업리더): admin menus
+--   Level 5 (대표, HR): all menus
