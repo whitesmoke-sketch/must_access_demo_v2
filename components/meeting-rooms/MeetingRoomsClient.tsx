@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { MeetingRoom as DBMeetingRoom, Booking, cancelBooking } from '@/app/actions/meeting-room'
+import { MeetingRoom as DBMeetingRoom, Booking, cancelBooking, getBookings } from '@/app/actions/meeting-room'
 import {
   Search,
   Users,
@@ -89,6 +89,52 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
 
   // Modal date state
   const [modalDate, setModalDate] = useState(new Date())
+
+  // Modal bookings state
+  const [modalBookings, setModalBookings] = useState<TimeSlot[]>([])
+  const [isLoadingModalBookings, setIsLoadingModalBookings] = useState(false)
+  const [modalBookingsError, setModalBookingsError] = useState<string | null>(null)
+
+  // Fetch bookings when modal date or selected room changes
+  useEffect(() => {
+    if (!bookingModalOpen || !selectedRoom) return
+
+    const fetchModalBookings = async () => {
+      setIsLoadingModalBookings(true)
+      setModalBookingsError(null)
+
+      try {
+        const dateString = modalDate.toISOString().split('T')[0]
+        const bookings = await getBookings(selectedRoom.id, dateString)
+
+        // Transform bookings to TimeSlot format
+        const timeSlots: TimeSlot[] = bookings.map((booking) => {
+          const attendees = [
+            booking.employee?.name || booking.booked_by,
+            ...(booking.attendees?.map((a) => a.employee.name) || []),
+          ]
+
+          return {
+            start: booking.start_time,
+            end: booking.end_time,
+            bookedBy: booking.employee?.name || booking.booked_by,
+            title: booking.title,
+            attendees,
+            bookingId: booking.id,
+          }
+        })
+
+        setModalBookings(timeSlots)
+      } catch (error) {
+        console.error('Failed to fetch modal bookings:', error)
+        setModalBookingsError('예약 정보를 불러오는데 실패했습니다.')
+      } finally {
+        setIsLoadingModalBookings(false)
+      }
+    }
+
+    fetchModalBookings()
+  }, [bookingModalOpen, selectedRoom, modalDate])
 
   // Transform DB data to UI format
   const meetingRooms = useMemo(() => {
@@ -918,125 +964,154 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
               </Button>
             </div>
 
-            {/* Timeline */}
-            <div className="space-y-1 max-h-96 overflow-y-auto">
-              {timeSlots.map((time) => {
-                const booking = isTimeSlotBooked(time, selectedRoom?.todayBookings)
-                const isBooked = !!booking
+            {/* Loading state */}
+            {isLoadingModalBookings && (
+              <div className="py-8 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="mt-2" style={{ fontSize: 'var(--font-size-caption)', color: '#5B6A72' }}>
+                  예약 정보를 불러오는 중...
+                </p>
+              </div>
+            )}
 
-                return (
-                  <div
-                    key={time}
-                    className="flex items-center gap-3 transition-all"
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      backgroundColor: isBooked ? 'rgba(99, 91, 255, 0.08)' : 'rgba(246, 248, 249, 0.5)',
-                      border: isBooked ? '1px solid rgba(99, 91, 255, 0.2)' : '1px solid transparent',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 'var(--font-size-caption)',
-                        fontWeight: 600,
-                        lineHeight: 1.4,
-                        color: isBooked ? 'var(--primary)' : '#5B6A72',
-                        minWidth: '50px',
-                      }}
-                    >
-                      {time}
-                    </div>
-                    {isBooked && booking ? (
-                      <>
-                        <div className="flex-1">
-                          <p
-                            style={{
-                              fontSize: 'var(--font-size-caption)',
-                              fontWeight: 600,
-                              lineHeight: 1.4,
-                              color: '#29363D',
-                            }}
-                          >
-                            {booking.title}
-                          </p>
-                          <p
-                            style={{
-                              fontSize: 'var(--font-size-caption)',
-                              lineHeight: 1.4,
-                              color: '#5B6A72',
-                              marginTop: '2px',
-                            }}
-                          >
-                            {booking.bookedBy} • {booking.start} - {booking.end}
-                          </p>
-                        </div>
-                        {booking.bookingId && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              if (confirm('이 예약을 취소하시겠습니까?')) {
-                                handleCancelBooking(booking.bookingId!)
-                              }
-                            }}
-                            style={{
-                              padding: '4px',
-                              height: 'auto',
-                              color: '#EF4444',
-                            }}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex-1">
-                        <p
-                          style={{
-                            fontSize: 'var(--font-size-caption)',
-                            lineHeight: 1.4,
-                            color: '#9BA4AB',
-                          }}
-                        >
-                          예약 가능
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* No bookings message */}
-            {(!selectedRoom?.todayBookings || selectedRoom.todayBookings.length === 0) && (
+            {/* Error state */}
+            {modalBookingsError && !isLoadingModalBookings && (
               <div
                 className="py-8 text-center rounded-lg"
                 style={{
-                  backgroundColor: '#F6F8F9',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
                 }}
               >
-                <Calendar className="w-10 h-10 mx-auto mb-2" style={{ color: '#A0ACB3' }} />
-                <p
-                  style={{
-                    fontSize: 'var(--font-size-body)',
-                    fontWeight: 500,
-                    lineHeight: 1.5,
-                    color: '#29363D',
-                  }}
-                >
-                  예약 내역 없음
-                </p>
-                <p
-                  className="mt-1"
-                  style={{
-                    fontSize: 'var(--font-size-caption)',
-                    lineHeight: 1.4,
-                    color: '#5B6A72',
-                  }}
-                >
-                  이 날짜에 예약된 일정이 없습니다
+                <p style={{ fontSize: 'var(--font-size-body)', fontWeight: 500, color: '#EF4444' }}>
+                  {modalBookingsError}
                 </p>
               </div>
+            )}
+
+            {/* Timeline */}
+            {!isLoadingModalBookings && !modalBookingsError && (
+              <>
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {timeSlots.map((time) => {
+                    const booking = isTimeSlotBooked(time, modalBookings)
+                    const isBooked = !!booking
+
+                    return (
+                      <div
+                        key={time}
+                        className="flex items-center gap-3 transition-all"
+                        style={{
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          backgroundColor: isBooked ? 'rgba(99, 91, 255, 0.08)' : 'rgba(246, 248, 249, 0.5)',
+                          border: isBooked ? '1px solid rgba(99, 91, 255, 0.2)' : '1px solid transparent',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 'var(--font-size-caption)',
+                            fontWeight: 600,
+                            lineHeight: 1.4,
+                            color: isBooked ? 'var(--primary)' : '#5B6A72',
+                            minWidth: '50px',
+                          }}
+                        >
+                          {time}
+                        </div>
+                        {isBooked && booking ? (
+                          <>
+                            <div className="flex-1">
+                              <p
+                                style={{
+                                  fontSize: 'var(--font-size-caption)',
+                                  fontWeight: 600,
+                                  lineHeight: 1.4,
+                                  color: '#29363D',
+                                }}
+                              >
+                                {booking.title}
+                              </p>
+                              <p
+                                style={{
+                                  fontSize: 'var(--font-size-caption)',
+                                  lineHeight: 1.4,
+                                  color: '#5B6A72',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                {booking.bookedBy} • {booking.start} - {booking.end}
+                              </p>
+                            </div>
+                            {booking.bookingId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (confirm('이 예약을 취소하시겠습니까?')) {
+                                    handleCancelBooking(booking.bookingId!)
+                                  }
+                                }}
+                                style={{
+                                  padding: '4px',
+                                  height: 'auto',
+                                  color: '#EF4444',
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex-1">
+                            <p
+                              style={{
+                                fontSize: 'var(--font-size-caption)',
+                                lineHeight: 1.4,
+                                color: '#9BA4AB',
+                              }}
+                            >
+                              예약 가능
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* No bookings message */}
+                {modalBookings.length === 0 && (
+                  <div
+                    className="py-8 text-center rounded-lg"
+                    style={{
+                      backgroundColor: '#F6F8F9',
+                    }}
+                  >
+                    <Calendar className="w-10 h-10 mx-auto mb-2" style={{ color: '#A0ACB3' }} />
+                    <p
+                      style={{
+                        fontSize: 'var(--font-size-body)',
+                        fontWeight: 500,
+                        lineHeight: 1.5,
+                        color: '#29363D',
+                      }}
+                    >
+                      예약 내역 없음
+                    </p>
+                    <p
+                      className="mt-1"
+                      style={{
+                        fontSize: 'var(--font-size-caption)',
+                        lineHeight: 1.4,
+                        color: '#5B6A72',
+                      }}
+                    >
+                      이 날짜에 예약된 일정이 없습니다
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex justify-end gap-2">
