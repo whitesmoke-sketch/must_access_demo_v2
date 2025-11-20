@@ -275,8 +275,8 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
 
   // Submit booking
   const handleSubmit = async () => {
-    if (!selectedTimeSlots.length || !purpose.trim()) {
-      toast.error('회의 제목과 시간을 선택해주세요')
+    if (!selectedTimeSlots.length) {
+      toast.error('시간을 선택해주세요')
       return
     }
 
@@ -285,12 +285,15 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     const calculatedStartTime = sortedSlots[0]
     const calculatedEndTime = addMinutes(sortedSlots[sortedSlots.length - 1], 30)
 
+    // Use default title if empty
+    const bookingTitle = purpose.trim() || '회의'
+
     setIsSubmitting(true)
 
     try {
       await createBooking({
         room_id: room.id,
-        title: purpose,
+        title: bookingTitle,
         description: '',
         booking_date: selectedDate,
         start_time: calculatedStartTime,
