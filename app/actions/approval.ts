@@ -676,10 +676,61 @@ export async function processApproval(
       } else {
         // 마지막 단계였으면 요청 승인 완료
         if (step.request_type === 'leave') {
+          // 1. 연차 신청 상태를 'approved'로 변경
           await supabase
             .from('leave_request')
-            .update({ status: 'approved' })
+            .update({ status: 'approved', approved_at: new Date().toISOString() })
             .eq('id', step.request_id)
+
+          // 2. 연차 정보 조회
+          const { data: leaveRequest, error: leaveError } = await supabase
+            .from('leave_request')
+            .select('employee_id, requested_days')
+            .eq('id', step.request_id)
+            .single()
+
+          if (leaveError) {
+            console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
+          }
+
+          if (leaveRequest) {
+            console.log('[연차 차감] 연차 정보:', leaveRequest)
+
+            // 3. 연차 잔액 차감
+            const { data: currentBalance, error: balanceError } = await supabase
+              .from('annual_leave_balance')
+              .select('used_days, remaining_days')
+              .eq('employee_id', leaveRequest.employee_id)
+              .single()
+
+            if (balanceError) {
+              console.error('[연차 차감] 잔액 조회 실패:', balanceError)
+            }
+
+            if (currentBalance) {
+              const newUsedDays = Number(currentBalance.used_days) + Number(leaveRequest.requested_days)
+              const newRemainingDays = Number(currentBalance.remaining_days) - Number(leaveRequest.requested_days)
+
+              console.log('[연차 차감] 현재:', currentBalance)
+              console.log('[연차 차감] 신청일수:', leaveRequest.requested_days)
+              console.log('[연차 차감] 새로운 값:', { newUsedDays, newRemainingDays })
+
+              const { error: updateError } = await supabase
+                .from('annual_leave_balance')
+                .update({
+                  used_days: newUsedDays,
+                  remaining_days: newRemainingDays,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('employee_id', leaveRequest.employee_id)
+
+              if (updateError) {
+                console.error('[연차 차감] 업데이트 실패:', updateError)
+              } else {
+                console.log('[연차 차감] 성공!')
+              }
+            }
+          }
         }
       }
     } else {

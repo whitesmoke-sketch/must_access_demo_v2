@@ -70,6 +70,37 @@ export async function approveLeaveRequest(requestId: number) {
       }
 
       console.log('✅ Final approval - Document approved!')
+
+      // 연차 잔액 차감 (Edge Function 호출)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+        const baseUrl = supabaseUrl.replace('/rest/v1', '')
+        const edgeFunctionUrl = `${baseUrl}/functions/v1/deduct-leave-balance`
+
+        console.log('[연차 차감] Edge Function 호출:', edgeFunctionUrl)
+
+        try {
+          const response = await fetch(edgeFunctionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ requestId })
+          })
+
+          const result = await response.json()
+
+          if (!response.ok || !result.success) {
+            console.error('[연차 차감] Edge Function 실패:', result.error)
+          } else {
+            console.log('[연차 차감] Edge Function 성공!')
+          }
+        } catch (error) {
+          console.error('[연차 차감] Edge Function 호출 오류:', error)
+        }
+      }
     } else {
       // 최종 승인자가 아닌 경우 → current_step만 다음으로 이동
       const { error: updateRequestError } = await supabase
