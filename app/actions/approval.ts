@@ -390,40 +390,52 @@ export async function generateDefaultApprovers(
 
     // 2. 상위 부서 체인을 따라 올라가며 리더 찾기
     let parentDept = currentDept.parent_department_id ? deptMap.get(currentDept.parent_department_id) : null
-    const targetLevels = [3, 4] // 부서리더, 사업리더
 
-    for (const targetLevel of targetLevels) {
+    // 최대 2단계 상위 부서까지 탐색 (부서장, 본부장)
+    for (let i = 0; i < 2; i++) {
       if (parentDept) {
-        // 해당 레벨의 role ID 조회
-        const { data: targetRole } = await supabase
-          .from('role')
-          .select('id')
-          .eq('level', targetLevel)
-          .single()
+        // 해당 부서에 소속된 모든 직원 조회
+        const { data: deptEmployees } = await supabase
+          .from('employee')
+          .select(`
+            id, name, email, department_id,
+            department:department_id (id, name, code, parent_department_id),
+            role:role_id (id, name, code, level)
+          `)
+          .eq('department_id', parentDept.id)
+          .eq('status', 'active')
 
-        if (targetRole) {
-          const { data: leader } = await supabase
-            .from('employee')
-            .select(`
-              id, name, email, department_id,
-              department:department_id (id, name, code, parent_department_id),
-              role:role_id (id, name, code, level)
-            `)
-            .eq('department_id', parentDept.id)
-            .eq('role_id', targetRole.id)
-            .eq('status', 'active')
-            .maybeSingle()
+        if (deptEmployees && deptEmployees.length > 0) {
+          // 가장 높은 level을 가진 직원 찾기
+          let highestLevelEmployee = deptEmployees[0]
 
-          if (leader && leader.department && leader.role) {
-            const dept = Array.isArray(leader.department) ? leader.department[0] : leader.department
-            const role = Array.isArray(leader.role) ? leader.role[0] : leader.role
+          for (const emp of deptEmployees) {
+            const empRole = Array.isArray(emp.role) ? emp.role[0] : emp.role
+            const highestRole = Array.isArray(highestLevelEmployee.role)
+              ? highestLevelEmployee.role[0]
+              : highestLevelEmployee.role
+
+            if (empRole && highestRole && empRole.level > highestRole.level) {
+              highestLevelEmployee = emp
+            }
+          }
+
+          if (highestLevelEmployee.department && highestLevelEmployee.role) {
+            const dept = Array.isArray(highestLevelEmployee.department)
+              ? highestLevelEmployee.department[0]
+              : highestLevelEmployee.department
+            const role = Array.isArray(highestLevelEmployee.role)
+              ? highestLevelEmployee.role[0]
+              : highestLevelEmployee.role
+
             approvers.push({
-              ...leader,
+              ...highestLevelEmployee,
               department: dept,
               role: role
             })
           }
         }
+
         // 다음 상위 부서로
         parentDept = parentDept.parent_department_id ? deptMap.get(parentDept.parent_department_id) : null
       }

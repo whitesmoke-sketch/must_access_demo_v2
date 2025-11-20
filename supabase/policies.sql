@@ -1,7 +1,15 @@
--- Unified RLS Policies
--- Migration: 20250120000001_unified_rls
--- Description: All RLS policies in one file for easier management
+-- ================================================================
+-- MUST ACCESS - ROW LEVEL SECURITY POLICIES
+-- ================================================================
+-- Purpose: All RLS policies for database security
+-- This file contains:
+-- - ALTER TABLE ENABLE ROW LEVEL SECURITY statements
+-- - CREATE POLICY statements for all tables
+-- - Access control rules for different user roles and permissions
+-- ================================================================
+-- Source: Unified from 20250120000001_unified_rls.sql
 -- Created: 2025-11-20
+-- ================================================================
 
 -- ================================================================
 -- 1. ENABLE RLS ON ALL TABLES
@@ -41,6 +49,61 @@ CREATE POLICY employee_select_others
 ON employee FOR SELECT
 TO authenticated
 USING (status = 'active');
+
+-- Managers (level >= 3) can insert employees
+CREATE POLICY "Managers can insert employees"
+ON employee FOR INSERT
+TO public
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM employee e
+    JOIN role r ON e.role_id = r.id
+    WHERE e.id = auth.uid()
+    AND r.level >= 3
+    AND e.status = 'active'
+  )
+);
+
+-- Managers (level >= 3) can update employees
+CREATE POLICY "Managers can update employees"
+ON employee FOR UPDATE
+TO public
+USING (
+  EXISTS (
+    SELECT 1
+    FROM employee e
+    JOIN role r ON e.role_id = r.id
+    WHERE e.id = auth.uid()
+    AND r.level >= 3
+    AND e.status = 'active'
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM employee e
+    JOIN role r ON e.role_id = r.id
+    WHERE e.id = auth.uid()
+    AND r.level >= 3
+    AND e.status = 'active'
+  )
+);
+
+-- Managers (level >= 3) can delete employees
+CREATE POLICY "Managers can delete employees"
+ON employee FOR DELETE
+TO public
+USING (
+  EXISTS (
+    SELECT 1
+    FROM employee e
+    JOIN role r ON e.role_id = r.id
+    WHERE e.id = auth.uid()
+    AND r.level >= 3
+    AND e.status = 'active'
+  )
+);
 
 -- ================================================================
 -- 3. ROLE & DEPARTMENT TABLES (Public Read)
@@ -125,6 +188,21 @@ ON annual_leave_balance FOR SELECT
 TO authenticated
 USING (employee_id = auth.uid());
 
+-- Managers (level >= 3) can insert leave balances
+CREATE POLICY "Managers can insert leave balances"
+ON annual_leave_balance FOR INSERT
+TO public
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM employee e
+    JOIN role r ON e.role_id = r.id
+    WHERE e.id = auth.uid()
+    AND r.level >= 3
+    AND e.status = 'active'
+  )
+);
+
 -- ================================================================
 -- 6. ANNUAL LEAVE GRANT POLICIES
 -- ================================================================
@@ -192,14 +270,29 @@ TO authenticated
 USING (approver_id = auth.uid());
 
 -- Users can update approval steps where they are the approver
+-- Only when status is 'pending' (from 20250119000020_lock_requests_after_submission.sql)
 CREATE POLICY approval_step_update_approver
 ON approval_step FOR UPDATE
 TO authenticated
 USING (approver_id = auth.uid() AND status = 'pending')
 WITH CHECK (approver_id = auth.uid());
 
+-- Approvers can approve or reject pending steps only once
+-- Once approved/rejected, cannot be changed again
+CREATE POLICY "Approvers can approve or reject pending steps only once"
+ON approval_step FOR UPDATE
+USING (
+  approver_id = auth.uid()
+  AND status = 'pending' -- Only pending status
+)
+WITH CHECK (
+  approver_id = auth.uid()
+  AND status IN ('approved', 'rejected') -- Can only change to approved or rejected
+  AND comment IS NOT NULL -- Comment is required
+);
+
 -- ================================================================
--- COMMENTS
+-- POLICY COMMENTS
 -- ================================================================
 
 COMMENT ON POLICY employee_select_own ON employee IS
@@ -210,3 +303,6 @@ COMMENT ON POLICY leave_request_select_own ON leave_request IS
 
 COMMENT ON POLICY leave_balance_select_own ON annual_leave_balance IS
 'Users can only view their own annual leave balance';
+
+COMMENT ON COLUMN approval_step.comment IS 'Approval/rejection reason (required, cannot be changed)';
+COMMENT ON COLUMN approval_step.status IS 'Can only change from pending to approved/rejected (no further changes allowed)';
