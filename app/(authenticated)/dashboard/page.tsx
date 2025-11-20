@@ -51,6 +51,7 @@ export default async function DashboardPage() {
   let pendingRequests: any[] = []
 
   try {
+
     // approval_step에서 나에게 할당된 pending 문서 조회
     const { data: myPendingSteps, error: stepsError } = await supabase
       .from('approval_step')
@@ -59,14 +60,18 @@ export default async function DashboardPage() {
       .eq('status', 'pending')
       .limit(10)
 
+
+
     if (!stepsError && myPendingSteps && myPendingSteps.length > 0) {
       const requestIds = myPendingSteps.map(step => step.request_id)
-      const { data } = await supabase
+      const { data, error: leaveError } = await supabase
         .from('leave_request')
         .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
         .in('id', requestIds)
         .order('created_at', { ascending: true })
         .limit(3)
+
+
 
       pendingRequests = data || []
     }

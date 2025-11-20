@@ -36,6 +36,12 @@ TO authenticated
 USING (id = auth.uid())
 WITH CHECK (id = auth.uid());
 
+-- Users can view other active employees (for approval line selection)
+CREATE POLICY employee_select_others
+ON employee FOR SELECT
+TO authenticated
+USING (status = 'active');
+
 -- ================================================================
 -- 3. ROLE & DEPARTMENT TABLES (Public Read)
 -- ================================================================
@@ -74,6 +80,19 @@ ON leave_request FOR UPDATE
 TO authenticated
 USING (employee_id = auth.uid() AND status = 'pending')
 WITH CHECK (employee_id = auth.uid());
+
+-- Approvers can view leave requests they need to approve
+CREATE POLICY leave_request_select_as_approver
+ON leave_request FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM approval_step
+    WHERE approval_step.request_type = 'leave'
+    AND approval_step.request_id = leave_request.id
+    AND approval_step.approver_id = auth.uid()
+  )
+);
 
 -- ================================================================
 -- 5. ANNUAL LEAVE BALANCE POLICIES

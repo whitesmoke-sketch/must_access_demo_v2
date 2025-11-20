@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
   try {
     // Parse request body
     const body = await req.json()
-    console.log('Received body:', JSON.stringify(body, null, 2))
 
     const { requestType, requestId, approvalSteps }: RequestBody = body
 
@@ -60,18 +59,30 @@ Deno.serve(async (req) => {
 
     // Start transaction-like operation
     // 1. Insert approval steps
-    const approvalStepsToInsert = approvalSteps.map(step => ({
-      request_type: requestType,
-      request_id: requestId,
-      step_order: step.order,
-      approver_id: step.approverId,
-      approver_name: step.approverName,
-      approver_position: step.approverPosition,
-      status: 'pending' as const,
-      is_delegated: step.isDelegated || false,
-      delegate_id: step.delegateId,
-      delegate_name: step.delegateName
-    }))
+    const approvalStepsToInsert = approvalSteps.map(step => {
+      // 대결인 경우: delegate_id를 approver_id로, 원래 approver_id를 original_approver_id로
+      if (step.isDelegated && step.delegateId) {
+        return {
+          request_type: requestType,
+          request_id: requestId,
+          step_order: step.order,
+          approver_id: step.delegateId,
+          original_approver_id: step.approverId,
+          status: 'pending' as const,
+          is_delegated: true
+        }
+      }
+
+      // 일반 승인인 경우
+      return {
+        request_type: requestType,
+        request_id: requestId,
+        step_order: step.order,
+        approver_id: step.approverId,
+        status: 'pending' as const,
+        is_delegated: false
+      }
+    })
 
     const { error: insertError } = await supabase
       .from('approval_step')
@@ -94,7 +105,7 @@ Deno.serve(async (req) => {
       .from(tableName)
       .update({
         current_step: 1,
-        approval_status: 'pending'
+        status: 'pending'
       })
       .eq('id', requestId)
 
