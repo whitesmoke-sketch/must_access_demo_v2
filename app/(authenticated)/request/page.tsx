@@ -2,8 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RequestForm } from '@/components/request/RequestForm'
 
-export default async function RequestPage() {
+export default async function RequestPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
   const supabase = await createClient()
+  const params = await searchParams
 
   // 인증 확인
   const { data: { user }, error } = await supabase.auth.getUser()
@@ -60,6 +65,7 @@ export default async function RequestPage() {
         currentUser={employee}
         balance={balance}
         members={members || []}
+        initialDocumentType={params.type}
       />
     </div>
   )

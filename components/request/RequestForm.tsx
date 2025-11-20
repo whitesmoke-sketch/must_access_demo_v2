@@ -81,14 +81,21 @@ interface RequestFormProps {
   currentUser: CurrentUser
   balance: Balance | null
   members: Member[]
+  initialDocumentType?: string
 }
 
-export function RequestForm({ currentUser, balance, members }: RequestFormProps) {
+export function RequestForm({ currentUser, balance, members, initialDocumentType }: RequestFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Validate and set initial document type
+  const validDocumentTypes: DocumentType[] = ['annual_leave', 'half_day', 'reward_leave', 'condolence', 'overtime', 'expense', 'other']
+  const initialType = initialDocumentType && validDocumentTypes.includes(initialDocumentType as DocumentType)
+    ? (initialDocumentType as DocumentType)
+    : ''
+
   // Step 1: 문서 유형
-  const [documentType, setDocumentType] = useState<DocumentType | ''>('')
+  const [documentType, setDocumentType] = useState<DocumentType | ''>(initialType)
 
   // 공통 필드
   const [title, setTitle] = useState('')

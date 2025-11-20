@@ -45,7 +45,7 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
             연차 요약
           </CardTitle>
           <Link
-            href="/leave/request"
+            href="/request?type=annual_leave"
             className="flex items-center gap-1 transition-opacity hover:opacity-80"
             style={{
               fontSize: '14px',
