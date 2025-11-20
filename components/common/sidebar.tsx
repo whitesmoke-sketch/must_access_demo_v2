@@ -87,9 +87,9 @@ export function Sidebar({
         id: 'meeting-rooms',
         label: '회의실 예약',
         icon: DoorOpen,
-        href: '/resources/meeting-rooms',
+        href: '/meeting-rooms',
         roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: false,
+        implemented: true,
       },
       {
         id: 'my-leave',
