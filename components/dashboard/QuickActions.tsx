@@ -22,7 +22,7 @@ const actions = [
     icon: FileText,
     label: '결재 문서',
     href: '/documents',
-    implemented: false
+    implemented: true
   }
 ]
 
