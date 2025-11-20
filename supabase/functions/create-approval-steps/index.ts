@@ -59,28 +59,17 @@ Deno.serve(async (req) => {
 
     // Start transaction-like operation
     // 1. Insert approval steps
-    const approvalStepsToInsert = approvalSteps.map(step => {
-      // 대결인 경우: delegate_id를 approver_id로, 원래 approver_id를 original_approver_id로
-      if (step.isDelegated && step.delegateId) {
-        return {
-          request_type: requestType,
-          request_id: requestId,
-          step_order: step.order,
-          approver_id: step.delegateId,
-          original_approver_id: step.approverId,
-          status: 'pending' as const,
-          is_delegated: true
-        }
-      }
+    const totalSteps = approvalSteps.length
+    const approvalStepsToInsert = approvalSteps.map((step, index) => {
+      const isLastStep = index === totalSteps - 1
 
-      // 일반 승인인 경우
       return {
         request_type: requestType,
         request_id: requestId,
         step_order: step.order,
         approver_id: step.approverId,
         status: 'pending' as const,
-        is_delegated: false
+        is_last_step: isLastStep
       }
     })
 

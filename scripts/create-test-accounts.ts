@@ -201,6 +201,20 @@ async function createEmployeeRecord(userId: string, account: TestAccount) {
   if (employeeError) {
     throw employeeError
   }
+
+  // annual_leave_balance 레코드 생성 (연차 100개)
+  const { error: balanceError } = await supabase
+    .from('annual_leave_balance')
+    .insert({
+      employee_id: userId,
+      total_days: 100.0,
+      used_days: 0.0,
+      remaining_days: 100.0
+    })
+
+  if (balanceError) {
+    throw balanceError
+  }
 }
 
 // 실행

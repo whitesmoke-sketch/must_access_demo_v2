@@ -94,6 +94,27 @@ USING (
   )
 );
 
+-- Approvers can update leave requests they are assigned to approve
+CREATE POLICY leave_request_update_as_approver
+ON leave_request FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM approval_step
+    WHERE approval_step.request_type = 'leave'
+    AND approval_step.request_id = leave_request.id
+    AND approval_step.approver_id = auth.uid()
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM approval_step
+    WHERE approval_step.request_type = 'leave'
+    AND approval_step.request_id = leave_request.id
+    AND approval_step.approver_id = auth.uid()
+  )
+);
+
 -- ================================================================
 -- 5. ANNUAL LEAVE BALANCE POLICIES
 -- ================================================================
