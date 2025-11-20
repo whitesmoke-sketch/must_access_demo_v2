@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,9 +13,12 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DocumentTypeSelector } from './DocumentTypeSelector'
 import { LeaveBalanceCards } from './LeaveBalanceCards'
-import { ApprovalLineSelector } from './ApprovalLineSelector'
+import { ApprovalLineEditor, type ApprovalStep as EditorApprovalStep } from '@/components/approval-line-editor'
+import { ApprovalTemplateLoadModal } from '@/components/approval-template-modal'
+import { ApprovalTemplateSaveModal } from '@/components/approval-template-save-modal'
 import { ReferenceSelector } from './ReferenceSelector'
 import { submitDocumentRequest } from '@/app/actions/document'
+import { generateDefaultApprovers } from '@/app/actions/approval'
 import { CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -30,7 +33,8 @@ type DocumentType =
   | 'expense'
   | 'other'
 
-interface ApprovalStep {
+// 서버 액션에 전달할 타입
+interface ServerApprovalStep {
   order: number
   approverId: string
   approverName: string
@@ -111,10 +115,56 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
   const [paymentMethod, setPaymentMethod] = useState('')
 
   // Step 3: 결재선
-  const [approvalSteps, setApprovalSteps] = useState<ApprovalStep[]>([])
+  const [approvalSteps, setApprovalSteps] = useState<EditorApprovalStep[]>([])
+  const [showLoadModal, setShowLoadModal] = useState(false)
+  const [showSaveModal, setShowSaveModal] = useState(false)
 
   // Step 4: 참조자
   const [referenceSteps, setReferenceSteps] = useState<ReferenceStep[]>([])
+
+  // 자동 결재선 생성 (컴포넌트 마운트 시)
+  useEffect(() => {
+    if (approvalSteps.length === 0) {
+      loadDefaultApprovers()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function loadDefaultApprovers() {
+    const result = await generateDefaultApprovers('leave')
+    if (result.success && result.data) {
+      const defaultSteps: EditorApprovalStep[] = result.data.map((approver) => ({
+        id: approver.id,
+        name: approver.name,
+        email: approver.email || '',
+        role: approver.role.name,
+        department: approver.department?.name || '',
+      }))
+      setApprovalSteps(defaultSteps)
+      toast.success('자동 결재선이 설정되었습니다')
+    }
+  }
+
+  function handleLoadTemplate(template: {
+    approvers: Array<{
+      id: string
+      name: string
+      email: string
+      role: string
+      department: string
+    }>
+  }) {
+    const loadedSteps: EditorApprovalStep[] = template.approvers.map((approver) => ({
+      id: approver.id,
+      name: approver.name,
+      email: approver.email,
+      role: approver.role,
+      department: approver.department,
+    }))
+    setApprovalSteps(loadedSteps)
+    toast.success('템플릿을 불러왔습니다')
+    setShowLoadModal(false)
+  }
 
   // 연차 관련 문서 여부
   const isLeaveType = documentType === 'annual_leave' || documentType === 'half_day' || documentType === 'reward_leave'
@@ -204,6 +254,14 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
     setIsSubmitting(true)
 
     try {
+      // 결재선을 서버 형식으로 변환
+      const serverApprovalSteps: ServerApprovalStep[] = approvalSteps.map((step, index) => ({
+        order: index + 1,
+        approverId: step.id,
+        approverName: step.name,
+        approverPosition: step.role,
+      }))
+
       // 폼 데이터 구성
       const formData: Record<string, unknown> = {
         title,
@@ -242,7 +300,7 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
         document_type: documentType,
         title,
         form_data: formData,
-        approval_steps: approvalSteps,
+        approval_steps: serverApprovalSteps,
         reference_steps: referenceSteps,
       })
 
@@ -573,12 +631,36 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
           </Card>
 
           {/* Step 3: 결재선 지정 */}
-          <ApprovalLineSelector
-            approvalSteps={approvalSteps}
-            setApprovalSteps={setApprovalSteps}
-            members={members}
-            currentUser={currentUser}
-          />
+          <Card className="rounded-2xl" style={{
+            borderRadius: 'var(--radius)',
+            boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
+          }}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--primary)', color: 'white' }}
+                >
+                  3
+                </div>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: 500,
+                  color: 'var(--card-foreground)',
+                  lineHeight: 1.5
+                }}>
+                  결재선 지정
+                </h3>
+              </div>
+              <ApprovalLineEditor
+                approvers={approvalSteps}
+                onApproversChange={setApprovalSteps}
+                onLoadTemplate={() => setShowLoadModal(true)}
+                onSaveTemplate={() => setShowSaveModal(true)}
+                showTemplateButtons={true}
+              />
+            </CardContent>
+          </Card>
 
           {/* Step 4: 참조자 지정 */}
           <ReferenceSelector
@@ -600,6 +682,22 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
           </div>
         </>
       )}
+
+      {/* 템플릿 불러오기 모달 */}
+      <ApprovalTemplateLoadModal
+        open={showLoadModal}
+        onOpenChange={setShowLoadModal}
+        requestType="leave"
+        onSelectTemplate={handleLoadTemplate}
+      />
+
+      {/* 템플릿 저장 모달 */}
+      <ApprovalTemplateSaveModal
+        open={showSaveModal}
+        onOpenChange={setShowSaveModal}
+        requestType="leave"
+        approvers={approvalSteps}
+      />
     </div>
   )
 }

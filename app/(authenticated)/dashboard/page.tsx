@@ -46,18 +46,32 @@ export default async function DashboardPage() {
       : role?.code === 'admin'
     : false
 
-  // 결재 대기 문서 (관리자만)
+  // 결재 대기 문서 (내가 결재해야 할 문서들)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let pendingRequests: any[] = []
-  if (isAdmin) {
-    const { data } = await supabase
-      .from('leave_request')
-      .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(3)
 
-    pendingRequests = data || []
+  try {
+    // approval_step에서 나에게 할당된 pending 문서 조회
+    const { data: myPendingSteps, error: stepsError } = await supabase
+      .from('approval_step')
+      .select('request_id')
+      .eq('approver_id', user.id)
+      .eq('status', 'pending')
+      .limit(10)
+
+    if (!stepsError && myPendingSteps && myPendingSteps.length > 0) {
+      const requestIds = myPendingSteps.map(step => step.request_id)
+      const { data } = await supabase
+        .from('leave_request')
+        .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
+        .in('id', requestIds)
+        .order('created_at', { ascending: true })
+        .limit(3)
+
+      pendingRequests = data || []
+    }
+  } catch (error) {
+    console.error('Failed to fetch pending requests:', error)
   }
 
   // 현재 날짜 및 시간

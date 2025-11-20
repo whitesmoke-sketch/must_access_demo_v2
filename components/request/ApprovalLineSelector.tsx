@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { MemberCombobox } from '@/components/ui/member-combobox'
-import { User, Plus, Edit2, ChevronRight } from 'lucide-react'
+import { User, Plus, Edit2, ChevronRight, Upload, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { generateDefaultApprovers } from '@/app/actions/approval'
+import { ApprovalTemplateLoadModal } from '@/components/approval-template-modal'
+import { ApprovalTemplateSaveModal } from '@/components/approval-template-save-modal'
 
 interface ApprovalStep {
   order: number
@@ -53,9 +56,50 @@ export function ApprovalLineSelector({
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [isDelegating, setIsDelegating] = useState(false)
   const [selectedId, setSelectedId] = useState('')
+  const [showLoadModal, setShowLoadModal] = useState(false)
+  const [showSaveModal, setShowSaveModal] = useState(false)
 
   // 결재 가능한 구성원만 필터링 (현재 사용자 제외)
   const approvalMembers = members.filter(m => m.id !== currentUser?.id)
+
+  // 자동 결재선 생성 (컴포넌트 마운트 시)
+  useEffect(() => {
+    if (approvalSteps.length === 0) {
+      loadDefaultApprovers()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function loadDefaultApprovers() {
+    const result = await generateDefaultApprovers('leave')
+    if (result.success && result.data) {
+      const defaultSteps: ApprovalStep[] = result.data.map((approver, index) => ({
+        order: index + 1,
+        approverId: approver.id,
+        approverName: approver.name,
+        approverPosition: approver.role.name
+      }))
+      setApprovalSteps(defaultSteps)
+      toast.success('자동 결재선이 설정되었습니다')
+    }
+  }
+
+  function handleLoadTemplate(template: {
+    approvers: Array<{
+      id: string
+      name: string
+      role: string
+    }>
+  }) {
+    const loadedSteps: ApprovalStep[] = template.approvers.map((approver, index) => ({
+      order: index + 1,
+      approverId: approver.id,
+      approverName: approver.name,
+      approverPosition: approver.role
+    }))
+    setApprovalSteps(loadedSteps)
+    toast.success('템플릿을 불러왔습니다')
+  }
 
   function openDialog(index: number | null, delegating: boolean = false) {
     setEditingIndex(index)
@@ -136,10 +180,22 @@ export function ApprovalLineSelector({
                 결재선 지정
               </h3>
             </div>
-            <Button variant="outline" size="sm" onClick={() => openDialog(null)}>
-              <Plus className="w-4 h-4 mr-2" />
-              결재자 추가
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowLoadModal(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                불러오기
+              </Button>
+              {approvalSteps.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => setShowSaveModal(true)}>
+                  <Save className="w-4 h-4 mr-2" />
+                  저장하기
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => openDialog(null)}>
+                <Plus className="w-4 h-4 mr-2" />
+                결재자 추가
+              </Button>
+            </div>
           </div>
 
           {approvalSteps.length === 0 ? (
@@ -281,6 +337,22 @@ export function ApprovalLineSelector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 템플릿 불러오기 모달 */}
+      <ApprovalTemplateLoadModal
+        open={showLoadModal}
+        onOpenChange={setShowLoadModal}
+        requestType="leave"
+        onSelectTemplate={handleLoadTemplate}
+      />
+
+      {/* 템플릿 저장 모달 */}
+      <ApprovalTemplateSaveModal
+        open={showSaveModal}
+        onOpenChange={setShowSaveModal}
+        requestType="leave"
+        approverIds={approvalSteps.map(step => step.approverId)}
+      />
     </>
   )
 }
