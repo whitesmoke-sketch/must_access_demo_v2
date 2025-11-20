@@ -835,3 +835,74 @@ CREATE TABLE welfare_approval (
 
 CREATE INDEX idx_wappr_request ON welfare_approval(welfare_request_id);
 CREATE INDEX idx_wappr_approver ON welfare_approval(approver_id);
+
+-- ================================================================
+-- 12. MEETING ROOM BOOKING
+-- ================================================================
+
+-- Meeting room table
+CREATE TABLE meeting_room (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  code VARCHAR(50) UNIQUE NOT NULL,
+  floor INTEGER NOT NULL,
+  capacity INTEGER NOT NULL,
+  location VARCHAR(200),
+  description TEXT,
+  photo_url TEXT,
+
+  -- Equipment
+  has_whiteboard BOOLEAN DEFAULT false,
+  has_monitor BOOLEAN DEFAULT false,
+  has_camera BOOLEAN DEFAULT false,
+  has_outlet BOOLEAN DEFAULT false,
+  has_hdmi BOOLEAN DEFAULT false,
+
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_meeting_room_code ON meeting_room(code);
+CREATE INDEX idx_meeting_room_floor ON meeting_room(floor);
+CREATE INDEX idx_meeting_room_active ON meeting_room(is_active);
+
+-- Meeting room booking table
+CREATE TABLE meeting_room_booking (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id UUID NOT NULL REFERENCES meeting_room(id) ON DELETE CASCADE,
+  booked_by UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+
+  booking_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+
+  status VARCHAR(20) DEFAULT 'confirmed',
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT valid_time_range CHECK (end_time > start_time)
+);
+
+CREATE INDEX idx_booking_room_date ON meeting_room_booking(room_id, booking_date);
+CREATE INDEX idx_booking_date_time ON meeting_room_booking(booking_date, start_time, end_time);
+CREATE INDEX idx_booking_employee ON meeting_room_booking(booked_by);
+CREATE INDEX idx_booking_status ON meeting_room_booking(status);
+
+-- Meeting room booking attendee table
+CREATE TABLE meeting_room_booking_attendee (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID NOT NULL REFERENCES meeting_room_booking(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  UNIQUE(booking_id, employee_id)
+);
+
+CREATE INDEX idx_attendee_booking ON meeting_room_booking_attendee(booking_id);
+CREATE INDEX idx_attendee_employee ON meeting_room_booking_attendee(employee_id);
