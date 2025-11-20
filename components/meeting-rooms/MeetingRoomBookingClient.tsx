@@ -312,6 +312,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
       })
 
       router.push('/meeting-rooms')
+      router.refresh() // Force server component to re-fetch data
     } catch (error: any) {
       console.error('Booking failed:', error)
       toast.error(error.message || '예약에 실패했습니다')
