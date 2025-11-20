@@ -13,7 +13,7 @@
  * 4. bizhead@test.com (정본부장 - 사업부장, level 4, 본사)
  * 5. hr@test.com (이인사 - HR, level 5, 인사팀)
  *
- * 모든 계정의 비밀번호: test1234
+ * 모든 계정의 비밀번호: password
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -47,7 +47,7 @@ interface TestAccount {
 const testAccounts: TestAccount[] = [
   {
     email: 'staff@test.com',
-    password: 'test1234',
+    password: 'password',
     name: '김사원',
     phone: '010-1111-1111',
     roleCode: 'employee',
@@ -55,7 +55,7 @@ const testAccounts: TestAccount[] = [
   },
   {
     email: 'teamlead@test.com',
-    password: 'test1234',
+    password: 'password',
     name: '박팀장',
     phone: '010-2222-2222',
     roleCode: 'team_leader',
@@ -63,7 +63,7 @@ const testAccounts: TestAccount[] = [
   },
   {
     email: 'depthead@test.com',
-    password: 'test1234',
+    password: 'password',
     name: '최부장',
     phone: '010-3333-3333',
     roleCode: 'department_head',
@@ -71,7 +71,7 @@ const testAccounts: TestAccount[] = [
   },
   {
     email: 'bizhead@test.com',
-    password: 'test1234',
+    password: 'password',
     name: '정본부장',
     phone: '010-4444-4444',
     roleCode: 'business_head',
@@ -79,7 +79,7 @@ const testAccounts: TestAccount[] = [
   },
   {
     email: 'hr@test.com',
-    password: 'test1234',
+    password: 'password',
     name: '이인사',
     phone: '010-5555-5555',
     roleCode: 'hr',
@@ -156,7 +156,7 @@ async function createTestAccounts() {
   console.log('생성된 계정 목록:')
   console.log('─'.repeat(60))
   testAccounts.forEach(acc => {
-    console.log(`${acc.name.padEnd(10)} | ${acc.email.padEnd(20)} | test1234`)
+    console.log(`${acc.name.padEnd(10)} | ${acc.email.padEnd(20)} | password`)
   })
   console.log('─'.repeat(60))
 }

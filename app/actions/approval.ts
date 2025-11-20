@@ -475,7 +475,7 @@ export async function generateDefaultApprovers(
 // ================================================
 
 /**
- * 신청서에 대한 승인 단계 생성
+ * 신청서에 대한 승인 단계 생성 (Edge Function 사용)
  */
 export async function createApprovalSteps(
   requestType: 'leave' | 'document',
@@ -489,30 +489,50 @@ export async function createApprovalSteps(
       return { success: false, error: '최소 1명의 승인자가 필요합니다' }
     }
 
-    // 승인 단계 생성
-    const steps = approvers.map((approverId, index) => ({
-      request_type: requestType,
-      request_id: requestId,
-      approver_id: approverId,
-      step_order: index + 1,
-      status: index === 0 ? 'pending' : 'waiting', // 첫 번째만 pending
-    }))
-
-    const { error } = await supabase
-      .from('approval_step')
-      .insert(steps)
-
-    if (error) {
-      console.error('Create approval steps error:', error)
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    // Get current user session for authentication
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return { success: false, error: '인증이 필요합니다' }
     }
 
-    // 해당 request의 current_step을 1로 설정
-    if (requestType === 'leave') {
-      await supabase
-        .from('leave_request')
-        .update({ current_step: 1 })
-        .eq('id', requestId)
+    // Edge Function 호출
+    console.log('ENV NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+    console.log('supabaseUrl:', supabaseUrl)
+    // REST API URL에서 /rest/v1 제거 (있는 경우에만)
+    const baseUrl = supabaseUrl.replace('/rest/v1', '')
+    console.log('baseUrl:', baseUrl)
+    const edgeFunctionUrl = `${baseUrl}/functions/v1/create-approval-steps`
+
+    console.log('Edge Function URL:', edgeFunctionUrl)
+
+    const requestBody = {
+      requestType,
+      requestId,
+      approvalSteps: approvers.map((approverId, index) => ({
+        order: index + 1,
+        approverId,
+        approverName: '', // Edge Function에서 채울 필요 없음 (DB에서 관계로 조회 가능)
+        approverPosition: '',
+      }))
+    }
+
+    console.log('Sending to Edge Function:', JSON.stringify(requestBody, null, 2))
+
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      console.error('Edge Function error:', result.error)
+      return { success: false, error: result.error || 'Edge Function 호출 실패' }
     }
 
     revalidatePath('/leave/my-leave')

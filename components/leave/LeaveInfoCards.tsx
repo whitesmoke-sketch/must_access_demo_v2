@@ -12,18 +12,35 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
 
   const currentYear = new Date().getFullYear()
 
+  console.log('Server  LeaveInfoCards - employeeId:', employeeId)
+  console.log('Server  SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log('Server  Using local?:', process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('127.0.0.1'))
+
+  // Check auth.uid()
+  const { data: { user } } = await supabase.auth.getUser()
+  console.log('Server  auth.uid():', user?.id)
+  console.log('Server  Match?:', user?.id === employeeId)
+
   // 연차 잔액 조회
-  const { data: balance } = await supabase
+  const { data: balance, error } = await supabase
     .from('annual_leave_balance')
-    .select('total_days, used_days, remaining_days, reward_leave_balance')
+    .select('total_days, used_days, remaining_days, expiring_soon_days')
     .eq('employee_id', employeeId)
-    .eq('year', currentYear)
-    .single()
+    .maybeSingle()
+
+  console.log('Server  LeaveInfoCards - balance:', balance)
+  console.log('Server  LeaveInfoCards - error:', error)
+
+  // Check all balances in database
+  const { data: allBalances } = await supabase
+    .from('annual_leave_balance')
+    .select('employee_id, total_days')
+  console.log('Server  All balances in DB:', allBalances)
 
   const totalDays = balance?.total_days || 0
   const usedDays = balance?.used_days || 0
   const remainingDays = balance?.remaining_days || 0
-  const rewardLeave = balance?.reward_leave_balance || 0
+  const rewardLeave = 0 // TODO: reward_leave 기능 추가 필요
 
   // 포상휴가 만료일 계산 (예시: 다음 분기 말)
   const now = new Date()

@@ -6,7 +6,7 @@ interface LeaveBalanceCardsProps {
   balance: {
     total_days: number
     used_days: number
-    remaining_days: number
+    remaining_days?: number
     reward_leave_balance?: number
   } | null
 }
@@ -15,6 +15,7 @@ export function LeaveBalanceCards({ balance }: LeaveBalanceCardsProps) {
   const totalDays = balance?.total_days || 0
   const usedDays = balance?.used_days || 0
   const remainingDays = balance?.remaining_days || 0
+  console.log(remainingDays)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
