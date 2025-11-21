@@ -306,3 +306,72 @@ COMMENT ON POLICY leave_balance_select_own ON annual_leave_balance IS
 
 COMMENT ON COLUMN approval_step.comment IS 'Approval/rejection reason (required, cannot be changed)';
 COMMENT ON COLUMN approval_step.status IS 'Can only change from pending to approved/rejected (no further changes allowed)';
+
+-- ================================================================
+-- 12. MEETING ROOM POLICIES
+-- ================================================================
+
+ALTER TABLE meeting_room ENABLE ROW LEVEL SECURITY;
+ALTER TABLE meeting_room_booking ENABLE ROW LEVEL SECURITY;
+ALTER TABLE meeting_room_booking_attendee ENABLE ROW LEVEL SECURITY;
+
+-- All authenticated users can view all active meeting rooms
+CREATE POLICY meeting_room_select_all
+ON meeting_room FOR SELECT
+TO authenticated
+USING (is_active = true);
+
+-- All authenticated users can view all bookings
+CREATE POLICY booking_select_all
+ON meeting_room_booking FOR SELECT
+TO authenticated
+USING (true);
+
+-- Users can create bookings
+CREATE POLICY booking_insert_own
+ON meeting_room_booking FOR INSERT
+TO authenticated
+WITH CHECK (booked_by = auth.uid());
+
+-- Users can update their own bookings
+CREATE POLICY booking_update_own
+ON meeting_room_booking FOR UPDATE
+TO authenticated
+USING (booked_by = auth.uid())
+WITH CHECK (booked_by = auth.uid());
+
+-- Users can delete their own bookings
+CREATE POLICY booking_delete_own
+ON meeting_room_booking FOR DELETE
+TO authenticated
+USING (booked_by = auth.uid());
+
+-- All authenticated users can view attendees
+CREATE POLICY attendee_select_all
+ON meeting_room_booking_attendee FOR SELECT
+TO authenticated
+USING (true);
+
+-- Only booking owner can add attendees
+CREATE POLICY attendee_insert_by_owner
+ON meeting_room_booking_attendee FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM meeting_room_booking
+    WHERE meeting_room_booking.id = booking_id
+    AND meeting_room_booking.booked_by = auth.uid()
+  )
+);
+
+-- Only booking owner can remove attendees
+CREATE POLICY attendee_delete_by_owner
+ON meeting_room_booking_attendee FOR DELETE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM meeting_room_booking
+    WHERE meeting_room_booking.id = booking_id
+    AND meeting_room_booking.booked_by = auth.uid()
+  )
+);

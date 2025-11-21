@@ -75,20 +75,30 @@ interface Balance {
   used_days: number
   remaining_days: number
   reward_leave_balance?: number
+  reward_total?: number
+  reward_used?: number
+  reward_remaining?: number
 }
 
 interface RequestFormProps {
   currentUser: CurrentUser
   balance: Balance | null
   members: Member[]
+  initialDocumentType?: string
 }
 
-export function RequestForm({ currentUser, balance, members }: RequestFormProps) {
+export function RequestForm({ currentUser, balance, members, initialDocumentType }: RequestFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Validate and set initial document type
+  const validDocumentTypes: DocumentType[] = ['annual_leave', 'half_day', 'reward_leave', 'condolence', 'overtime', 'expense', 'other']
+  const initialType = initialDocumentType && validDocumentTypes.includes(initialDocumentType as DocumentType)
+    ? (initialDocumentType as DocumentType)
+    : ''
+
   // Step 1: 문서 유형
-  const [documentType, setDocumentType] = useState<DocumentType | ''>('')
+  const [documentType, setDocumentType] = useState<DocumentType | ''>(initialType)
 
   // 공통 필드
   const [title, setTitle] = useState('')
@@ -208,10 +218,20 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
         return false
       }
 
-      const remainingDays = balance?.remaining_days || 0
-      if (calculatedDays > remainingDays) {
-        toast.error(`잔여 연차가 부족합니다 (필요: ${calculatedDays}일, 잔여: ${remainingDays}일)`)
-        return false
+      // 포상휴가인 경우 포상휴가 잔액 체크
+      if (documentType === 'reward_leave') {
+        const remainingReward = balance?.reward_remaining || 0
+        if (calculatedDays > remainingReward) {
+          toast.error(`잔여 포상휴가가 부족합니다 (필요: ${calculatedDays}일, 잔여: ${remainingReward}일)`)
+          return false
+        }
+      } else {
+        // 연차/반차인 경우 연차 잔액 체크
+        const remainingDays = balance?.remaining_days || 0
+        if (calculatedDays > remainingDays) {
+          toast.error(`잔여 연차가 부족합니다 (필요: ${calculatedDays}일, 잔여: ${remainingDays}일)`)
+          return false
+        }
       }
     }
 
@@ -364,7 +384,7 @@ export function RequestForm({ currentUser, balance, members }: RequestFormProps)
 
               {/* 연차 정보 카드 */}
               {isLeaveType && (
-                <LeaveBalanceCards balance={balance} />
+                <LeaveBalanceCards balance={balance} documentType={documentType} />
               )}
 
               {/* 제목 */}

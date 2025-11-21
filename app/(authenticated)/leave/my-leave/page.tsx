@@ -42,7 +42,7 @@ export default async function MyLeavePage() {
             내 연차 정보와 사용 현황을 확인하세요
           </p>
         </div>
-        <Link href="/leave/request">
+        <Link href="/request?type=annual_leave">
           <Button
             className="w-full sm:w-auto"
             style={{

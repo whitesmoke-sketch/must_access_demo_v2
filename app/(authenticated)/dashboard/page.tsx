@@ -4,6 +4,7 @@ import { WorkStatusCard } from '@/components/dashboard/WorkStatusCard'
 import { LeaveBalanceCard } from '@/components/dashboard/LeaveBalanceCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { ApprovalStatusClient } from '@/components/dashboard/ApprovalStatusClient'
+import { MyReservationsCard } from '@/components/dashboard/MyReservationsCard'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -113,20 +114,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 나의 예약 현황 - TODO: 구현 필요 */}
-        <div
-          className="rounded-2xl bg-muted/30 border-2 border-dashed border-muted-foreground/20 p-6 flex items-center justify-center"
-          style={{ height: '353.375px' }}
-        >
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground font-medium">
-              나의 예약 현황
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              추후 구현 예정
-            </p>
-          </div>
-        </div>
+        <MyReservationsCard employeeId={user.id} />
 
         <ApprovalStatusClient
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,6 +122,7 @@ export default async function DashboardPage() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           pendingRequests={pendingRequests as any}
           isAdmin={isAdmin}
+          userId={user.id}
         />
       </div>
     </div>

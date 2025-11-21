@@ -93,6 +93,18 @@ export default async function DocumentsPage() {
       .map(step => step.request_id) ?? []
   )
 
+  // 내가 관여한 모든 문서의 approval_step 상태 조회 (승인/반려한 것 포함)
+  const { data: myApprovalSteps } = await supabase
+    .from('approval_step')
+    .select('request_id, status')
+    .eq('approver_id', user.id)
+    .eq('request_type', 'leave')
+
+  // 문서별로 내 승인 상태를 매핑 (request_id -> status)
+  const myApprovalStatusMap = new Map(
+    myApprovalSteps?.map(step => [step.request_id, step.status]) ?? []
+  )
+
   return (
     <div className="space-y-6">
       <ApprovalDocumentsClient
@@ -100,6 +112,7 @@ export default async function DocumentsPage() {
         userId={user.id}
         approvalLevel={approvalLevel}
         myApprovalRequestIds={Array.from(myApprovalRequestIds)}
+        myApprovalStatusMap={Object.fromEntries(myApprovalStatusMap)}
       />
     </div>
   )

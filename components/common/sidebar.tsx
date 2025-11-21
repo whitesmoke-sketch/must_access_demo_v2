@@ -21,6 +21,7 @@ import {
   DoorOpen,
   UserCog,
   LayoutPanelLeft,
+  FileText,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -64,8 +65,8 @@ export function Sidebar({
         label: '관리자 대시보드',
         icon: LayoutDashboard,
         href: '/admin/dashboard',
-        roles: ['admin', 'super_admin'],
-        implemented: false,
+        roles: ['hr', 'admin', 'super_admin'],
+        implemented: true,
       },
       {
         id: 'seats',
@@ -87,9 +88,9 @@ export function Sidebar({
         id: 'meeting-rooms',
         label: '회의실 예약',
         icon: DoorOpen,
-        href: '/resources/meeting-rooms',
+        href: '/meeting-rooms',
         roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: false,
+        implemented: true,
       },
       {
         id: 'my-leave',
@@ -108,12 +109,20 @@ export function Sidebar({
         implemented: true,
       },
       {
-        id: 'leave',
+        id: 'my-documents',
+        label: '내 문서',
+        icon: FileText,
+        href: '/documents/my-documents',
+        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
+        implemented: false,
+      },
+      {
+        id: 'leave-management',
         label: '연차 관리',
         icon: Calendar,
-        href: '/admin/leave',
-        roles: ['admin', 'super_admin'],
-        implemented: false,
+        href: '/admin/leave-management',
+        roles: ['hr', 'admin', 'super_admin'],
+        implemented: true,
       },
       {
         id: 'approval-inbox',
@@ -121,7 +130,7 @@ export function Sidebar({
         icon: FileCheck,
         href: '/documents',
         roles: ['team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: false,
+        implemented: true,
       },
     ]
 

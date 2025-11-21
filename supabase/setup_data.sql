@@ -234,3 +234,27 @@ ON CONFLICT DO NOTHING;
 -- │   └── 디자인1팀 (DESIGN_TEAM1)
 -- └── 인사팀 (HR)
 -- ================================================================
+
+-- ================================================================
+-- 5. MEETING ROOMS SETUP
+-- ================================================================
+
+INSERT INTO meeting_room (code, name, floor, capacity, location, description, photo_url, has_whiteboard, has_monitor, has_camera, has_outlet, has_hdmi) VALUES
+  ('ROOM_2_1', 'Innovation Lab', 2, 6, '2층 동쪽', '혁신적인 아이디어 회의를 위한 공간', NULL, true, true, false, true, true),
+  ('ROOM_2_2', 'Creative Hub', 2, 8, '2층 서쪽', '창의적인 브레인스토밍을 위한 공간', NULL, true, true, true, true, true),
+  ('ROOM_3_1', 'Strategy Room', 3, 10, '3층 동쪽', '전략 회의를 위한 중형 회의실', NULL, true, true, true, true, true),
+  ('ROOM_3_2', 'Executive Suite', 3, 12, '3층 서쪽', '임원 회의를 위한 고급 회의실', NULL, true, true, true, true, true),
+  ('ROOM_6_1', 'Town Hall', 6, 50, '6층 중앙', '전사 회의를 위한 대형 홀', NULL, true, true, true, true, true),
+  ('ROOM_6_2', 'Conference A', 6, 20, '6층 동쪽', '대규모 컨퍼런스룸', NULL, true, true, true, true, true),
+  ('ROOM_6_3', 'Conference B', 6, 15, '6층 서쪽', '중대형 컨퍼런스룸', NULL, true, true, false, true, true)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  floor = EXCLUDED.floor,
+  capacity = EXCLUDED.capacity,
+  location = EXCLUDED.location,
+  description = EXCLUDED.description,
+  has_whiteboard = EXCLUDED.has_whiteboard,
+  has_monitor = EXCLUDED.has_monitor,
+  has_camera = EXCLUDED.has_camera,
+  has_outlet = EXCLUDED.has_outlet,
+  has_hdmi = EXCLUDED.has_hdmi;

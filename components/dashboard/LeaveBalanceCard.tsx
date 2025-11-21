@@ -21,11 +21,32 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
   }
 
   const remainingAnnual = balance?.remaining_days || 0
-  // const remainingReward = balance?.reward_leave_balance || 0
   const usedAnnual = (balance?.total_days || 0) - remainingAnnual
   const totalAnnual = balance?.total_days || 0
-  // const usedReward = 0 // TODO: DB에 used_reward_leave 컬럼 추가 필요
-  // const totalReward = balance?.reward_leave_balance || 0
+
+  // 포상휴가 조회
+  // 1. 부여된 포상휴가 합계
+  const { data: rewardGrants } = await supabase
+    .from('annual_leave_grant')
+    .select('granted_days')
+    .eq('employee_id', employeeId)
+    .in('grant_type', ['award_overtime', 'award_attendance'])
+    .eq('approval_status', 'approved')
+
+  const totalReward = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
+
+  // 2. 사용한 포상휴가 합계
+  const { data: rewardUsage } = await supabase
+    .from('leave_request')
+    .select('number_of_days')
+    .eq('employee_id', employeeId)
+    .eq('leave_type', 'award')
+    .eq('status', 'approved')
+
+  const usedReward = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
+
+  // 3. 잔여 포상휴가
+  const remainingReward = totalReward - usedReward
 
   return (
     <Card
@@ -45,7 +66,7 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
             연차 요약
           </CardTitle>
           <Link
-            href="/leave/request"
+            href="/request?type=annual_leave"
             className="flex items-center gap-1 transition-opacity hover:opacity-80"
             style={{
               fontSize: '14px',
@@ -80,17 +101,17 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
         </div>
 
         {/* 세로 구분선 */}
-        {/* <div
+        <div
           style={{
             width: '1px',
             height: '50px',
             backgroundColor: '#E5E8EB',
             alignSelf: 'center'
           }}
-        /> */}
+        />
 
         {/* 잔여 포상휴가 */}
-        {/* <div className="flex-1 flex flex-col gap-1.5">
+        <div className="flex-1 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
               잔여 포상휴가
@@ -107,7 +128,7 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
               {usedReward} / {totalReward}
             </p>
           </div>
-        </div> */}
+        </div>
       </CardContent>
     </Card>
   )

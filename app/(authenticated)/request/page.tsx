@@ -2,8 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RequestForm } from '@/components/request/RequestForm'
 
-export default async function RequestPage() {
+export default async function RequestPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
   const supabase = await createClient()
+  const params = await searchParams
 
   // 인증 확인
   const { data: { user }, error } = await supabase.auth.getUser()
@@ -26,6 +31,26 @@ export default async function RequestPage() {
     .select('total_days, used_days, remaining_days')
     .eq('employee_id', user.id)
     .single()
+
+  // 포상휴가 조회
+  const { data: rewardGrants } = await supabase
+    .from('annual_leave_grant')
+    .select('granted_days')
+    .eq('employee_id', user.id)
+    .in('grant_type', ['award_overtime', 'award_attendance'])
+    .eq('approval_status', 'approved')
+
+  const totalReward = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
+
+  const { data: rewardUsage } = await supabase
+    .from('leave_request')
+    .select('number_of_days')
+    .eq('employee_id', user.id)
+    .eq('leave_type', 'award')
+    .eq('status', 'approved')
+
+  const usedReward = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
+  const remainingReward = totalReward - usedReward
 
   // 구성원 목록 조회 (결재선용)
   const { data: members } = await supabase
@@ -58,8 +83,14 @@ export default async function RequestPage() {
       {/* 신청서 폼 */}
       <RequestForm
         currentUser={employee}
-        balance={balance}
+        balance={balance ? {
+          ...balance,
+          reward_total: totalReward,
+          reward_used: usedReward,
+          reward_remaining: remainingReward
+        } : null}
         members={members || []}
+        initialDocumentType={params.type}
       />
     </div>
   )

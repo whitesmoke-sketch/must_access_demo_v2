@@ -134,28 +134,43 @@ export function ApprovalDocumentDetailModal({
     setLoading(true)
     const supabase = createClient()
 
-    const { data, error } = await supabase
-      .from('approval_step')
-      .select(`
-        id,
-        step_order,
-        approver_id,
-        status,
-        comment,
-        approved_at,
-        created_at,
-        employee:approver_id (
-          name
-        )
-      `)
-      .eq('request_type', 'leave')
-      .eq('request_id', document.id)
-      .order('step_order', { ascending: true })
+    try {
+      // Get session for authentication
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        console.error('No session found')
+        setLoading(false)
+        return
+      }
 
-    if (error) {
+      // Call Edge Function to bypass RLS
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+      const baseUrl = supabaseUrl.replace('/rest/v1', '')
+      const edgeFunctionUrl = `${baseUrl}/functions/v1/get-approval-steps`
+
+      const response = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          requestType: 'leave',
+          requestId: document.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        console.error('Edge Function error:', result.error)
+        toast.error('결재 단계를 불러오는데 실패했습니다')
+      } else {
+        setApprovalSteps(result.data || [])
+      }
+    } catch (error) {
       console.error('Failed to fetch approval steps:', error)
-    } else {
-      setApprovalSteps(data || [])
+      toast.error('결재 단계를 불러오는데 실패했습니다')
     }
 
     setLoading(false)

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { ApprovalDocumentDetailModal } from '@/components/documents/ApprovalDocumentDetailModal'
 
 type LeaveStatus = 'pending' | 'approved' | 'rejected'
 type LeaveType = 'annual' | 'half_day' | 'reward'
@@ -24,14 +25,18 @@ interface ApprovalStatusClientProps {
   myRequests: LeaveRequest[]
   pendingRequests: LeaveRequest[]
   isAdmin: boolean
+  userId: string
 }
 
 export function ApprovalStatusClient({
   myRequests,
   pendingRequests,
-  isAdmin
+  isAdmin,
+  userId
 }: ApprovalStatusClientProps) {
   const [approvalTab, setApprovalTab] = useState<'pending' | 'requested'>('pending')
+  const [selectedDocument, setSelectedDocument] = useState<any | null>(null)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
 
   const getEmployeeName = (employee: LeaveRequest['employee']) => {
     if (!employee) return '알 수 없음'
@@ -113,6 +118,10 @@ export function ApprovalStatusClient({
                 <div
                   key={request.id}
                   className="p-4 flex items-center justify-between transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                  onClick={() => {
+                    setSelectedDocument(request)
+                    setIsDetailDialogOpen(true)
+                  }}
                 >
                   <div>
                     <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
@@ -143,6 +152,10 @@ export function ApprovalStatusClient({
                 <div
                   key={request.id}
                   className="p-4 flex items-center justify-between transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                  onClick={() => {
+                    setSelectedDocument(request)
+                    setIsDetailDialogOpen(true)
+                  }}
                 >
                   <div>
                     <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
@@ -159,6 +172,13 @@ export function ApprovalStatusClient({
           </div>
         )}
       </CardContent>
+
+      <ApprovalDocumentDetailModal
+        document={selectedDocument}
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        currentUserId={userId}
+      />
     </Card>
   )
 }
