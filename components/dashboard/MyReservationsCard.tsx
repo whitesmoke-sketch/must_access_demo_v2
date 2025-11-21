@@ -14,35 +14,47 @@ export async function MyReservationsCard({ employeeId }: MyReservationsCardProps
   // TODO: 사물함 예약 기능 구현 필요
   const lockerNumber = null
 
-  // 회의실 예약 조회 (현재 사용자가 예약한 것만, 미래 예약만)
-  const today = new Date().toISOString().split('T')[0]
-  const { data: bookings, error } = await supabase
-    .from('meeting_room_booking')
-    .select(`
-      id,
-      booking_date,
-      start_time,
-      end_time,
-      title,
-      room:room_id(name),
-      attendees:meeting_room_booking_attendee(
-        employee:employee_id(id, name)
-      )
-    `)
-    .eq('booked_by', employeeId)
-    .eq('status', 'confirmed')
-    .gte('booking_date', today)
-    .order('booking_date', { ascending: true })
-    .order('start_time', { ascending: true })
-    .limit(3)
+  // 회의실 예약 조회 (내가 예약한 것 + 내가 참석자인 것, Edge Function 사용)
+  let bookings: any[] = []
 
-  if (error) {
+  try {
+    // Get session for authentication
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      console.error('No session found')
+    } else {
+      // Call Edge Function to bypass RLS
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+      const baseUrl = supabaseUrl.replace('/rest/v1', '')
+      const edgeFunctionUrl = `${baseUrl}/functions/v1/get-my-bookings`
+
+      const response = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          employeeId
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        console.error('Edge Function error:', result.error)
+      } else {
+        bookings = result.data || []
+      }
+    }
+  } catch (error) {
     console.error('Failed to fetch meeting room bookings:', error)
   }
 
   // Transform data to match client component interface
   const meetingBookings = (bookings || []).map((booking: any) => ({
     id: booking.id,
+    booked_by: booking.booked_by,
     room_name: booking.room?.name || 'Unknown',
     booking_date: booking.booking_date,
     start_time: booking.start_time,
@@ -59,6 +71,7 @@ export async function MyReservationsCard({ employeeId }: MyReservationsCardProps
       seatNumber={seatNumber}
       lockerNumber={lockerNumber}
       meetingBookings={meetingBookings}
+      currentUserId={employeeId}
     />
   )
 }

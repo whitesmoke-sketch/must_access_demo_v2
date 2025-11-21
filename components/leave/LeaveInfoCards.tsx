@@ -40,13 +40,45 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
   const totalDays = balance?.total_days || 0
   const usedDays = balance?.used_days || 0
   const remainingDays = balance?.remaining_days || 0
-  const rewardLeave = 0 // TODO: reward_leave 기능 추가 필요
 
-  // 포상휴가 만료일 계산 (예시: 다음 분기 말)
+  // 포상휴가 조회
+  // 1. 부여된 포상휴가 합계
+  const { data: rewardGrants } = await supabase
+    .from('annual_leave_grant')
+    .select('granted_days, expiration_date')
+    .eq('employee_id', employeeId)
+    .in('grant_type', ['award_overtime', 'award_attendance'])
+    .eq('approval_status', 'approved')
+
+  console.log('Server  LeaveInfoCards - rewardGrants:', rewardGrants)
+
+  const totalRewardGranted = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
+
+  // 2. 사용한 포상휴가 합계
+  const { data: rewardUsage } = await supabase
+    .from('leave_request')
+    .select('number_of_days')
+    .eq('employee_id', employeeId)
+    .eq('leave_type', 'award')
+    .eq('status', 'approved')
+
+  console.log('Server  LeaveInfoCards - rewardUsage:', rewardUsage)
+
+  const totalRewardUsed = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
+
+  // 3. 잔여 포상휴가
+  const rewardLeave = totalRewardGranted - totalRewardUsed
+
+  // 4. 포상휴가 만료일 계산 (가장 가까운 만료일)
   const now = new Date()
-  const currentQuarter = Math.floor(now.getMonth() / 3)
-  const nextQuarterEndMonth = (currentQuarter + 1) * 3
-  const rewardExpiryDate = new Date(now.getFullYear(), nextQuarterEndMonth, 0)
+  const validGrants = rewardGrants?.filter(grant => {
+    const expiryDate = new Date(grant.expiration_date)
+    return expiryDate > now
+  }).sort((a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime())
+
+  const rewardExpiryDate = validGrants && validGrants.length > 0
+    ? new Date(validGrants[0].expiration_date)
+    : new Date(now.getFullYear(), now.getMonth() + 3, 0) // 기본값: 3개월 후
 
   const daysUntilExpiry = Math.ceil(
     (rewardExpiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)

@@ -39,7 +39,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
       // 연차 부여 이력 조회
       const { data: grants, error: grantsError } = await supabase
         .from('annual_leave_grant')
-        .select('granted_date, granted_days, reason')
+        .select('granted_date, granted_days, reason, grant_type')
         .eq('employee_id', employeeId)
         .order('granted_date', { ascending: false })
 
@@ -59,28 +59,37 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
     // 부여 이력 추가
     grants?.forEach((grant) => {
+      const isRewardLeave = grant.grant_type === 'award_overtime' || grant.grant_type === 'award_attendance'
       entries.push({
         id: `grant-${grant.granted_date}`,
         date: grant.granted_date,
         type: 'grant',
-        leaveType: '연차',
+        leaveType: isRewardLeave ? '포상휴가' : '연차',
         days: grant.granted_days,
-        description: grant.reason || `${currentYear}년 연차 부여`,
+        description: grant.reason || (isRewardLeave ? '포상휴가 부여' : `${currentYear}년 연차 부여`),
       })
     })
 
     // 사용 이력 추가
     requests?.forEach((req) => {
+      let leaveTypeLabel = '연차'
+      if (req.leave_type === 'annual') {
+        leaveTypeLabel = '연차'
+      } else if (req.leave_type === 'half_day') {
+        leaveTypeLabel = '반차'
+      } else if (req.leave_type === 'award') {
+        leaveTypeLabel = '포상휴가'
+      } else if (req.leave_type === 'sick') {
+        leaveTypeLabel = '병가'
+      } else {
+        leaveTypeLabel = req.leave_type // fallback to raw type
+      }
+
       entries.push({
         id: `use-${req.id}`,
         date: req.start_date, // 실제 연차 시작일 사용
         type: 'use',
-        leaveType:
-          req.leave_type === 'annual'
-            ? '연차'
-            : req.leave_type === 'half_day'
-              ? '반차'
-              : '포상휴가',
+        leaveType: leaveTypeLabel,
         days: req.requested_days,
         approver: '관리자', // TODO: Join with employee table for actual approver name
         status: req.status,

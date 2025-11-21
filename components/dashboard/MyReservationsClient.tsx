@@ -31,6 +31,7 @@ interface Attendee {
 
 interface MeetingRoomBooking {
   id: string
+  booked_by: string
   room_name: string
   booking_date: string
   start_time: string
@@ -43,12 +44,14 @@ interface MyReservationsClientProps {
   seatNumber: string | null
   lockerNumber: string | null
   meetingBookings: MeetingRoomBooking[]
+  currentUserId: string
 }
 
 export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
   seatNumber,
   lockerNumber,
   meetingBookings,
+  currentUserId,
 }) => {
   const router = useRouter()
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingRoomBooking | null>(null)
@@ -427,17 +430,19 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
                 >
                   닫기
                 </Button>
-                <Button
-                  className="flex-1"
-                  style={{
-                    backgroundColor: '#DC2626',
-                    color: '#FFFFFF',
-                  }}
-                  onClick={handleCancelBooking}
-                  disabled={isCancelling}
-                >
-                  {isCancelling ? '취소 중...' : '예약 취소'}
-                </Button>
+                {selectedMeeting.booked_by === currentUserId && (
+                  <Button
+                    className="flex-1"
+                    style={{
+                      backgroundColor: '#DC2626',
+                      color: '#FFFFFF',
+                    }}
+                    onClick={handleCancelBooking}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? '취소 중...' : '예약 취소'}
+                  </Button>
+                )}
               </div>
             </DialogBody>
           )}

@@ -62,6 +62,7 @@ interface ApprovalDocumentsClientProps {
   userId: string
   approvalLevel: number
   myApprovalRequestIds: number[]
+  myApprovalStatusMap: Record<number, string>
 }
 
 export function ApprovalDocumentsClient({
@@ -69,6 +70,7 @@ export function ApprovalDocumentsClient({
   userId,
   approvalLevel,
   myApprovalRequestIds,
+  myApprovalStatusMap,
 }: ApprovalDocumentsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | LeaveStatus>('all')
@@ -122,13 +124,14 @@ export function ApprovalDocumentsClient({
     setIsDetailDialogOpen(true)
   }
 
-  // 상태 뱃지
-  const getStatusBadge = (status: LeaveStatus) => {
+  // 상태 뱃지 (사용자별로 다르게 표시)
+  const getStatusBadge = (doc: ApprovalDocument) => {
     const styles = {
       pending: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
       approved: { backgroundColor: '#D1FAE5', color: '#10B981' },
       rejected: { backgroundColor: '#FEE2E2', color: '#EF4444' },
       cancelled: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
+      waiting: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
     }
 
     const labels = {
@@ -136,11 +139,35 @@ export function ApprovalDocumentsClient({
       approved: '승인',
       rejected: '반려',
       cancelled: '취소',
+      waiting: '대기중',
+    }
+
+    // 상태 표시 로직:
+    // 1. 문서가 최종 완료 상태(approved, rejected, cancelled)이면 → 문서 상태 우선 표시
+    // 2. 문서가 진행 중(pending)이면 → 내 승인 상태에 따라 표시
+    const myStatus = myApprovalStatusMap[doc.id]
+    let displayStatus: keyof typeof styles
+
+    if (doc.status === 'rejected' || doc.status === 'approved' || doc.status === 'cancelled') {
+      // 문서가 최종 완료되었으면 모든 사람에게 동일한 최종 상태 표시
+      displayStatus = doc.status
+    } else if (doc.status === 'pending' && myStatus) {
+      // 문서가 진행 중이고 내가 관여한 경우, 내 승인 상태에 따라 표시
+      if (myStatus === 'approved') {
+        displayStatus = 'approved'
+      } else if (myStatus === 'rejected') {
+        displayStatus = 'rejected'
+      } else {
+        displayStatus = 'pending'
+      }
+    } else {
+      // 기타 경우는 원래 문서 상태 표시
+      displayStatus = doc.status
     }
 
     return (
-      <Badge style={{ ...styles[status], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
-        {labels[status]}
+      <Badge style={{ ...styles[displayStatus], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+        {labels[displayStatus]}
       </Badge>
     )
   }
@@ -359,7 +386,7 @@ export function ApprovalDocumentsClient({
                           minute: '2-digit',
                         })}
                       </TableCell>
-                      <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                      <TableCell>{getStatusBadge(doc)}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"

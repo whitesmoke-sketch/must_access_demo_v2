@@ -122,6 +122,7 @@ export default async function DashboardPage() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           pendingRequests={pendingRequests as any}
           isAdmin={isAdmin}
+          userId={user.id}
         />
       </div>
     </div>

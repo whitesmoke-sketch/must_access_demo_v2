@@ -58,16 +58,20 @@ export default async function AdminDashboardPage() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect('/login');
 
-  // 관리자 권한 확인
+  // 관리자 권한 확인 (role.level >= 5)
   const { data: employee } = await supabase
     .from('employee')
-    .select('role_id(code)')
+    .select(`
+      id,
+      role_id,
+      role:role_id (
+        level
+      )
+    `)
     .eq('id', user.id)
     .single();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const roleCode = (employee?.role_id as any)?.code;
-  if (roleCode !== 'admin') {
+  if (!employee || !employee.role || (employee.role as any).level < 5) {
     redirect('/dashboard');
   }
 
