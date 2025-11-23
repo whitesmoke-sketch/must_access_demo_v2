@@ -752,3 +752,245 @@ export async function processApproval(
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
+
+// =====================================================
+// ORGANIZATION SNAPSHOT & VALIDATION FUNCTIONS
+// =====================================================
+
+/**
+ * Create organization snapshot for approval step
+ * Stores the employee's department, role, and hierarchy at approval creation time
+ */
+export async function createApprovalSnapshotForStep(
+  approvalStepId: string,
+  employeeId: string
+) {
+  try {
+    const supabase = await createClient()
+
+    // Get employee with department and role info
+    const { data: employee, error: employeeError } = await supabase
+      .from('employee')
+      .select(`
+        id,
+        name,
+        department_id,
+        department:department_id (
+          id,
+          name,
+          manager_id,
+          manager:manager_id (
+            name
+          )
+        ),
+        role:role_id (
+          id,
+          name,
+          level
+        )
+      `)
+      .eq('id', employeeId)
+      .is('deleted_at', null)
+      .single()
+
+    if (employeeError || !employee) {
+      console.error('Get employee for snapshot error:', employeeError)
+      return { success: false, error: 'Failed to get employee info' }
+    }
+
+    // Get department path
+    const { data: pathData, error: pathError } = await supabase
+      .rpc('get_department_path', { dept_id: employee.department_id })
+
+    const departmentPath = pathError ? employee.department.name : pathData
+
+    // Create snapshot
+    const { error: snapshotError } = await supabase
+      .from('approval_organization_snapshot')
+      .insert({
+        approval_step_id: approvalStepId,
+        employee_id: employee.id,
+        employee_name: employee.name,
+        department_id: employee.department_id,
+        department_name: employee.department.name,
+        department_path: departmentPath || employee.department.name,
+        role_id: employee.role.id,
+        role_name: employee.role.name,
+        role_level: employee.role.level,
+        manager_id: employee.department.manager_id,
+        manager_name: employee.department.manager?.name || null
+      })
+
+    if (snapshotError) {
+      console.error('Create snapshot error:', snapshotError)
+      return { success: false, error: snapshotError.message }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Create approval snapshot exception:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Validate approval chain
+ * Checks if all approvers in the approval steps are still valid
+ */
+export async function validateApprovalChain(approvalId: string) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Get all approval steps
+    const { data: steps, error: stepsError } = await supabase
+      .from('approval_step')
+      .select(`
+        id,
+        approver_id,
+        status,
+        step_order,
+        approver:approver_id (
+          id,
+          name,
+          status,
+          deleted_at,
+          department:department_id (
+            id,
+            name,
+            deleted_at
+          )
+        )
+      `)
+      .eq('approval_id', approvalId)
+      .order('step_order')
+
+    if (stepsError) {
+      console.error('Get approval steps error:', stepsError)
+      return { success: false, error: stepsError.message }
+    }
+
+    const issues = []
+
+    for (const step of steps || []) {
+      // Check if approver exists
+      if (!step.approver_id) {
+        issues.push({
+          step_id: step.id,
+          step_order: step.step_order,
+          issue: 'NO_APPROVER',
+          message: '결재자가 지정되지 않았습니다.'
+        })
+        continue
+      }
+
+      const approver = step.approver
+
+      // Check if approver is deleted/inactive
+      if (!approver || approver.deleted_at || approver.status !== 'active') {
+        issues.push({
+          step_id: step.id,
+          step_order: step.step_order,
+          approver_name: approver?.name || 'Unknown',
+          issue: 'INVALID_APPROVER',
+          message: '결재자가 비활성화 되었거나 퇴사했습니다.'
+        })
+      }
+
+      // Check if approver's department is deleted
+      if (approver && approver.department && approver.department.deleted_at) {
+        issues.push({
+          step_id: step.id,
+          step_order: step.step_order,
+          approver_name: approver.name,
+          department_name: approver.department.name,
+          issue: 'DELETED_DEPARTMENT',
+          message: '결재자의 부서가 삭제되었습니다.'
+        })
+      }
+    }
+
+    return {
+      success: true,
+      isValid: issues.length === 0,
+      issues,
+      message: issues.length === 0
+        ? '결재선이 유효합니다.'
+        : `${issues.length}개의 문제가 발견되었습니다.`
+    }
+  } catch (error: any) {
+    console.error('Validate approval chain exception:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Get approval snapshot
+ * Returns the organization structure at the time of approval step creation
+ */
+export async function getApprovalSnapshot(approvalStepId: string) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized', data: null }
+    }
+
+    const { data, error } = await supabase
+      .from('approval_organization_snapshot')
+      .select('*')
+      .eq('approval_step_id', approvalStepId)
+      .order('snapshot_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Get approval snapshot error:', error)
+      return { success: false, error: error.message, data: null }
+    }
+
+    return { success: true, data }
+  } catch (error: any) {
+    console.error('Get approval snapshot exception:', error)
+    return { success: false, error: error.message, data: null }
+  }
+}
+
+/**
+ * Bulk validate multiple approval chains
+ * Useful for checking multiple pending approvals at once
+ */
+export async function bulkValidateApprovalChains(approvalIds: string[]) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const results = await Promise.all(
+      approvalIds.map(id => validateApprovalChain(id))
+    )
+
+    const validCount = results.filter(r => r.success && r.isValid).length
+    const invalidCount = results.filter(r => r.success && !r.isValid).length
+    const errorCount = results.filter(r => !r.success).length
+
+    return {
+      success: true,
+      validCount,
+      invalidCount,
+      errorCount,
+      results
+    }
+  } catch (error: any) {
+    console.error('Bulk validate exception:', error)
+    return { success: false, error: error.message }
+  }
+}

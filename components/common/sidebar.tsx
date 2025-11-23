@@ -22,6 +22,7 @@ import {
   UserCog,
   LayoutPanelLeft,
   FileText,
+  Building2,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -135,6 +136,14 @@ export function Sidebar({
     ]
 
     const adminItems = [
+      {
+        id: 'organization-management',
+        label: '조직 관리',
+        icon: Building2,
+        href: '/admin/organization-management',
+        roles: ['hr', 'admin', 'super_admin'],
+        implemented: true,
+      },
       {
         id: 'employees',
         label: '조직구성원',
