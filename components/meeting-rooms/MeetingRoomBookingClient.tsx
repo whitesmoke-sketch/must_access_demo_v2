@@ -23,6 +23,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -194,10 +201,43 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     setSelectedDate(newDate.toISOString().split('T')[0])
   }
 
+  // Check if time is in selected range
+  const isTimeInSelectedRange = (time: string): boolean => {
+    if (selectedTimeSlots.length === 0) return false
+
+    const sorted = [...selectedTimeSlots].sort()
+    const minTime = sorted[0]
+    const maxTime = sorted[sorted.length - 1]
+
+    return time >= minTime && time <= maxTime
+  }
+
+  // Check if clicking this time would exceed 4 hours
+  const isTimeClickDisabled = (time: string): boolean => {
+    if (selectedTimeSlots.length === 0) return false
+    if (selectedTimeSlots.includes(time)) return false // Can always deselect
+
+    // Check if adding this time exceeds 4 hours
+    const newSlots = [...selectedTimeSlots, time].sort()
+    const minTime = newSlots[0]
+    const maxTime = newSlots[newSlots.length - 1]
+
+    // Calculate time difference in minutes
+    const [minHour, minMinute] = minTime.split(':').map(Number)
+    const [maxHour, maxMinute] = maxTime.split(':').map(Number)
+    const diffMinutes = (maxHour * 60 + maxMinute) - (minHour * 60 + minMinute)
+
+    // Maximum 4 hours (240 minutes)
+    return diffMinutes > 240
+  }
+
   // Timeline slot click
   const handleTimeSlotClick = (time: string) => {
     const booking = isTimeBooked(time)
     if (booking) return // Already booked, can't click
+
+    // Check if disabled due to 4-hour limit
+    if (isTimeClickDisabled(time)) return
 
     setSelectedTimeSlots((prev) => {
       if (prev.includes(time)) {
@@ -288,6 +328,24 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
       calculatedEndTime = endTime
     } else {
       toast.error('시간을 선택해주세요')
+      return
+    }
+
+    // Validate maximum 4 hours
+    const [startHour, startMinute] = calculatedStartTime.split(':').map(Number)
+    const [endHour, endMinute] = calculatedEndTime.split(':').map(Number)
+    const diffMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
+
+    if (diffMinutes > 240) {
+      toast.error('최대 예약 시간은 4시간입니다', {
+        description: '더 짧은 시간을 선택해주세요',
+      })
+      return
+    }
+
+    // Check if start time is before end time
+    if (diffMinutes <= 0) {
+      toast.error('종료 시간은 시작 시간보다 이후여야 합니다')
       return
     }
 
@@ -611,7 +669,8 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                 {timeSlots.map((time) => {
                   const booking = isTimeBooked(time)
                   const isBooked = !!booking
-                  const isSelected = selectedTimeSlots.includes(time)
+                  const isSelected = isTimeInSelectedRange(time)
+                  const isDisabled = isTimeClickDisabled(time)
 
                   return (
                     <div
@@ -620,21 +679,22 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       style={{
                         padding: '8px 12px',
                         borderRadius: '8px',
-                        backgroundColor: isBooked
+                        backgroundColor: isBooked || isDisabled
                           ? 'rgba(246, 248, 249, 0.5)'
                           : isSelected
                           ? 'rgba(99, 91, 255, 0.15)'
                           : 'rgba(41, 54, 61, 0.05)',
-                        cursor: isBooked ? 'not-allowed' : 'pointer',
+                        cursor: isBooked || isDisabled ? 'not-allowed' : 'pointer',
                         border: isSelected ? '2px solid var(--primary)' : '2px solid transparent',
+                        opacity: isDisabled ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        if (!isBooked && !isSelected) {
+                        if (!isBooked && !isSelected && !isDisabled) {
                           e.currentTarget.style.backgroundColor = 'rgba(41, 54, 61, 0.1)'
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isBooked && !isSelected) {
+                        if (!isBooked && !isSelected && !isDisabled) {
                           e.currentTarget.style.backgroundColor = 'rgba(41, 54, 61, 0.05)'
                         }
                       }}
@@ -645,7 +705,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                           fontSize: '14px',
                           fontWeight: 500,
                           lineHeight: 1.4,
-                          color: isBooked ? '#9BA4AB' : isSelected ? 'var(--primary)' : '#29363D',
+                          color: isBooked || isDisabled ? '#9BA4AB' : isSelected ? 'var(--primary)' : '#29363D',
                           minWidth: '50px',
                         }}
                       >
@@ -680,10 +740,10 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                               fontSize: '14px',
                               lineHeight: 1.4,
                               fontWeight: isSelected ? 500 : 400,
-                              color: isSelected ? 'var(--primary)' : '#29363D',
+                              color: isDisabled ? '#9BA4AB' : isSelected ? 'var(--primary)' : '#29363D',
                             }}
                           >
-                            {isSelected ? '선택됨' : '예약 가능'}
+                            {isDisabled ? '선택 불가' : isSelected ? '선택됨' : '예약 가능'}
                           </p>
                         </div>
                       )}
@@ -734,7 +794,6 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
               {/* Start time */}
               <div className="space-y-2">
                 <Label
-                  htmlFor="startTime"
                   style={{
                     fontSize: '16px',
                     fontWeight: 500,
@@ -743,18 +802,46 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                 >
                   시작 시간 *
                 </Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Select
+                    value={startTime.split(':')[0] || ''}
+                    onValueChange={(hour) => {
+                      const minute = startTime.split(':')[1] || '00'
+                      setStartTime(`${hour}:${minute}`)
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="시" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map((hour) => (
+                        <SelectItem key={hour} value={hour}>
+                          {hour}시
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={startTime.split(':')[1] || ''}
+                    onValueChange={(minute) => {
+                      const hour = startTime.split(':')[0] || '00'
+                      setStartTime(`${hour}:${minute}`)
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="분" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="00">00분</SelectItem>
+                      <SelectItem value="30">30분</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* End time */}
               <div className="space-y-2">
                 <Label
-                  htmlFor="endTime"
                   style={{
                     fontSize: '16px',
                     fontWeight: 500,
@@ -763,12 +850,41 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                 >
                   종료 시간 *
                 </Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Select
+                    value={endTime.split(':')[0] || ''}
+                    onValueChange={(hour) => {
+                      const minute = endTime.split(':')[1] || '00'
+                      setEndTime(`${hour}:${minute}`)
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="시" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map((hour) => (
+                        <SelectItem key={hour} value={hour}>
+                          {hour}시
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={endTime.split(':')[1] || ''}
+                    onValueChange={(minute) => {
+                      const hour = endTime.split(':')[0] || '00'
+                      setEndTime(`${hour}:${minute}`)
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="분" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="00">00분</SelectItem>
+                      <SelectItem value="30">30분</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Attendees */}
