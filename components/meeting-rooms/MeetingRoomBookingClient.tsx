@@ -201,7 +201,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     setSelectedDate(newDate.toISOString().split('T')[0])
   }
 
-  // Check if time is in selected range
+  // Check if time is in selected range (considering booked slots)
   const isTimeInSelectedRange = (time: string): boolean => {
     if (selectedTimeSlots.length === 0) return false
 
@@ -209,22 +209,63 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     const minTime = sorted[0]
     const maxTime = sorted[sorted.length - 1]
 
-    return time >= minTime && time <= maxTime
+    // Check if time is within range
+    if (time < minTime || time > maxTime) return false
+
+    // Check if there's a booking between minTime and this time
+    // If there is, this time should not be considered selected
+    for (const slot of timeSlots) {
+      if (slot >= minTime && slot < time) {
+        const booking = isTimeBooked(slot)
+        if (booking) {
+          // There's a booking before this time, so this time is not in continuous range
+          return false
+        }
+      }
+    }
+
+    return true
   }
 
-  // Check if clicking this time would exceed 4 hours
+  // Check if there's a booking between two times
+  const hasBookingBetween = (startTime: string, endTime: string): boolean => {
+    const [start, end] = [startTime, endTime].sort()
+
+    for (const slot of timeSlots) {
+      if (slot > start && slot < end) {
+        const booking = isTimeBooked(slot)
+        if (booking) return true
+      }
+    }
+    return false
+  }
+
+  // Check if clicking this time would exceed 4 hours or has booking between
   const isTimeClickDisabled = (time: string): boolean => {
     if (selectedTimeSlots.length === 0) return false
     if (selectedTimeSlots.includes(time)) return false // Can always deselect
 
+    const sorted = [...selectedTimeSlots].sort()
+    const minTime = sorted[0]
+    const maxTime = sorted[sorted.length - 1]
+
+    // Check if there's a booking between existing selections and this time
+    if (time < minTime) {
+      // Clicking before the current range
+      if (hasBookingBetween(time, minTime)) return true
+    } else if (time > maxTime) {
+      // Clicking after the current range
+      if (hasBookingBetween(maxTime, time)) return true
+    }
+
     // Check if adding this time exceeds 4 hours
     const newSlots = [...selectedTimeSlots, time].sort()
-    const minTime = newSlots[0]
-    const maxTime = newSlots[newSlots.length - 1]
+    const newMinTime = newSlots[0]
+    const newMaxTime = newSlots[newSlots.length - 1]
 
     // Calculate time difference in minutes
-    const [minHour, minMinute] = minTime.split(':').map(Number)
-    const [maxHour, maxMinute] = maxTime.split(':').map(Number)
+    const [minHour, minMinute] = newMinTime.split(':').map(Number)
+    const [maxHour, maxMinute] = newMaxTime.split(':').map(Number)
     const diffMinutes = (maxHour * 60 + maxMinute) - (minHour * 60 + minMinute)
 
     // Maximum 4 hours (240 minutes)
@@ -236,13 +277,37 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     const booking = isTimeBooked(time)
     if (booking) return // Already booked, can't click
 
-    // Check if disabled due to 4-hour limit
+    // Check if disabled due to 4-hour limit or booking between
     if (isTimeClickDisabled(time)) return
 
     setSelectedTimeSlots((prev) => {
-      if (prev.includes(time)) {
-        // Already selected, deselect
-        return prev.filter(t => t !== time)
+      // Check if this time is in the selected range (not just in the array)
+      const inRange = prev.length > 0 && isTimeInSelectedRange(time)
+
+      if (inRange) {
+        // Time is in selected range, deselect this time and clear one side
+        if (prev.length === 1) {
+          // Only one selected, just deselect it
+          return []
+        }
+
+        const sorted = [...prev].sort()
+        const minTime = sorted[0]
+        const maxTime = sorted[sorted.length - 1]
+
+        // Calculate middle point
+        const minMinutes = parseInt(minTime.split(':')[0]) * 60 + parseInt(minTime.split(':')[1])
+        const maxMinutes = parseInt(maxTime.split(':')[0]) * 60 + parseInt(maxTime.split(':')[1])
+        const clickMinutes = parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1])
+        const midMinutes = (minMinutes + maxMinutes) / 2
+
+        if (clickMinutes >= midMinutes) {
+          // Clicked on the right half, update maxTime to clicked time
+          return [minTime, time]
+        } else {
+          // Clicked on the left half, update minTime to clicked time
+          return [time, maxTime]
+        }
       } else {
         // Newly select
         return [...prev, time].sort()
