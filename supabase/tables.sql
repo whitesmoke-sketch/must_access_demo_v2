@@ -120,6 +120,38 @@ CREATE INDEX idx_employment_date ON employee(employment_date);
 ALTER TABLE department ADD COLUMN manager_id UUID REFERENCES employee(id);
 CREATE INDEX idx_dept_manager ON department(manager_id);
 
+-- Department history table
+CREATE TABLE department_history (
+  id BIGSERIAL PRIMARY KEY,
+  department_id BIGINT NOT NULL REFERENCES department(id) ON DELETE CASCADE,
+  field_name VARCHAR(100) NOT NULL,
+  old_value TEXT,
+  new_value TEXT,
+  changed_by UUID REFERENCES employee(id),
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_dept_history_dept ON department_history(department_id, changed_at DESC);
+CREATE INDEX idx_dept_history_changed_by ON department_history(changed_by);
+
+COMMENT ON TABLE department_history IS 'Audit trail for all department changes';
+
+-- Employee department history table
+CREATE TABLE employee_department_history (
+  id BIGSERIAL PRIMARY KEY,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  old_department_id BIGINT REFERENCES department(id),
+  new_department_id BIGINT REFERENCES department(id),
+  reason TEXT,
+  changed_by UUID REFERENCES employee(id),
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_emp_dept_history_emp ON employee_department_history(employee_id, changed_at DESC);
+CREATE INDEX idx_emp_dept_history_changed_by ON employee_department_history(changed_by);
+
+COMMENT ON TABLE employee_department_history IS 'History of employee department transfers';
+
 -- ================================================================
 -- 2. DOCUMENT TEMPLATE & APPROVAL WORKFLOW
 -- ================================================================
@@ -321,6 +353,43 @@ COMMENT ON COLUMN approval_step.request_type IS 'Request type: leave, document, 
 COMMENT ON COLUMN approval_step.request_id IS 'Actual request ID (BIGINT - leave_request.id, etc.)';
 COMMENT ON COLUMN approval_step.status IS 'waiting: pending turn, pending: current turn, approved: approved, rejected: rejected';
 COMMENT ON COLUMN approval_step.is_last_step IS 'Indicates if this is the final approval step for the request';
+
+-- Approval organization snapshot table
+CREATE TABLE approval_organization_snapshot (
+  id BIGSERIAL PRIMARY KEY,
+  approval_step_id UUID NOT NULL REFERENCES approval_step(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id),
+  employee_name TEXT NOT NULL,
+  department_id BIGINT NOT NULL,
+  department_name TEXT NOT NULL,
+  department_path TEXT NOT NULL,
+  role_id BIGINT NOT NULL,
+  role_name TEXT NOT NULL,
+  role_level INTEGER NOT NULL,
+  manager_id UUID REFERENCES employee(id),
+  manager_name TEXT,
+  snapshot_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_approval_snapshot_step ON approval_organization_snapshot(approval_step_id);
+CREATE INDEX idx_approval_snapshot_employee ON approval_organization_snapshot(employee_id);
+
+COMMENT ON TABLE approval_organization_snapshot IS 'Snapshot of organization structure at approval creation time';
+
+-- Approval step audit table
+CREATE TABLE approval_step_audit (
+  id BIGSERIAL PRIMARY KEY,
+  approval_step_id UUID NOT NULL REFERENCES approval_step(id) ON DELETE CASCADE,
+  old_approver_id UUID REFERENCES employee(id),
+  new_approver_id UUID REFERENCES employee(id),
+  change_reason TEXT,
+  changed_by UUID REFERENCES employee(id),
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_approval_step_audit_step ON approval_step_audit(approval_step_id, changed_at DESC);
+
+COMMENT ON TABLE approval_step_audit IS 'Audit trail for approval step changes (e.g., approver reassignment)';
 
 -- ================================================================
 -- 4. LEAVE MANAGEMENT
