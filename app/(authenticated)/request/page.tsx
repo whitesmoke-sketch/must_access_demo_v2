@@ -60,7 +60,7 @@ export default async function RequestPage({
     .order('name')
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-24">
+    <div className="space-y-6 pb-24">
       {/* 헤더 */}
       <div className="pb-4">
         <h2 style={{

@@ -58,10 +58,10 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
     const entries: LeaveLedgerEntry[] = []
 
     // 부여 이력 추가
-    grants?.forEach((grant) => {
+    grants?.forEach((grant, index) => {
       const isRewardLeave = grant.grant_type === 'award_overtime' || grant.grant_type === 'award_attendance'
       entries.push({
-        id: `grant-${grant.granted_date}`,
+        id: `grant-${grant.granted_date}-${grant.grant_type}-${index}`,
         date: grant.granted_date,
         type: 'grant',
         leaveType: isRewardLeave ? '포상휴가' : '연차',

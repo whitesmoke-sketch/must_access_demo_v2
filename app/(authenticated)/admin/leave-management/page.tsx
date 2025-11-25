@@ -35,14 +35,14 @@ export default async function LeaveManagementPage() {
     const data = await getLeaveManagementData()
 
     return (
-      <div className="container mx-auto p-6">
+      <div className="space-y-6">
         <LeaveManagementClient initialMembers={data.members} initialLeaveRequests={data.leaveRequests} />
       </div>
     )
   } catch (error) {
     console.error('Failed to load leave management data:', error)
     return (
-      <div className="container mx-auto p-6">
+      <div className="space-y-6">
         <div className="text-center py-12">
           <h2 className="text-xl font-semibold text-red-600">데이터를 불러오는데 실패했습니다</h2>
           <p className="text-gray-600 mt-2">{error instanceof Error ? error.message : '알 수 없는 오류'}</p>

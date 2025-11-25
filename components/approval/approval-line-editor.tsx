@@ -1,10 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { X, ArrowUp, ArrowDown, Plus } from "lucide-react";
+import { X, ChevronUp, ChevronDown, Plus, User, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ApproverSelector, type Approver } from "./approver-selector";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export interface ApprovalStep {
@@ -13,6 +16,15 @@ export interface ApprovalStep {
   email: string;
   role: string;
   department: string;
+  isDelegated?: boolean;
+  delegateId?: string;
+  delegateName?: string;
+}
+
+interface CurrentUser {
+  id: string;
+  name: string;
+  position?: string;
 }
 
 interface ApprovalLineEditorProps {
@@ -21,6 +33,7 @@ interface ApprovalLineEditorProps {
   onLoadTemplate?: () => void;
   onSaveTemplate?: () => void;
   showTemplateButtons?: boolean;
+  currentUser?: CurrentUser;
 }
 
 export function ApprovalLineEditor({
@@ -29,8 +42,12 @@ export function ApprovalLineEditor({
   onLoadTemplate,
   onSaveTemplate,
   showTemplateButtons = true,
+  currentUser,
 }: ApprovalLineEditorProps) {
   const [showSelector, setShowSelector] = React.useState(false);
+  const [showDelegateDialog, setShowDelegateDialog] = React.useState(false);
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
+  const [isDelegating, setIsDelegating] = React.useState(false);
 
   const handleAddApprover = (approver: Approver) => {
     const newApprover: ApprovalStep = {
@@ -42,15 +59,15 @@ export function ApprovalLineEditor({
     };
     onApproversChange([...approvers, newApprover]);
     setShowSelector(false);
+    toast.success('결재자 추가 완료', {
+      description: `${approver.name}님이 추가되었습니다.`,
+    });
   };
 
   const handleRemoveApprover = (index: number) => {
-    // 최소 1명은 유지
-    if (approvers.length <= 1) {
-      return;
-    }
     const updated = approvers.filter((_, i) => i !== index);
     onApproversChange(updated);
+    toast.success('결재자가 제거되었습니다');
   };
 
   const handleMoveUp = (index: number) => {
@@ -58,6 +75,7 @@ export function ApprovalLineEditor({
     const updated = [...approvers];
     [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
     onApproversChange(updated);
+    toast.success('결재 순서가 변경되었습니다');
   };
 
   const handleMoveDown = (index: number) => {
@@ -65,152 +83,316 @@ export function ApprovalLineEditor({
     const updated = [...approvers];
     [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
     onApproversChange(updated);
+    toast.success('결재 순서가 변경되었습니다');
+  };
+
+  const handleOpenEditDialog = (index: number, delegating: boolean = false) => {
+    setEditingIndex(index);
+    setIsDelegating(delegating);
+    setShowDelegateDialog(true);
+  };
+
+  const handleApproverChange = (approver: Approver) => {
+    if (editingIndex === null) return;
+
+    const updated = [...approvers];
+    if (isDelegating) {
+      // 대결자 지정
+      updated[editingIndex] = {
+        ...updated[editingIndex],
+        isDelegated: true,
+        delegateId: approver.id,
+        delegateName: approver.name,
+      };
+      toast.success('대결자 지정 완료', {
+        description: `${approver.name}님을 대결자로 지정했습니다.`,
+      });
+    } else {
+      // 결재자 교체
+      updated[editingIndex] = {
+        id: approver.id,
+        name: approver.name,
+        email: approver.email,
+        role: approver.role,
+        department: approver.department,
+        isDelegated: false,
+      };
+      toast.success('결재자 변경 완료', {
+        description: `${approver.name}님으로 변경했습니다.`,
+      });
+    }
+    onApproversChange(updated);
+    setShowDelegateDialog(false);
+    setEditingIndex(null);
   };
 
   // 이미 선택된 승인자 ID 목록
   const excludeIds = approvers.map((a) => a.id);
 
   return (
-    <Card className="p-4">
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold">결재선 지정</h3>
-            <span className="text-sm text-muted-foreground">
-              ({approvers.length}명)
-            </span>
+    <div className="space-y-6">
+      {/* 신청자 */}
+      {currentUser && (
+        <div className="flex items-center gap-4">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: 'var(--muted)' }}
+          >
+            <User className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
           </div>
-          {showTemplateButtons && (
-            <div className="flex gap-2">
-              {onLoadTemplate && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onLoadTemplate}
-                >
-                  불러오기
-                </Button>
-              )}
-              {onSaveTemplate && approvers.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onSaveTemplate}
-                >
-                  저장하기
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex-1">
+            <p style={{
+              fontSize: 'var(--font-size-body)',
+              fontWeight: 600,
+              color: 'var(--card-foreground)',
+              lineHeight: 1.5
+            }}>
+              {currentUser.name}
+            </p>
+            <p style={{
+              fontSize: 'var(--font-size-caption)',
+              color: 'var(--muted-foreground)',
+              lineHeight: 1.4
+            }}>
+              신청자{currentUser.position ? ` · ${currentUser.position}` : ''}
+            </p>
+          </div>
+          <Badge style={{
+            backgroundColor: 'rgba(22, 205, 199, 0.1)',
+            color: 'var(--secondary)',
+            fontSize: 'var(--font-size-caption)',
+          }}>
+            작성 중
+          </Badge>
         </div>
+      )}
 
-        {/* Approval Steps */}
-        <div className="space-y-2">
+      {/* 결재자 목록 */}
+      {approvers.length === 0 ? (
+        <div className="text-center py-8">
+          <p style={{
+            fontSize: 'var(--font-size-body)',
+            color: 'var(--muted-foreground)',
+            lineHeight: 1.5
+          }}>
+            결재선이 설정되지 않았습니다
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
           {approvers.map((approver, index) => (
             <div
               key={`${approver.id}-${index}`}
-              className="flex items-center gap-2"
+              className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 rounded-lg"
+              style={{ backgroundColor: '#F6F8F9' }}
             >
-              {/* Step Number */}
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                {index + 1}
-              </div>
-
-              {/* Approver Info */}
-              <div className="flex-1 rounded-md border bg-card p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{approver.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {approver.email}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {approver.role} · {approver.department}
-                    </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{
+                      backgroundColor: 'rgba(99, 91, 255, 0.2)',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: 'var(--primary)'
+                    }}
+                  >
+                    {index + 1}
                   </div>
-
-                  {/* Controls */}
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === approvers.length - 1}
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "h-8 w-8 p-0",
-                        approvers.length <= 1 &&
-                          "cursor-not-allowed opacity-50"
-                      )}
-                      onClick={() => handleRemoveApprover(index)}
-                      disabled={approvers.length <= 1}
-                      title={
-                        approvers.length <= 1
-                          ? "최소 1명의 승인자가 필요합니다"
-                          : "제거"
-                      }
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: 'rgba(99, 91, 255, 0.1)' }}
+                  >
+                    <User className="w-5 h-5" style={{ color: 'var(--primary)' }} />
                   </div>
                 </div>
+                <div className="flex-1">
+                  <p style={{
+                    fontSize: 'var(--font-size-body)',
+                    fontWeight: 600,
+                    color: 'var(--card-foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    {approver.isDelegated && approver.delegateName
+                      ? `${approver.delegateName} (대결)`
+                      : approver.name}
+                  </p>
+                  <p style={{
+                    fontSize: 'var(--font-size-caption)',
+                    color: 'var(--muted-foreground)',
+                    lineHeight: 1.4
+                  }}>
+                    결재자 · {approver.role}
+                    {approver.isDelegated && ` (원 결재자: ${approver.name})`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 w-full md:w-auto md:ml-auto justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleMoveUp(index)}
+                  disabled={index === 0}
+                  style={{ opacity: index === 0 ? 0.3 : 1 }}
+                  className="h-8 w-8 p-0"
+                  title="위로 이동"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleMoveDown(index)}
+                  disabled={index === approvers.length - 1}
+                  style={{ opacity: index === approvers.length - 1 ? 0.3 : 1 }}
+                  className="h-8 w-8 p-0"
+                  title="아래로 이동"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleOpenEditDialog(index, false)}
+                  className="h-8 w-8 p-0"
+                  title="결재자 변경"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveApprover(index)}
+                  className="h-8 w-8 p-0"
+                  title="제거"
+                >
+                  <Trash2 className="w-4 h-4" style={{ color: '#EF4444' }} />
+                </Button>
               </div>
             </div>
           ))}
         </div>
+      )}
 
-        {/* Add Approver */}
-        {showSelector ? (
-          <div className="space-y-2">
-            <ApproverSelector
-              onSelectApprover={handleAddApprover}
-              excludeIds={excludeIds}
-              placeholder="승인자를 검색하거나 선택하세요"
-            />
+      {/* 결재자 추가 */}
+      <div className="flex items-center justify-between">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowSelector(!showSelector)}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          결재자 추가
+        </Button>
+
+        {showTemplateButtons && (
+          <div className="flex gap-2">
+            {onLoadTemplate && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onLoadTemplate}
+              >
+                템플릿 불러오기
+              </Button>
+            )}
+            {onSaveTemplate && approvers.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onSaveTemplate}
+              >
+                템플릿 저장
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 결재자 선택기 */}
+      {showSelector && (
+        <div className="space-y-2">
+          <ApproverSelector
+            onSelectApprover={handleAddApprover}
+            excludeIds={excludeIds}
+            placeholder="결재자를 검색하거나 선택하세요"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSelector(false)}
+          >
+            취소
+          </Button>
+        </div>
+      )}
+
+      {/* 결재자 변경/대결자 지정 다이얼로그 */}
+      <Dialog open={showDelegateDialog} onOpenChange={setShowDelegateDialog}>
+        <DialogContent style={{ backgroundColor: '#F8FAFC' }}>
+          <DialogHeader>
+            <DialogTitle style={{
+              fontSize: 'var(--font-size-h2)',
+              fontWeight: 'var(--font-weight-h2)',
+              lineHeight: 1.3
+            }}>
+              {isDelegating ? '대결자 지정' : '결재자 변경'}
+            </DialogTitle>
+            <DialogDescription style={{
+              fontSize: 'var(--font-size-body)',
+              lineHeight: 1.5
+            }}>
+              {isDelegating
+                ? '결재를 대신 처리할 대결자를 선택하세요'
+                : '새로운 결재자를 선택하세요'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '16px',
+            boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
+          }}>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label style={{
+                  fontSize: 'var(--font-size-body)',
+                  fontWeight: 500,
+                  lineHeight: 1.5
+                }}>
+                  {isDelegating ? '대결자 선택 *' : '결재자 선택 *'}
+                </Label>
+                <ApproverSelector
+                  onSelectApprover={handleApproverChange}
+                  excludeIds={excludeIds}
+                  placeholder="구성원 검색 및 선택"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSelector(false)}
+              variant="outline"
+              onClick={() => {
+                setShowDelegateDialog(false);
+                setEditingIndex(null);
+              }}
             >
               취소
             </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => setShowSelector(true)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            승인자 추가
-          </Button>
-        )}
-      </div>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

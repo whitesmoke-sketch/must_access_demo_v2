@@ -19,7 +19,7 @@ import { ApprovalTemplateSaveModal } from '@/components/approval/approval-templa
 import { ReferenceSelector } from './ReferenceSelector'
 import { submitDocumentRequest } from '@/app/actions/document'
 import { generateDefaultApprovers } from '@/app/actions/approval'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, Upload, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -124,6 +124,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [expenseAmount, setExpenseAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
 
+  // 첨부파일
+  const [attachments, setAttachments] = useState<File[]>([])
+
   // Step 3: 결재선
   const [approvalSteps, setApprovalSteps] = useState<EditorApprovalStep[]>([])
   const [showLoadModal, setShowLoadModal] = useState(false)
@@ -132,16 +135,28 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   // Step 4: 참조자
   const [referenceSteps, setReferenceSteps] = useState<ReferenceStep[]>([])
 
-  // 자동 결재선 생성 (컴포넌트 마운트 시)
+  // 문서 유형 선택 시 자동 결재선 생성 (기타 문서는 제외)
   useEffect(() => {
-    if (approvalSteps.length === 0) {
-      loadDefaultApprovers()
+    if (documentType && documentType !== 'other') {
+      loadDefaultApprovers(documentType)
+    } else if (documentType === 'other') {
+      // 기타 문서는 결재선을 비움
+      setApprovalSteps([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [documentType])
 
-  async function loadDefaultApprovers() {
-    const result = await generateDefaultApprovers('leave')
+  async function loadDefaultApprovers(docType: DocumentType) {
+    // 문서 유형에 따라 결재 타입 결정
+    let approvalType = 'leave' // 기본값
+    if (docType === 'expense') {
+      approvalType = 'expense'
+    } else if (docType === 'overtime') {
+      approvalType = 'overtime'
+    }
+    // annual_leave, half_day, reward_leave, condolence 등은 모두 'leave'로 처리
+
+    const result = await generateDefaultApprovers(approvalType)
     if (result.success && result.data) {
       const defaultSteps: EditorApprovalStep[] = result.data.map((approver) => ({
         id: approver.id,
@@ -336,6 +351,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // 첨부파일 처리
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      setAttachments([...attachments, ...Array.from(files)])
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index))
   }
 
   const handleCancel = () => {
@@ -647,6 +674,56 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
                 />
               </div>
+
+              {/* 첨부파일 */}
+              <div className="space-y-2">
+                <Label htmlFor="attachments">첨부파일</Label>
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('fileInput')?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    파일 선택
+                  </Button>
+                  <input
+                    id="fileInput"
+                    type="file"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+
+                  {attachments.length > 0 && (
+                    <div className="space-y-2">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 rounded-lg"
+                          style={{ backgroundColor: 'var(--muted)' }}
+                        >
+                          <span style={{
+                            fontSize: 'var(--font-size-caption)',
+                            color: 'var(--card-foreground)',
+                            lineHeight: 1.4
+                          }}>
+                            {file.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(index)}
+                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            <X className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -678,6 +755,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 onLoadTemplate={() => setShowLoadModal(true)}
                 onSaveTemplate={() => setShowSaveModal(true)}
                 showTemplateButtons={true}
+                currentUser={{
+                  id: currentUser.id,
+                  name: currentUser.name,
+                  position: currentUser.position,
+                }}
               />
             </CardContent>
           </Card>
