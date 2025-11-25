@@ -1,10 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { EmployeeWithRole } from '@/types/database'
+
+const ERROR_MESSAGES: Record<string, string> = {
+  'not-invited': '등록되지 않은 이메일입니다. 관리자에게 문의하세요.',
+  'system-error': '시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+  'auth-failed': '인증에 실패했습니다. 다시 시도해주세요.'
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,7 +18,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // URL 쿼리 파라미터에서 에러 읽기
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam && ERROR_MESSAGES[errorParam]) {
+      setError(ERROR_MESSAGES[errorParam])
+    }
+  }, [searchParams])
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -66,7 +81,12 @@ export default function LoginPage() {
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'openid email profile https://www.googleapis.com/auth/drive.file',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
         }
       })
 

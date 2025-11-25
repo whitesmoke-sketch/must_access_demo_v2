@@ -11,8 +11,7 @@ export interface CreateEmployeeData {
   employment_date: string
   phone?: string
   location?: string
-  annual_leave_days: number
-  used_days?: number
+  note?: string
 }
 
 export interface UpdateEmployeeData {
@@ -27,80 +26,74 @@ export interface UpdateEmployeeData {
 }
 
 /**
- * 구성원 생성
- * 주의: employee.id는 auth.users(id)를 참조하므로,
- * 먼저 Supabase Auth에서 사용자를 생성해야 합니다.
+ * 구성원 초대 (invited_employees에 등록)
+ * 실제 계정 생성은 사용자가 구글 로그인 시 자동으로 처리됩니다.
  */
 export async function createEmployee(data: CreateEmployeeData) {
   try {
     const supabase = await createClient()
-    const adminClient = createAdminClient()
 
-    // 1. Supabase Auth에서 사용자 생성 (임시 비밀번호 자동 생성)
-    const temporaryPassword = Math.random().toString(36).slice(-12) + 'Aa1!'
-
-    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-      email: data.email,
-      password: temporaryPassword,
-      email_confirm: true, // 이메일 인증 자동 완료
-      user_metadata: {
-        name: data.name,
-      },
-    })
-
-    if (authError) {
-      console.error('Auth user creation error:', authError)
-      return { success: false, error: `사용자 계정 생성 실패: ${authError.message}` }
+    // 현재 로그인한 사용자 확인 (invited_by 필드용)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: '인증되지 않은 사용자입니다.' }
     }
 
-    if (!authUser.user) {
-      return { success: false, error: '사용자 생성 실패' }
+    // 1. 이메일 중복 확인 (invited_employees)
+    const { data: existingInvitation } = await supabase
+      .from('invited_employees')
+      .select('id, status')
+      .eq('email', data.email)
+      .single()
+
+    if (existingInvitation) {
+      if (existingInvitation.status === 'pending') {
+        return { success: false, error: '이미 초대된 이메일입니다.' }
+      } else if (existingInvitation.status === 'registered') {
+        return { success: false, error: '이미 등록된 이메일입니다.' }
+      }
     }
 
-    // 2. employee 테이블에 구성원 정보 저장
-    const { data: employee, error: employeeError } = await supabase
+    // 2. 이메일 중복 확인 (employee)
+    const { data: existingEmployee } = await supabase
       .from('employee')
+      .select('id')
+      .eq('email', data.email)
+      .single()
+
+    if (existingEmployee) {
+      return { success: false, error: '이미 등록된 이메일입니다.' }
+    }
+
+    // 3. invited_employees 테이블에 초대 정보 저장
+    const { data: invitation, error: invitationError } = await supabase
+      .from('invited_employees')
       .insert({
-        id: authUser.user.id, // auth.users에서 생성된 UUID
-        name: data.name,
         email: data.email,
+        name: data.name,
         department_id: data.department_id,
         role_id: data.role_id,
         employment_date: data.employment_date,
         phone: data.phone,
         location: data.location,
-        status: 'active',
+        note: data.note,
+        status: 'pending',
+        invited_by: user.id,
       })
       .select()
       .single()
 
-    if (employeeError) {
-      console.error('Employee creation error:', employeeError)
-      // 롤백: auth 사용자 삭제
-      await adminClient.auth.admin.deleteUser(authUser.user.id)
-      return { success: false, error: `구성원 정보 저장 실패: ${employeeError.message}` }
-    }
-
-    // 3. annual_leave_balance 초기화
-    const { error: balanceError } = await supabase
-      .from('annual_leave_balance')
-      .insert({
-        employee_id: employee.id,
-        total_days: data.annual_leave_days,
-        used_days: data.used_days || 0,
-        remaining_days: data.annual_leave_days - (data.used_days || 0),
-      })
-
-    if (balanceError) {
-      console.error('Balance creation error:', balanceError)
-      // 롤백: employee 및 auth 사용자 삭제
-      await supabase.from('employee').delete().eq('id', employee.id)
-      await adminClient.auth.admin.deleteUser(employee.id)
-      return { success: false, error: `연차 잔액 초기화 실패: ${balanceError.message}` }
+    if (invitationError) {
+      console.error('Invitation creation error:', invitationError)
+      return { success: false, error: `초대 정보 저장 실패: ${invitationError.message}` }
     }
 
     revalidatePath('/admin/employees')
-    return { success: true, data: employee }
+    return {
+      success: true,
+      data: invitation,
+      message: '구성원 초대가 완료되었습니다. 해당 이메일로 구글 로그인 시 자동으로 가입됩니다.'
+    }
   } catch (error: any) {
     console.error('Create employee error:', error)
     return { success: false, error: error.message }

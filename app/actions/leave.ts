@@ -15,8 +15,8 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
   try {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { data: { user, session } } = await supabase.auth.getUser()
+    if (!user || !session) {
       return { success: false, error: '인증이 필요합니다' }
     }
 
@@ -45,10 +45,41 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
       return { success: false, error: error.message }
     }
 
+    // Edge Function 호출하여 PDF 생성 및 Google Drive에 업로드
+    let pdfUrl = null
+    console.log('[Leave Action] 연차 신청 생성 성공, PDF 생성 시작')
+    console.log('[Leave Action] Leave Request ID:', data.id)
+    console.log('[Leave Action] Provider Token 존재?', !!session.provider_token)
+    console.log('[Leave Action] Provider Token 길이:', session.provider_token?.length || 0)
+
+    try {
+      const { data: pdfResult, error: pdfError } = await supabase.functions.invoke(
+        'generate-leave-pdf',
+        {
+          body: {
+            leaveRequestId: data.id,
+            accessToken: session.provider_token, // Google OAuth Access Token
+          },
+        }
+      )
+
+      console.log('[Leave Action] Edge Function 응답:', { pdfResult, pdfError })
+
+      if (pdfError) {
+        console.error('[Leave Action] PDF generation failed:', pdfError)
+      } else if (pdfResult) {
+        pdfUrl = pdfResult.fileUrl
+        console.log('[Leave Action] PDF generated successfully:', pdfUrl)
+      }
+    } catch (pdfError) {
+      console.error('[Leave Action] PDF generation error:', pdfError)
+      // PDF 생성 실패해도 신청은 유지
+    }
+
     revalidatePath('/leave/my-leave')
     revalidatePath('/dashboard')
 
-    return { success: true, data }
+    return { success: true, data, pdfUrl }
   } catch (error: unknown) {
     console.error('Create leave request error:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
