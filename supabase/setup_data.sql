@@ -236,7 +236,69 @@ ON CONFLICT DO NOTHING;
 -- ================================================================
 
 -- ================================================================
--- 5. MEETING ROOMS SETUP
+-- 5. MASTER ADMIN EMPLOYEE RECORD (WITHOUT AUTH)
+-- ================================================================
+-- NOTE: This is the employee record only. Auth user must be created separately
+-- using scripts/create-master-account.ts
+--
+-- WHY? Auth users require Supabase Auth Admin API for proper password hashing,
+-- email verification, and token management. Direct SQL INSERT into auth.users
+-- will not work correctly.
+--
+-- For test accounts, use scripts/create-test-accounts.ts
+-- ================================================================
+
+-- Master Admin Employee Record
+INSERT INTO employee (
+  id,
+  department_id,
+  role_id,
+  name,
+  email,
+  phone,
+  employment_date,
+  status
+) VALUES (
+  '00000000-0000-0000-0000-000000000000',
+  (SELECT id FROM department WHERE code = 'HQ'),
+  (SELECT id FROM role WHERE code = 'admin'),
+  '시스템 관리자',
+  'admin@must-access.com',
+  '02-0000-0000',
+  '2025-01-01',
+  'active'
+) ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  email = EXCLUDED.email;
+
+-- Annual Leave Balance for Master Admin
+INSERT INTO annual_leave_balance (employee_id, total_days, used_days, remaining_days, year) VALUES
+  ('00000000-0000-0000-0000-000000000000', 25, 0, 25, EXTRACT(YEAR FROM CURRENT_DATE))
+ON CONFLICT (employee_id, year) DO UPDATE SET
+  total_days = EXCLUDED.total_days,
+  remaining_days = EXCLUDED.remaining_days;
+
+-- ================================================================
+-- IMPORTANT: CREATE AUTH USERS
+-- ================================================================
+-- After running this SQL, you MUST create auth users:
+--
+-- Method 1 (Recommended): Use the automated script
+--   ./scripts/reset-and-seed.sh
+--
+-- Method 2: Create auth users manually
+--   npx tsx scripts/create-master-account.ts    # Master admin
+--   npx tsx scripts/create-test-accounts.ts     # Test accounts
+--
+-- Master account credentials:
+--   - Email: admin@must-access.com
+--   - Password: Admin@2025!
+--
+-- Test accounts are created via scripts, not in this SQL file.
+-- ================================================================
+
+-- ================================================================
+-- 6. MEETING ROOMS SETUP
 -- ================================================================
 
 INSERT INTO meeting_room (code, name, floor, capacity, location, description, photo_url, has_whiteboard, has_monitor, has_camera, has_outlet, has_hdmi) VALUES

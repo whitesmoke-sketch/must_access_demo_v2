@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { LayoutClient } from '@/components/common/LayoutClient'
+import { getNotifications } from '@/app/actions/notification'
 import type { EmployeeWithRole } from '@/types/database'
 
 export default async function AuthenticatedLayout({
@@ -56,5 +57,8 @@ export default async function AuthenticatedLayout({
   // 타입 단언
   const employeeData = employee as unknown as EmployeeWithRole
 
-  return <LayoutClient user={user} employee={employeeData}>{children}</LayoutClient>
+  // 알림 목록 조회
+  const notifications = await getNotifications()
+
+  return <LayoutClient user={user} employee={employeeData} notifications={notifications}>{children}</LayoutClient>
 }

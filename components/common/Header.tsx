@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Badge } from '@/components/ui/badge'
+import NotificationDropdown from '@/components/NotificationDropdown'
+import type { Notification } from '@/app/actions/notification'
 import {
-  Bell,
   Menu,
   Search,
   Moon,
@@ -22,25 +22,22 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
-import type { EmployeeWithRole, UserStatus, Notification } from '@/types/database'
+import type { EmployeeWithRole, UserStatus } from '@/types/database'
 
 interface HeaderProps {
   user: SupabaseUser
   employee: EmployeeWithRole | null
+  notifications?: Notification[]
   onMobileMenuClick?: () => void
 }
 
-export function Header({ user, employee, onMobileMenuClick }: HeaderProps) {
+export function Header({ user, employee, notifications = [], onMobileMenuClick }: HeaderProps) {
   const router = useRouter()
   const supabase = createClient()
   const [darkMode, setDarkMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentLang, setCurrentLang] = useState<'KR' | 'EN'>('KR')
   const [currentStatus, setCurrentStatus] = useState<UserStatus>('online')
-
-  // Mock notifications - 추후 DB에서 조회
-  const [notifications] = useState<Notification[]>([])
-  const unreadCount = notifications.filter((n) => !n.read).length
 
   const getStatusInfo = (status: UserStatus) => {
     switch (status) {
@@ -200,70 +197,7 @@ export function Header({ user, employee, onMobileMenuClick }: HeaderProps) {
           </button>
 
           {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="relative p-2 rounded-lg transition-all"
-                style={{
-                  backgroundColor: 'var(--muted)',
-                  transitionDuration: '150ms',
-                  transitionTimingFunction: 'ease-in-out',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.filter = 'brightness(0.97)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.filter = 'brightness(1)'
-                }}
-              >
-                <Bell className="w-5 h-5" style={{ color: '#5B6A72' }} />
-                {unreadCount > 0 && (
-                  <Badge
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                    style={{ backgroundColor: '#635BFF' }}
-                  >
-                    {unreadCount}
-                  </Badge>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <div className="flex items-center justify-between px-4 py-3 border-b">
-                <span style={{ color: '#29363D' }}>알림</span>
-              </div>
-              <div className="max-h-96 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div
-                    className="px-4 py-8 text-center"
-                    style={{ color: '#5B6A72' }}
-                  >
-                    알림이 없습니다
-                  </div>
-                ) : (
-                  notifications.slice(0, 10).map((notification) => (
-                    <DropdownMenuItem
-                      key={notification.id}
-                      className="px-4 py-3"
-                      style={{
-                        backgroundColor: !notification.read
-                          ? '#E8F0FF'
-                          : 'transparent',
-                      }}
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm" style={{ color: '#29363D' }}>
-                          {notification.message}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: '#5B6A72' }}>
-                          {new Date(notification.timestamp).toLocaleString('ko-KR')}
-                        </p>
-                      </div>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationDropdown notifications={notifications} />
 
           {/* Profile Avatar */}
           <DropdownMenu>

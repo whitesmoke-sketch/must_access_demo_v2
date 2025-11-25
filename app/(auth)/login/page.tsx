@@ -82,7 +82,7 @@ export default function LoginPage() {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: 'openid email profile https://www.googleapis.com/auth/drive.file',
+          scopes: 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar',
           queryParams: {
             access_type: 'offline',
             prompt: 'select_account',

@@ -148,7 +148,7 @@ export async function checkBookingOverlap(
 }
 
 /**
- * Create a new booking
+ * Create a new booking with Google Calendar integration
  */
 export async function createBooking(input: CreateBookingInput) {
   const supabase = await createClient()
@@ -160,6 +160,8 @@ export async function createBooking(input: CreateBookingInput) {
   if (!user) {
     throw new Error('로그인이 필요합니다.')
   }
+
+  const { data: { session } } = await supabase.auth.getSession()
 
   // Check for overlap
   const hasOverlap = await checkBookingOverlap(
@@ -173,7 +175,66 @@ export async function createBooking(input: CreateBookingInput) {
     throw new Error('선택한 시간에 이미 예약이 있습니다.')
   }
 
-  // Create booking
+  // 참석자 이메일 조회 - 예약자 자신도 포함
+  let attendeeEmails: string[] = [user.email!] // 예약자는 항상 참석자에 포함
+  if (input.attendee_ids.length > 0) {
+    const { data: attendeesData } = await supabase
+      .from('employee')
+      .select('email')
+      .in('id', input.attendee_ids)
+
+    const additionalEmails = attendeesData?.map(a => a.email) || []
+    // 중복 제거하여 추가
+    attendeeEmails = [...new Set([...attendeeEmails, ...additionalEmails])]
+  }
+
+  console.log('[Calendar Integration] Check:', {
+    hasProviderToken: !!session?.provider_token,
+    attendeeCount: attendeeEmails.length,
+    attendeeEmails: attendeeEmails
+  })
+
+  // Google Calendar 연동이 가능한 경우 (provider_token이 있는 경우)
+  if (session?.provider_token) {
+    console.log('[Calendar Integration] Calling Edge Function...')
+    try {
+      const { data: result, error } = await supabase.functions.invoke(
+        'create-meeting-reservation',
+        {
+          body: {
+            roomId: input.room_id,
+            title: input.title,
+            description: input.description,
+            bookingDate: input.booking_date,
+            startTime: input.start_time,
+            endTime: input.end_time,
+            attendeeEmails: attendeeEmails,
+            organizerId: user.id,
+            organizerEmail: user.email,
+            accessToken: session.provider_token
+          }
+        }
+      )
+
+      console.log('[Calendar Integration] Edge Function Result:', { error, success: result?.success, result })
+
+      if (!error && result?.success) {
+        console.log('[Calendar Integration] Success! Calendar event created.')
+        revalidatePath('/meeting-rooms')
+        revalidatePath('/meeting-room-booking')
+        return result.booking
+      }
+
+      // Edge Function 실패 시 로그만 남기고 기존 방식으로 계속 진행
+      console.warn('[Calendar Integration] Failed, falling back to basic booking:', error)
+    } catch (calendarError) {
+      console.warn('[Calendar Integration] Exception:', calendarError)
+    }
+  } else {
+    console.log('[Calendar Integration] Skipped - provider_token or attendees missing')
+  }
+
+  // Google Calendar 연동 없이 기본 예약 생성
   const { data: booking, error: bookingError } = await supabase
     .from('meeting_room_booking')
     .insert({
@@ -199,6 +260,8 @@ export async function createBooking(input: CreateBookingInput) {
     const attendees = input.attendee_ids.map((employeeId) => ({
       booking_id: booking.id,
       employee_id: employeeId,
+      response_status: 'needsAction',
+      calendar_synced: false
     }))
 
     const { error: attendeeError } = await supabase
@@ -231,7 +294,41 @@ export async function cancelBooking(bookingId: string) {
     throw new Error('로그인이 필요합니다.')
   }
 
-  // Update booking status to cancelled
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // Google Calendar 연동 시도 (provider_token이 있는 경우)
+  if (session?.provider_token) {
+    console.log('[Cancel Booking] Calling Edge Function for calendar deletion...')
+    try {
+      const { data: result, error } = await supabase.functions.invoke(
+        'cancel-meeting-reservation',
+        {
+          body: {
+            bookingId: bookingId,
+            userId: user.id,
+            accessToken: session.provider_token
+          }
+        }
+      )
+
+      console.log('[Cancel Booking] Edge Function Result:', { error, result })
+
+      if (!error && result?.success) {
+        console.log('[Cancel Booking] Successfully cancelled with calendar deletion')
+        revalidatePath('/meeting-rooms')
+        revalidatePath('/meeting-room-booking')
+        return { success: true }
+      }
+
+      console.warn('[Cancel Booking] Edge Function failed, falling back to basic cancellation:', error)
+    } catch (calendarError) {
+      console.warn('[Cancel Booking] Exception:', calendarError)
+    }
+  } else {
+    console.log('[Cancel Booking] No provider_token, skipping calendar deletion')
+  }
+
+  // Fallback: 기본 취소 (Calendar 연동 없이)
   const { error } = await supabase
     .from('meeting_room_booking')
     .update({ status: 'cancelled' })
@@ -272,4 +369,121 @@ export async function getEmployees(searchTerm?: string) {
   }
 
   return data
+}
+
+/**
+ * Respond to meeting invitation (accept/decline)
+ */
+export async function respondToMeetingInvitation(
+  bookingId: string,
+  responseStatus: 'accepted' | 'declined'
+) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, error: '인증되지 않은 사용자입니다' }
+  }
+
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session?.provider_token) {
+    return {
+      success: false,
+      error: 'Google 로그인이 필요합니다. 다시 로그인해주세요.'
+    }
+  }
+
+  try {
+    // Edge Function 호출
+    const { data: result, error } = await supabase.functions.invoke(
+      'respond-to-meeting',
+      {
+        body: {
+          bookingId,
+          responseStatus,
+          employeeId: user.id,
+          employeeEmail: user.email,
+          accessToken: session.provider_token
+        }
+      }
+    )
+
+    if (error) {
+      console.error('Edge Function error:', error)
+      throw error
+    }
+
+    if (!result.success) {
+      throw new Error(result.error || '응답 처리 실패')
+    }
+
+    revalidatePath('/meeting-rooms')
+    revalidatePath('/meeting-room-booking')
+    revalidatePath('/dashboard')
+
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Failed to respond to meeting:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '응답 처리 실패'
+    }
+  }
+}
+
+/**
+ * Get meeting invitations for current user
+ */
+export async function getMeetingInvitations() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  try {
+    // 참석자로 초대된 회의 목록 조회
+    const { data: invitations, error } = await supabase
+      .from('meeting_room_booking_attendee')
+      .select(`
+        id,
+        response_status,
+        responded_at,
+        booking:meeting_room_booking!inner (
+          id,
+          title,
+          description,
+          booking_date,
+          start_time,
+          end_time,
+          calendar_event_url,
+          room:meeting_room!inner (
+            name,
+            location
+          ),
+          organizer:employee!meeting_room_booking_booked_by_fkey (
+            name,
+            email
+          )
+        )
+      `)
+      .eq('employee_id', user.id)
+      .gte('booking.booking_date', new Date().toISOString().split('T')[0])
+      .eq('booking.status', 'confirmed')
+      .order('booking.booking_date', { ascending: true })
+      .order('booking.start_time', { ascending: true })
+      .limit(20)
+
+    if (error) {
+      console.error('Failed to fetch invitations:', error)
+      return []
+    }
+
+    return invitations || []
+  } catch (error) {
+    console.error('Failed to get meeting invitations:', error)
+    return []
+  }
 }

@@ -991,6 +991,10 @@ CREATE TABLE meeting_room_booking (
 
   status VARCHAR(20) DEFAULT 'confirmed',
 
+  -- Google Calendar integration
+  calendar_event_id TEXT,
+  calendar_event_url TEXT,
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -1007,6 +1011,11 @@ CREATE TABLE meeting_room_booking_attendee (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID NOT NULL REFERENCES meeting_room_booking(id) ON DELETE CASCADE,
   employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+
+  -- Response status
+  response_status TEXT DEFAULT 'needsAction',
+  responded_at TIMESTAMPTZ,
+  calendar_synced BOOLEAN DEFAULT false,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
