@@ -419,16 +419,24 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
 
     setIsSubmitting(true)
 
+    const bookingData = {
+      room_id: room.id,
+      title: bookingTitle,
+      description: '',
+      booking_date: selectedDate,
+      start_time: calculatedStartTime,
+      end_time: calculatedEndTime,
+      attendee_ids: attendees.map(a => a.id),
+    }
+
+    console.log('[Booking Form] Submitting booking:', {
+      attendeesCount: attendees.length,
+      attendees: attendees,
+      attendeeIds: bookingData.attendee_ids
+    })
+
     try {
-      await createBooking({
-        room_id: room.id,
-        title: bookingTitle,
-        description: '',
-        booking_date: selectedDate,
-        start_time: calculatedStartTime,
-        end_time: calculatedEndTime,
-        attendee_ids: attendees.map(a => a.id),
-      })
+      await createBooking(bookingData)
 
       toast.success('예약이 완료되었습니다', {
         description: `${selectedDate} ${calculatedStartTime} - ${calculatedEndTime}`,

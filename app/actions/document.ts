@@ -75,12 +75,49 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
         return { success: false, error: approvalResult.error || '승인 단계 생성 실패' }
       }
 
-      // 3. 캐시 재검증
+      // 3. PDF 생성 및 Google Drive 업로드
+      let pdfUrl = null
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+
+        console.log('[Document Action] 연차 신청 생성 성공, PDF 생성 시작')
+        console.log('[Document Action] Leave Request ID:', leaveRequest.id)
+        console.log('[Document Action] Provider Token 존재?', !!session?.provider_token)
+        console.log('[Document Action] Provider Token 길이:', session?.provider_token?.length || 0)
+
+        if (session?.provider_token) {
+          const { data: pdfResult, error: pdfError } = await supabase.functions.invoke(
+            'generate-leave-pdf',
+            {
+              body: {
+                leaveRequestId: leaveRequest.id,
+                accessToken: session.provider_token,
+              },
+            }
+          )
+
+          console.log('[Document Action] Edge Function 응답:', { pdfResult, pdfError })
+
+          if (pdfError) {
+            console.error('[Document Action] PDF generation failed:', pdfError)
+          } else if (pdfResult) {
+            pdfUrl = pdfResult.fileUrl
+            console.log('[Document Action] ✅ PDF generated successfully:', pdfUrl)
+          }
+        } else {
+          console.warn('[Document Action] ⚠️ Provider token이 없습니다. 재로그인이 필요합니다.')
+        }
+      } catch (pdfError) {
+        console.error('[Document Action] PDF generation error:', pdfError)
+        // PDF 생성 실패해도 신청은 유지
+      }
+
+      // 4. 캐시 재검증
       revalidatePath('/request')
       revalidatePath('/leave/my-leave')
       revalidatePath('/dashboard')
 
-      return { success: true, data: leaveRequest }
+      return { success: true, data: leaveRequest, pdfUrl }
     }
 
     // 다른 문서 타입은 기존 방식 유지 (추후 마이그레이션 필요)

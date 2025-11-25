@@ -152,6 +152,37 @@ CREATE INDEX idx_emp_dept_history_changed_by ON employee_department_history(chan
 
 COMMENT ON TABLE employee_department_history IS 'History of employee department transfers';
 
+-- Invited employees table (for email-based registration allowlist)
+CREATE TABLE invited_employees (
+  id BIGSERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  department_id BIGINT NOT NULL REFERENCES department(id),
+  role_id BIGINT NOT NULL REFERENCES role(id),
+  employment_date DATE NOT NULL,
+
+  -- Optional information
+  phone VARCHAR(20),
+  location VARCHAR(100),
+
+  -- Invitation management
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'registered', 'expired')),
+  invited_by UUID REFERENCES employee(id),
+  invited_at TIMESTAMPTZ DEFAULT NOW(),
+  registered_at TIMESTAMPTZ,
+
+  -- Metadata
+  note TEXT
+);
+
+CREATE INDEX idx_invited_email ON invited_employees(email);
+CREATE INDEX idx_invited_status ON invited_employees(status);
+CREATE INDEX idx_invited_by ON invited_employees(invited_by);
+
+COMMENT ON TABLE invited_employees IS 'Invited employees awaiting registration via Google OAuth';
+COMMENT ON COLUMN invited_employees.status IS 'pending: awaiting registration, registered: completed, expired: invitation expired';
+COMMENT ON COLUMN invited_employees.invited_by IS 'Employee who created the invitation (usually HR)';
+
 -- ================================================================
 -- 2. DOCUMENT TEMPLATE & APPROVAL WORKFLOW
 -- ================================================================
@@ -469,6 +500,11 @@ CREATE TABLE leave_request (
   -- Current approval step
   current_step integer DEFAULT 1,
 
+  -- Google Drive integration
+  drive_file_id TEXT,
+  drive_file_url TEXT,
+  drive_shared_with JSONB DEFAULT '[]'::jsonb,
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -477,9 +513,13 @@ CREATE INDEX idx_req_employee ON leave_request(employee_id);
 CREATE INDEX idx_req_status ON leave_request(status);
 CREATE INDEX idx_req_start ON leave_request(start_date);
 CREATE INDEX idx_req_submission ON leave_request(document_submission_id);
+CREATE INDEX idx_leave_request_drive_file_id ON leave_request(drive_file_id) WHERE drive_file_id IS NOT NULL;
 
 COMMENT ON TABLE leave_request IS 'Leave requests (no modification/deletion after submission)';
 COMMENT ON COLUMN leave_request.current_step IS 'Current approval step in progress (1, 2, 3...)';
+COMMENT ON COLUMN leave_request.drive_file_id IS 'Google Drive file ID';
+COMMENT ON COLUMN leave_request.drive_file_url IS 'Google Drive file web view URL';
+COMMENT ON COLUMN leave_request.drive_shared_with IS 'Array of email addresses that have access to the Drive file';
 
 -- Annual leave usage table
 CREATE TABLE annual_leave_usage (
@@ -951,6 +991,10 @@ CREATE TABLE meeting_room_booking (
 
   status VARCHAR(20) DEFAULT 'confirmed',
 
+  -- Google Calendar integration
+  calendar_event_id TEXT,
+  calendar_event_url TEXT,
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -967,6 +1011,11 @@ CREATE TABLE meeting_room_booking_attendee (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID NOT NULL REFERENCES meeting_room_booking(id) ON DELETE CASCADE,
   employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+
+  -- Response status
+  response_status TEXT DEFAULT 'needsAction',
+  responded_at TIMESTAMPTZ,
+  calendar_synced BOOLEAN DEFAULT false,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -991,3 +1040,80 @@ EXCLUDE USING gist (
   ) WITH &&
 )
 WHERE (status = 'confirmed');
+
+-- ================================================================
+-- 13. ATTENDANCE
+-- ================================================================
+
+-- Attendance status enum type
+CREATE TYPE attendance_status AS ENUM ('present', 'late', 'absent', 'leave', 'holiday');
+
+-- Attendance table
+CREATE TABLE attendance (
+  id BIGSERIAL PRIMARY KEY,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  check_in TIMESTAMPTZ,
+  check_out TIMESTAMPTZ,
+  status attendance_status NOT NULL DEFAULT 'present',
+  late_minutes INTEGER DEFAULT 0,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Constraints
+  CONSTRAINT attendance_employee_date_unique UNIQUE (employee_id, date),
+  CONSTRAINT attendance_checkout_after_checkin CHECK (check_out IS NULL OR check_out >= check_in),
+  CONSTRAINT attendance_late_minutes_positive CHECK (late_minutes >= 0)
+);
+
+CREATE INDEX idx_attendance_employee_id ON attendance(employee_id);
+CREATE INDEX idx_attendance_date ON attendance(date);
+CREATE INDEX idx_attendance_employee_date ON attendance(employee_id, date DESC);
+CREATE INDEX idx_attendance_status ON attendance(status);
+
+COMMENT ON TABLE attendance IS 'Employee attendance records';
+COMMENT ON COLUMN attendance.employee_id IS 'Reference to employee who this attendance record belongs to';
+COMMENT ON COLUMN attendance.date IS 'Date of the attendance record';
+COMMENT ON COLUMN attendance.check_in IS 'Time when employee checked in';
+COMMENT ON COLUMN attendance.check_out IS 'Time when employee checked out';
+COMMENT ON COLUMN attendance.status IS 'Attendance status: present, late, absent, leave, holiday';
+COMMENT ON COLUMN attendance.late_minutes IS 'Number of minutes late (0 if on time)';
+COMMENT ON COLUMN attendance.notes IS 'Additional notes about this attendance record';
+
+-- ================================================================
+-- 14. VIEWS
+-- ================================================================
+
+-- Department with stats view (requires get_department_path function)
+-- Note: This view depends on the get_department_path() function defined in functions.sql
+CREATE OR REPLACE VIEW department_with_stats AS
+SELECT
+  d.id,
+  d.name,
+  d.code,
+  d.parent_department_id,
+  d.manager_id,
+  d.display_order,
+  d.created_at,
+  d.updated_at,
+  d.created_by,
+  d.updated_by,
+  d.deleted_at,
+  d.deleted_by,
+  get_department_path(d.id) AS full_path,
+  COUNT(DISTINCT e.id) FILTER (WHERE e.deleted_at IS NULL AND e.status::text = 'active'::text) AS active_member_count,
+  COUNT(DISTINCT child.id) FILTER (WHERE child.deleted_at IS NULL) AS child_count,
+  COALESCE(m.name, ''::VARCHAR) AS manager_name,
+  COALESCE(cb.name, ''::VARCHAR) AS created_by_name,
+  COALESCE(ub.name, ''::VARCHAR) AS updated_by_name
+FROM department d
+LEFT JOIN employee e ON e.department_id = d.id
+LEFT JOIN department child ON child.parent_department_id = d.id
+LEFT JOIN employee m ON m.id = d.manager_id
+LEFT JOIN employee cb ON cb.id = d.created_by
+LEFT JOIN employee ub ON ub.id = d.updated_by
+WHERE d.deleted_at IS NULL
+GROUP BY d.id, d.name, d.code, d.parent_department_id, d.manager_id, d.display_order,
+         d.created_at, d.updated_at, d.created_by, d.updated_by, d.deleted_at, d.deleted_by,
+         m.name, cb.name, ub.name;

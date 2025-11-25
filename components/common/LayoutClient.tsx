@@ -5,14 +5,16 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import type { User } from '@supabase/supabase-js'
 import type { EmployeeWithRole } from '@/types/database'
+import type { Notification } from '@/app/actions/notification'
 
 interface LayoutClientProps {
   user: User
   employee: EmployeeWithRole | null
+  notifications: Notification[]
   children: React.ReactNode
 }
 
-export function LayoutClient({ user, employee, children }: LayoutClientProps) {
+export function LayoutClient({ user, employee, notifications, children }: LayoutClientProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -35,6 +37,7 @@ export function LayoutClient({ user, employee, children }: LayoutClientProps) {
         <Header
           user={user}
           employee={employee}
+          notifications={notifications}
           onMobileMenuClick={() => setMobileMenuOpen(true)}
         />
 

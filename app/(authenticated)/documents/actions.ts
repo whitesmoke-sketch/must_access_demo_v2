@@ -71,35 +71,59 @@ export async function approveLeaveRequest(requestId: number) {
 
       console.log('✅ Final approval - Document approved!')
 
-      // 연차 잔액 차감 (Edge Function 호출)
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
-        const baseUrl = supabaseUrl.replace('/rest/v1', '')
-        const edgeFunctionUrl = `${baseUrl}/functions/v1/deduct-leave-balance`
+      // 연차 잔액 차감 (직접 DB 업데이트)
+      try {
+        // 2. 연차 정보 조회
+        const { data: leaveRequest, error: leaveError } = await supabase
+          .from('leave_request')
+          .select('employee_id, requested_days')
+          .eq('id', requestId)
+          .single()
 
-        console.log('[연차 차감] Edge Function 호출:', edgeFunctionUrl)
-
-        try {
-          const response = await fetch(edgeFunctionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({ requestId })
-          })
-
-          const result = await response.json()
-
-          if (!response.ok || !result.success) {
-            console.error('[연차 차감] Edge Function 실패:', result.error)
-          } else {
-            console.log('[연차 차감] Edge Function 성공!')
-          }
-        } catch (error) {
-          console.error('[연차 차감] Edge Function 호출 오류:', error)
+        if (leaveError) {
+          console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
         }
+
+        if (leaveRequest) {
+          console.log('[연차 차감] 연차 정보:', leaveRequest)
+
+          // 3. 연차 잔액 차감
+          const { data: currentBalance, error: balanceError } = await supabase
+            .from('annual_leave_balance')
+            .select('used_days, remaining_days')
+            .eq('employee_id', leaveRequest.employee_id)
+            .single()
+
+          if (balanceError) {
+            console.error('[연차 차감] 잔액 조회 실패:', balanceError)
+          }
+
+          if (currentBalance) {
+            const newUsedDays = Number(currentBalance.used_days) + Number(leaveRequest.requested_days)
+            const newRemainingDays = Number(currentBalance.remaining_days) - Number(leaveRequest.requested_days)
+
+            console.log('[연차 차감] 현재:', currentBalance)
+            console.log('[연차 차감] 신청일수:', leaveRequest.requested_days)
+            console.log('[연차 차감] 새로운 값:', { newUsedDays, newRemainingDays })
+
+            const { error: updateError } = await supabase
+              .from('annual_leave_balance')
+              .update({
+                used_days: newUsedDays,
+                remaining_days: newRemainingDays,
+                updated_at: new Date().toISOString()
+              })
+              .eq('employee_id', leaveRequest.employee_id)
+
+            if (updateError) {
+              console.error('[연차 차감] 업데이트 실패:', updateError)
+            } else {
+              console.log('[연차 차감] 성공!')
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[연차 차감] 처리 오류:', error)
       }
     } else {
       // 최종 승인자가 아닌 경우 → current_step만 다음으로 이동
