@@ -493,6 +493,7 @@ CREATE TABLE leave_request (
 
   requested_at TIMESTAMPTZ NOT NULL,
   approved_at TIMESTAMPTZ,
+  rejected_at TIMESTAMPTZ,
 
   -- Document connection
   document_submission_id BIGINT REFERENCES document_submission(id),
@@ -503,6 +504,7 @@ CREATE TABLE leave_request (
   -- Google Drive integration
   drive_file_id TEXT,
   drive_file_url TEXT,
+  pdf_url TEXT,
   drive_shared_with JSONB DEFAULT '[]'::jsonb,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -514,11 +516,14 @@ CREATE INDEX idx_req_status ON leave_request(status);
 CREATE INDEX idx_req_start ON leave_request(start_date);
 CREATE INDEX idx_req_submission ON leave_request(document_submission_id);
 CREATE INDEX idx_leave_request_drive_file_id ON leave_request(drive_file_id) WHERE drive_file_id IS NOT NULL;
+CREATE INDEX idx_leave_request_rejected_at ON leave_request(rejected_at) WHERE rejected_at IS NOT NULL;
 
 COMMENT ON TABLE leave_request IS 'Leave requests (no modification/deletion after submission)';
 COMMENT ON COLUMN leave_request.current_step IS 'Current approval step in progress (1, 2, 3...)';
+COMMENT ON COLUMN leave_request.rejected_at IS 'Timestamp when the leave request was rejected';
 COMMENT ON COLUMN leave_request.drive_file_id IS 'Google Drive file ID';
 COMMENT ON COLUMN leave_request.drive_file_url IS 'Google Drive file web view URL';
+COMMENT ON COLUMN leave_request.pdf_url IS 'PDF URL (synced with drive_file_url for backward compatibility)';
 COMMENT ON COLUMN leave_request.drive_shared_with IS 'Array of email addresses that have access to the Drive file';
 
 -- Annual leave usage table
