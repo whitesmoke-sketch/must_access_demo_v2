@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const origin = requestUrl.origin
+  const needsConsent = requestUrl.searchParams.get('needs_consent')
 
   if (code) {
     const supabase = await createClient()
@@ -13,6 +14,18 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
+      // provider_token이 없으면 consent 모드로 재로그인 유도
+      if (!data.session?.provider_token && !needsConsent) {
+        console.log('[Auth Callback] provider_token 없음, consent 모드로 재로그인 필요')
+
+        // 로그아웃 후 consent 모드로 재로그인
+        await supabase.auth.signOut()
+
+        const consentUrl = new URL(`${origin}/auth/google-consent`)
+        return NextResponse.redirect(consentUrl)
+      }
+
+      console.log('[Auth Callback] provider_token 존재:', !!data.session?.provider_token)
       // 사용자 역할 확인
       const { data: employee, error: employeeError } = await supabase
         .from('employee')

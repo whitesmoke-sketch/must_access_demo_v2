@@ -336,16 +336,25 @@ export default function OrganizationManagementClient() {
 
       try {
         setIsLoadingMembers(true)
+        console.log('🔄 Client: Loading members for department:', selectedDepartment.id, selectedDepartment.name)
         const result = await getDepartmentMembers(Number(selectedDepartment.id))
+
+        console.log('📥 Client: Received result:', {
+          success: result.success,
+          dataLength: result.data?.length || 0,
+          error: result.error,
+          data: result.data
+        })
 
         if (result.success && result.data) {
           setDepartmentMembers(result.data as any)
+          console.log('✅ Client: Set department members:', result.data.length, 'members')
         } else {
-          console.error('Load members error:', result.error)
+          console.error('❌ Load members error:', result.error)
           setDepartmentMembers([])
         }
       } catch (error) {
-        console.error('Load members exception:', error)
+        console.error('❌ Load members exception:', error)
         setDepartmentMembers([])
       } finally {
         setIsLoadingMembers(false)

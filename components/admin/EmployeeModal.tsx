@@ -238,54 +238,33 @@ export function EmployeeModal({
               />
             </div>
 
-            {/* 연차 일수 */}
-            <div className="space-y-2">
-              <Label htmlFor="annual_leave">연차 일수</Label>
-              <Input
-                id="annual_leave"
-                type="number"
-                value={formData.annual_leave_days}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    annual_leave_days: Number(e.target.value),
-                  })
-                }
-                min={0}
-              />
-            </div>
-
-            {/* 사용한 연차 */}
-            <div className="space-y-2">
-              <Label htmlFor="used_days">사용한 연차</Label>
-              <Input
-                id="used_days"
-                type="number"
-                value={formData.used_days}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    used_days: Number(e.target.value),
-                  })
-                }
-                min={0}
-              />
-            </div>
-
-            {/* 포상휴가 (읽기 전용, 하드코딩 0) */}
-            <div className="space-y-2">
-              <Label htmlFor="reward_leave">포상휴가 일수</Label>
-              <Input
-                id="reward_leave"
-                type="number"
-                value={0}
-                disabled
-                className="bg-gray-100"
-              />
-              <p className="text-xs text-muted-foreground">
-                * 포상휴가는 별도 관리됩니다
-              </p>
-            </div>
+            {/* 연차 정보 (읽기 전용) */}
+            {mode === 'edit' && (
+              <div className="space-y-2 col-span-2">
+                <Label>현재 연차 현황</Label>
+                <div className="p-3 bg-gray-50 rounded-md border">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground mb-1">총 연차</p>
+                      <p className="font-semibold">{formData.annual_leave_days}일</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">사용</p>
+                      <p className="font-semibold">{formData.used_days}일</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">잔여</p>
+                      <p className="font-semibold text-blue-600">
+                        {formData.annual_leave_days - formData.used_days}일
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    * 연차는 별도 관리 메뉴에서 부여/조정할 수 있습니다
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 버튼 */}

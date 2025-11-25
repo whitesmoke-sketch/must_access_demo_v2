@@ -158,6 +158,7 @@ export function EmployeeTable() {
                   const balance = employee.annual_leave_balance?.[0]
                   const remainingDays = balance?.remaining_days || 0
                   const totalDays = balance?.total_days || 0
+                  const awardLeaveDays = employee.award_leave_balance || 0
                   const topDepartment = getTopLevelDepartment(employee.department_id)
 
                   return (
@@ -181,7 +182,7 @@ export function EmployeeTable() {
                         {remainingDays}/{totalDays}일
                       </TableCell>
                       <TableCell className="text-center text-pink-600 font-medium">
-                        0일
+                        {awardLeaveDays}일
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">

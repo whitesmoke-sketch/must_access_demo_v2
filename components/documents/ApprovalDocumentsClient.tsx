@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ApprovalDocumentDetailModal } from './ApprovalDocumentDetailModal'
+import { ApprovalProgressBadge } from './ApprovalProgressBadge'
 
 type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
@@ -57,12 +58,23 @@ interface ApprovalDocument {
   } | null
 }
 
+interface ApprovalStep {
+  request_id: number
+  step_order: number
+  status: string
+  approver: {
+    id: string
+    name: string
+  } | { id: string; name: string }[] | null
+}
+
 interface ApprovalDocumentsClientProps {
   documents: ApprovalDocument[]
   userId: string
   approvalLevel: number
   myApprovalRequestIds: number[]
   myApprovalStatusMap: Record<number, string>
+  approvalStepsMap: Record<number, ApprovalStep[]>
 }
 
 export function ApprovalDocumentsClient({
@@ -71,6 +83,7 @@ export function ApprovalDocumentsClient({
   approvalLevel,
   myApprovalRequestIds,
   myApprovalStatusMap,
+  approvalStepsMap,
 }: ApprovalDocumentsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | LeaveStatus>('all')
@@ -80,6 +93,10 @@ export function ApprovalDocumentsClient({
 
   const [selectedDocument, setSelectedDocument] = useState<ApprovalDocument | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+
+  // Debug: approvalStepsMap 확인
+  console.log('📋 ApprovalDocumentsClient - approvalStepsMap:', approvalStepsMap)
+  console.log('📋 ApprovalDocumentsClient - documents:', documents.map(d => ({ id: d.id, current_step: d.current_step })))
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -205,6 +222,34 @@ export function ApprovalDocumentsClient({
   const getRoleName = (role: { name: string } | { name: string }[] | null): string => {
     if (!role) return '-'
     return Array.isArray(role) ? role[0]?.name || '-' : role.name
+  }
+
+  // 결재선 정보를 ApprovalProgressBadge 형식으로 변환
+  const getApprovalProgress = (docId: number, currentStep: number | null) => {
+    const steps = approvalStepsMap[docId]
+    if (!steps || steps.length === 0) return null
+
+    return steps.map(step => {
+      const approverName = step.approver
+        ? Array.isArray(step.approver)
+          ? step.approver[0]?.name || '알 수 없음'
+          : step.approver.name
+        : '알 수 없음'
+
+      let status: 'completed' | 'pending' | 'waiting'
+      if (step.status === 'approved') {
+        status = 'completed'
+      } else if (currentStep !== null && step.step_order === currentStep) {
+        status = 'pending'
+      } else {
+        status = 'waiting'
+      }
+
+      return {
+        name: approverName,
+        status,
+      }
+    })
   }
 
   return (
@@ -386,7 +431,23 @@ export function ApprovalDocumentsClient({
                           minute: '2-digit',
                         })}
                       </TableCell>
-                      <TableCell>{getStatusBadge(doc)}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const approvalProgress = getApprovalProgress(doc.id, doc.current_step)
+                          console.log(`🔍 Document ${doc.id} - approvalProgress:`, {
+                            docId: doc.id,
+                            currentStep: doc.current_step,
+                            approvalProgress,
+                            length: approvalProgress?.length
+                          })
+                          if (approvalProgress && approvalProgress.length > 1) {
+                            console.log(`✅ Document ${doc.id} - Showing ApprovalProgressBadge`)
+                            return <ApprovalProgressBadge approvers={approvalProgress} />
+                          }
+                          console.log(`⚠️ Document ${doc.id} - Showing status badge instead`)
+                          return getStatusBadge(doc)
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"

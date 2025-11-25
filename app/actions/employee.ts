@@ -94,9 +94,9 @@ export async function createEmployee(data: CreateEmployeeData) {
       data: invitation,
       message: '구성원 초대가 완료되었습니다. 해당 이메일로 구글 로그인 시 자동으로 가입됩니다.'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create employee error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -107,7 +107,7 @@ export async function updateEmployee(id: string, data: UpdateEmployeeData) {
   try {
     const supabase = await createClient()
 
-    // 1. 구성원 정보 수정
+    // 구성원 정보 수정 (연차는 grant 테이블에서 별도 관리)
     const { error: employeeError } = await supabase
       .from('employee')
       .update({
@@ -125,26 +125,11 @@ export async function updateEmployee(id: string, data: UpdateEmployeeData) {
       return { success: false, error: employeeError.message }
     }
 
-    // 2. 연차 잔액 수정 (upsert 사용)
-    const { error: balanceError } = await supabase
-      .from('annual_leave_balance')
-      .upsert({
-        employee_id: id,
-        total_days: data.annual_leave_days,
-        used_days: data.used_days || 0,
-        remaining_days: data.annual_leave_days - (data.used_days || 0),
-      })
-
-    if (balanceError) {
-      console.error('Balance update error:', balanceError)
-      return { success: false, error: balanceError.message }
-    }
-
     revalidatePath('/admin/employees')
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update employee error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -167,9 +152,9 @@ export async function deleteEmployee(id: string) {
 
     revalidatePath('/admin/employees')
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete employee error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -178,19 +163,22 @@ export async function deleteEmployee(id: string) {
  */
 export async function getEmployees() {
   try {
-    const supabase = await createClient()
+    // 인증 확인
+    const userSupabase = await createClient()
+    const { data: { user } } = await userSupabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: 'Unauthorized', data: [] }
+    }
 
-    const { data, error } = await supabase
+    // Admin Client 사용하여 모든 데이터 조회
+    const adminSupabase = createAdminClient()
+
+    const { data, error } = await adminSupabase
       .from('employee')
       .select(`
         *,
         department:department_id(id, name, code),
-        role:role_id(id, name, code, level),
-        annual_leave_balance(
-          total_days,
-          used_days,
-          remaining_days
-        )
+        role:role_id(id, name, code, level)
       `)
       .eq('status', 'active')
       .order('name')
@@ -200,10 +188,69 @@ export async function getEmployees() {
       return { success: false, error: error.message, data: [] }
     }
 
-    return { success: true, data: data || [] }
-  } catch (error: any) {
+    // 모든 직원의 연차 계산
+    const employeeIds = data?.map(emp => emp.id) || []
+
+    // 모든 grant 조회 (연차 + 포상휴가)
+    const { data: allGrants } = await adminSupabase
+      .from('annual_leave_grant')
+      .select('employee_id, grant_type, granted_days, id')
+      .eq('approval_status', 'approved')
+      .gte('expiration_date', new Date().toISOString().split('T')[0])
+      .in('employee_id', employeeIds)
+
+    // 모든 사용 내역 조회
+    const grantIds = allGrants?.map(g => g.id) || []
+    const { data: allUsage } = await adminSupabase
+      .from('annual_leave_usage')
+      .select('grant_id, used_days')
+      .in('grant_id', grantIds)
+
+    // 각 직원별 연차 및 포상휴가 잔여일수 계산
+    const annualBalanceMap = new Map<string, { total: number; remaining: number }>()
+    const awardBalanceMap = new Map<string, number>()
+
+    allGrants?.forEach(grant => {
+      const usedDays = allUsage
+        ?.filter(u => u.grant_id === grant.id)
+        .reduce((sum, u) => sum + Number(u.used_days), 0) || 0
+
+      const remaining = Number(grant.granted_days) - usedDays
+
+      if (grant.grant_type === 'award_overtime' || grant.grant_type === 'award_attendance') {
+        // 포상휴가
+        const currentBalance = awardBalanceMap.get(grant.employee_id) || 0
+        awardBalanceMap.set(grant.employee_id, currentBalance + remaining)
+      } else {
+        // 일반 연차 (monthly, proportional, annual)
+        const current = annualBalanceMap.get(grant.employee_id) || { total: 0, remaining: 0 }
+        annualBalanceMap.set(grant.employee_id, {
+          total: current.total + Number(grant.granted_days),
+          remaining: current.remaining + remaining
+        })
+      }
+    })
+
+    // 직원 데이터에 연차 및 포상휴가 잔여일수 추가
+    const enrichedData = data?.map(emp => {
+      const annualBalance = annualBalanceMap.get(emp.id) || { total: 0, remaining: 0 }
+      const awardBalance = awardBalanceMap.get(emp.id) || 0
+
+      return {
+        ...emp,
+        annual_leave_balance: [{
+          total_days: annualBalance.total,
+          used_days: annualBalance.total - annualBalance.remaining,
+          remaining_days: annualBalance.remaining
+        }],
+        award_leave_balance: awardBalance
+      }
+    })
+
+    return { success: true, data: enrichedData || [] }
+  } catch (error: unknown) {
     console.error('Get employees error:', error)
-    return { success: false, error: error.message, data: [] }
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
   }
 }
 
@@ -322,9 +369,9 @@ export async function updateEmployeeDepartment(
       success: true,
       message: `${employee.name}님이 ${newDept.name}(으)로 이동되었습니다.`
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update employee department error:', error)
-    return { success: false, error: error.message || '부서 변경 중 오류가 발생했습니다.' }
+    return { success: false, error: error instanceof Error ? error.message : '부서 변경 중 오류가 발생했습니다.' }
   }
 }
 
@@ -400,9 +447,9 @@ export async function bulkUpdateEmployeeDepartment(
         details: failedEmployees
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Bulk update employee department error:', error)
-    return { success: false, error: error.message || '일괄 부서 변경 중 오류가 발생했습니다.' }
+    return { success: false, error: error instanceof Error ? error.message : '일괄 부서 변경 중 오류가 발생했습니다.' }
   }
 }
 
@@ -438,8 +485,8 @@ export async function getEmployeeDepartmentHistory(employeeId: string) {
     }
 
     return { success: true, data: data || [] }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get department history error:', error)
-    return { success: false, error: error.message, data: [] }
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
   }
 }

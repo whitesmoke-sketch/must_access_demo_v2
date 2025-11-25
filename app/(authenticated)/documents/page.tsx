@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ApprovalDocumentsClient } from '@/components/documents/ApprovalDocumentsClient'
 
@@ -105,6 +105,29 @@ export default async function DocumentsPage() {
     myApprovalSteps?.map(step => [step.request_id, step.status]) ?? []
   )
 
+  // 모든 문서의 approval_step 조회 (결재선 정보) - 전체 결재선을 표시하기 위해 Admin Client 사용
+  const adminSupabase = createAdminClient()
+  const { data: allApprovalSteps } = await adminSupabase
+    .from('approval_step')
+    .select(`
+      request_id,
+      step_order,
+      status,
+      approver:approver_id (
+        id,
+        name
+      )
+    `)
+    .eq('request_type', 'leave')
+    .order('step_order', { ascending: true })
+
+  // 문서별로 결재선 정보를 매핑 (request_id -> approval_steps[])
+  const approvalStepsMap = new Map<number, any[]>()
+  allApprovalSteps?.forEach(step => {
+    const existing = approvalStepsMap.get(step.request_id) || []
+    approvalStepsMap.set(step.request_id, [...existing, step])
+  })
+
   return (
     <div className="space-y-6">
       <ApprovalDocumentsClient
@@ -113,6 +136,7 @@ export default async function DocumentsPage() {
         approvalLevel={approvalLevel}
         myApprovalRequestIds={Array.from(myApprovalRequestIds)}
         myApprovalStatusMap={Object.fromEntries(myApprovalStatusMap)}
+        approvalStepsMap={Object.fromEntries(approvalStepsMap)}
       />
     </div>
   )

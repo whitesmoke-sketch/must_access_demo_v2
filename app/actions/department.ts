@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 // =====================================================
@@ -194,12 +194,19 @@ export async function searchDepartments(query: string) {
  */
 export async function getDepartmentMembers(departmentId: number) {
   try {
-    const supabase = await createClient()
-
-    const { data: user } = await supabase.auth.getUser()
+    // 먼저 사용자 인증 확인
+    const userSupabase = await createClient()
+    const { data: user } = await userSupabase.auth.getUser()
     if (!user.user) {
+      console.error('❌ getDepartmentMembers: Unauthorized')
       return { success: false, error: 'Unauthorized' }
     }
+
+    console.log('🔍 getDepartmentMembers: Querying for department ID:', departmentId)
+    console.log('👤 getDepartmentMembers: User ID:', user.user.id)
+
+    // 관리 권한이 필요한 쿼리이므로 Admin Client 사용
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from('employee')
@@ -219,14 +226,21 @@ export async function getDepartmentMembers(departmentId: number) {
       .is('deleted_at', null)
       .order('name')
 
+    console.log('📊 getDepartmentMembers: Query result:', {
+      departmentId,
+      dataCount: data?.length || 0,
+      data,
+      error
+    })
+
     if (error) {
-      console.error('Get department members error:', error)
+      console.error('❌ Get department members error:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, data }
   } catch (err) {
-    console.error('Get department members exception:', err)
+    console.error('❌ Get department members exception:', err)
     return { success: false, error: 'Failed to fetch department members' }
   }
 }

@@ -50,6 +50,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  const [adminModeEnabled, setAdminModeEnabled] = useState(false)
 
   const getMenuItems = () => {
     const baseItems = [
@@ -115,7 +116,7 @@ export function Sidebar({
         icon: FileText,
         href: '/documents/my-documents',
         roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: false,
+        implemented: true,
       },
       {
         id: 'leave-management',
@@ -194,6 +195,11 @@ export function Sidebar({
     // level 3+: admin 메뉴 포함
     // level 5+: super_admin 메뉴 포함
     return [...baseItems, ...adminItems, ...superAdminItems].filter((item) => {
+      // 준비중 기능 필터링 (내 문서는 제외하고 관리자 모드가 꺼져있으면 숨김)
+      if (!item.implemented && item.id !== 'my-documents' && !adminModeEnabled) {
+        return false
+      }
+
       // level 5 (CEO, HR): 모든 메뉴 접근
       if (roleLevel >= 5) return true
 
@@ -327,20 +333,40 @@ export function Sidebar({
                       collapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'
                     }`}
                     style={{
-                      backgroundColor: 'transparent',
-                      color: '#5B6A72',
+                      backgroundColor: adminModeEnabled ? '#635BFF' : 'transparent',
+                      color: adminModeEnabled ? '#ffffff' : '#5B6A72',
+                      boxShadow: adminModeEnabled ? '0 2px 4px rgba(99, 91, 255, 0.2)' : 'none',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.1)'
-                      e.currentTarget.style.color = '#635BFF'
+                      if (!adminModeEnabled) {
+                        e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.1)'
+                        e.currentTarget.style.color = '#635BFF'
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                      e.currentTarget.style.color = '#5B6A72'
+                      if (!adminModeEnabled) {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                        e.currentTarget.style.color = '#5B6A72'
+                      }
                     }}
-                    onClick={() => alert('관리자 모드 전환 기능은 준비 중입니다.')}
+                    onClick={() => {
+                      setAdminModeEnabled(!adminModeEnabled)
+                      toast.success(
+                        adminModeEnabled ? '관리자 모드가 해제되었습니다' : '관리자 모드가 활성화되었습니다',
+                        {
+                          description: adminModeEnabled
+                            ? '준비중인 기능이 숨겨집니다.'
+                            : '준비중인 기능을 확인할 수 있습니다.',
+                        }
+                      )
+                    }}
                   >
-                    <UserCog className="w-5 h-5" />
+                    <UserCog
+                      className="w-5 h-5"
+                      style={{
+                        color: adminModeEnabled ? '#ffffff' : undefined,
+                      }}
+                    />
                     {!collapsed && <span>관리자 모드</span>}
                   </button>
                 </TooltipTrigger>
@@ -440,6 +466,50 @@ export function Sidebar({
               )
             })}
           </nav>
+
+          {role !== 'employee' && (
+            <div className="p-4 border-t" style={{ borderColor: '#E5E8EB' }}>
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150"
+                style={{
+                  backgroundColor: adminModeEnabled ? '#635BFF' : 'transparent',
+                  color: adminModeEnabled ? '#ffffff' : '#5B6A72',
+                  boxShadow: adminModeEnabled ? '0 2px 4px rgba(99, 91, 255, 0.2)' : 'none',
+                }}
+                onMouseEnter={(e) => {
+                  if (!adminModeEnabled) {
+                    e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.1)'
+                    e.currentTarget.style.color = '#635BFF'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!adminModeEnabled) {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = '#5B6A72'
+                  }
+                }}
+                onClick={() => {
+                  setAdminModeEnabled(!adminModeEnabled)
+                  toast.success(
+                    adminModeEnabled ? '관리자 모드가 해제되었습니다' : '관리자 모드가 활성화되었습니다',
+                    {
+                      description: adminModeEnabled
+                        ? '준비중인 기능이 숨겨집니다.'
+                        : '준비중인 기능을 확인할 수 있습니다.',
+                    }
+                  )
+                }}
+              >
+                <UserCog
+                  className="w-5 h-5"
+                  style={{
+                    color: adminModeEnabled ? '#ffffff' : undefined,
+                  }}
+                />
+                <span>관리자 모드</span>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>
