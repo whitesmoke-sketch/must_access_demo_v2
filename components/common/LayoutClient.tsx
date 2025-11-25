@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sidebar } from './Sidebar'
+import { Sidebar } from './sidebar'
 import { Header } from './Header'
 import type { User } from '@supabase/supabase-js'
 import type { EmployeeWithRole } from '@/types/database'
