@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getValidGoogleAccessToken } from '@/lib/google-auth'
 
 export interface MeetingRoom {
   id: string
@@ -188,14 +189,20 @@ export async function createBooking(input: CreateBookingInput) {
     attendeeEmails = [...new Set([...attendeeEmails, ...additionalEmails])]
   }
 
+  // Google 토큰 확인 및 필요시 갱신
+  const tokenResult = await getValidGoogleAccessToken(
+    session?.provider_token,
+    session?.provider_refresh_token
+  )
+
   console.log('[Calendar Integration] Check:', {
-    hasProviderToken: !!session?.provider_token,
-    attendeeCount: attendeeEmails.length,
-    attendeeEmails: attendeeEmails
+    hasValidToken: !!tokenResult.accessToken,
+    needsReauth: tokenResult.needsReauth,
+    attendeeCount: attendeeEmails.length
   })
 
-  // Google Calendar 연동이 가능한 경우 (provider_token이 있는 경우)
-  if (session?.provider_token) {
+  // Google Calendar 연동이 가능한 경우 (유효한 토큰이 있는 경우)
+  if (tokenResult.accessToken) {
     console.log('[Calendar Integration] Calling Edge Function...')
     try {
       const { data: result, error } = await supabase.functions.invoke(
@@ -211,7 +218,7 @@ export async function createBooking(input: CreateBookingInput) {
             attendeeEmails: attendeeEmails,
             organizerId: user.id,
             organizerEmail: user.email,
-            accessToken: session.provider_token
+            accessToken: tokenResult.accessToken
           }
         }
       )
@@ -231,7 +238,10 @@ export async function createBooking(input: CreateBookingInput) {
       console.warn('[Calendar Integration] Exception:', calendarError)
     }
   } else {
-    console.log('[Calendar Integration] Skipped - provider_token or attendees missing')
+    console.log('[Calendar Integration] Skipped - no valid token available')
+    if (tokenResult.needsReauth) {
+      console.log('[Calendar Integration] User needs to re-authenticate with Google')
+    }
   }
 
   // Google Calendar 연동 없이 기본 예약 생성
@@ -255,7 +265,7 @@ export async function createBooking(input: CreateBookingInput) {
     throw new Error('예약 생성에 실패했습니다.')
   }
 
-  // Add attendees
+  // Add attendees and create notifications
   if (input.attendee_ids.length > 0) {
     const attendees = input.attendee_ids.map((employeeId) => ({
       booking_id: booking.id,
@@ -271,6 +281,72 @@ export async function createBooking(input: CreateBookingInput) {
     if (attendeeError) {
       console.error('Failed to add attendees:', attendeeError)
       // Don't throw - booking was created, just log the error
+    } else {
+      // 회의실 정보 조회
+      const { data: room } = await supabase
+        .from('meeting_room')
+        .select('name, location')
+        .eq('id', input.room_id)
+        .single()
+
+      // 예약자 정보 조회
+      const { data: organizer } = await supabase
+        .from('employee')
+        .select('name')
+        .eq('id', user.id)
+        .single()
+
+      const organizerName = organizer?.name || user.email
+
+      // 시간 포맷팅
+      const startDate = new Date(`${input.booking_date}T${input.start_time}`)
+      const formattedDate = startDate.toLocaleDateString('ko-KR', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+
+      // 각 참석자에게 알림 생성
+      const notificationRecords = input.attendee_ids.map(empId => ({
+        recipient_id: empId,
+        type: 'meeting_invitation',
+        title: `${organizerName}님이 회의에 초대했습니다`,
+        message: `${input.title} - ${formattedDate}`,
+        channel: 'in_app',
+        status: 'sent',
+        metadata: {
+          meeting_data: {
+            id: booking.id,
+            booking: {
+              id: booking.id,
+              title: input.title,
+              description: input.description || null,
+              booking_date: input.booking_date,
+              start_time: input.start_time,
+              end_time: input.end_time,
+              calendar_event_url: null,
+              room: {
+                name: room?.name || '',
+                location: room?.location || null
+              }
+            },
+            response_status: 'needsAction'
+          }
+        },
+        action_url: '/meetings',
+        sent_at: new Date().toISOString()
+      }))
+
+      const { error: notificationError } = await supabase
+        .from('notification')
+        .insert(notificationRecords)
+
+      if (notificationError) {
+        console.error('Failed to create notifications:', notificationError)
+      } else {
+        console.log('[Basic Booking] Notifications created for attendees:', input.attendee_ids.length)
+      }
     }
   }
 
@@ -296,8 +372,14 @@ export async function cancelBooking(bookingId: string) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Google Calendar 연동 시도 (provider_token이 있는 경우)
-  if (session?.provider_token) {
+  // Google 토큰 확인 및 필요시 갱신
+  const tokenResult = await getValidGoogleAccessToken(
+    session?.provider_token,
+    session?.provider_refresh_token
+  )
+
+  // Google Calendar 연동 시도 (유효한 토큰이 있는 경우)
+  if (tokenResult.accessToken) {
     console.log('[Cancel Booking] Calling Edge Function for calendar deletion...')
     try {
       const { data: result, error } = await supabase.functions.invoke(
@@ -306,7 +388,7 @@ export async function cancelBooking(bookingId: string) {
           body: {
             bookingId: bookingId,
             userId: user.id,
-            accessToken: session.provider_token
+            accessToken: tokenResult.accessToken
           }
         }
       )
@@ -325,7 +407,7 @@ export async function cancelBooking(bookingId: string) {
       console.warn('[Cancel Booking] Exception:', calendarError)
     }
   } else {
-    console.log('[Cancel Booking] No provider_token, skipping calendar deletion')
+    console.log('[Cancel Booking] No valid token, skipping calendar deletion')
   }
 
   // Fallback: 기본 취소 (Calendar 연동 없이)
@@ -387,10 +469,18 @@ export async function respondToMeetingInvitation(
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session?.provider_token) {
+  // Google 토큰 확인 및 필요시 갱신
+  const tokenResult = await getValidGoogleAccessToken(
+    session?.provider_token,
+    session?.provider_refresh_token
+  )
+
+  if (!tokenResult.accessToken) {
     return {
       success: false,
-      error: 'Google 로그인이 필요합니다. 다시 로그인해주세요.'
+      error: tokenResult.needsReauth
+        ? 'Google 재로그인이 필요합니다.'
+        : 'Google 토큰 갱신 실패'
     }
   }
 
@@ -404,7 +494,7 @@ export async function respondToMeetingInvitation(
           responseStatus,
           employeeId: user.id,
           employeeEmail: user.email,
-          accessToken: session.provider_token
+          accessToken: tokenResult.accessToken
         }
       }
     )

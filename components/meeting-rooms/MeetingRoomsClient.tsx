@@ -1078,37 +1078,6 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   })}
                 </div>
 
-                {/* No bookings message */}
-                {modalBookings.length === 0 && (
-                  <div
-                    className="py-8 text-center rounded-lg"
-                    style={{
-                      backgroundColor: '#F6F8F9',
-                    }}
-                  >
-                    <Calendar className="w-10 h-10 mx-auto mb-2" style={{ color: '#A0ACB3' }} />
-                    <p
-                      style={{
-                        fontSize: 'var(--font-size-body)',
-                        fontWeight: 500,
-                        lineHeight: 1.5,
-                        color: '#29363D',
-                      }}
-                    >
-                      예약 내역 없음
-                    </p>
-                    <p
-                      className="mt-1"
-                      style={{
-                        fontSize: 'var(--font-size-caption)',
-                        lineHeight: 1.4,
-                        color: '#5B6A72',
-                      }}
-                    >
-                      이 날짜에 예약된 일정이 없습니다
-                    </p>
-                  </div>
-                )}
               </>
             )}
 
