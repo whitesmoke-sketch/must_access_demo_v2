@@ -211,6 +211,9 @@ export function LeaveManagementClient({
       return
     }
 
+    console.log('[일괄승인] 선택된 요청 IDs:', selectedRequestIds)
+    console.log('[일괄승인] pendingRequests:', pendingRequests.map(r => ({ id: r.id, memberName: r.memberName })))
+
     if (!window.confirm(`선택한 ${selectedRequestIds.length}건의 연차 신청을 일괄승인하시겠습니까?`)) {
       return
     }
@@ -219,6 +222,7 @@ export function LeaveManagementClient({
     let failCount = 0
 
     for (const requestId of selectedRequestIds) {
+      console.log('[일괄승인] 승인 시도 - requestId:', requestId, 'type:', typeof requestId)
       try {
         await approveLeaveRequest(Number(requestId))
         successCount++
