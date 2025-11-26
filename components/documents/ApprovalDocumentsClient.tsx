@@ -7,6 +7,8 @@ import {
   Check,
   X,
   Eye,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,18 +32,16 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ApprovalDocumentDetailModal } from './ApprovalDocumentDetailModal'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination'
 
 type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+interface EmployeeInfo {
+  id: string
+  name: string
+  department: { name: string } | { name: string }[] | null
+  role: { name: string } | { name: string }[] | null
+}
 
 interface ApprovalDocument {
   id: number
@@ -55,12 +55,7 @@ interface ApprovalDocument {
   requested_at: string
   approved_at: string | null
   current_step: number | null
-  employee: {
-    id: string
-    name: string
-    department: { name: string } | { name: string }[] | null
-    role: { name: string } | { name: string }[] | null
-  } | null
+  employee: EmployeeInfo | EmployeeInfo[] | null
 }
 
 interface ApprovalStep {
@@ -103,11 +98,12 @@ export function ApprovalDocumentsClient({
   // 필터링 및 검색
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
-      const employeeName = doc.employee?.name || ''
-      const departmentName = doc.employee?.department
-        ? Array.isArray(doc.employee.department)
-          ? doc.employee.department[0]?.name || ''
-          : doc.employee.department.name
+      const employee = doc.employee ? (Array.isArray(doc.employee) ? doc.employee[0] : doc.employee) : null
+      const employeeName = employee?.name || ''
+      const departmentName = employee?.department
+        ? Array.isArray(employee.department)
+          ? employee.department[0]?.name || ''
+          : employee.department.name
         : ''
 
       const matchesSearch =
@@ -115,7 +111,7 @@ export function ApprovalDocumentsClient({
         departmentName.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = filterStatus === 'all' || doc.status === filterStatus
-      const matchesType = filterType === 'all'
+      const matchesType = filterType === 'all' // 현재는 연차만 있음
 
       // 탭에 따른 필터링
       const matchesTab = activeTab === 'in-progress'
@@ -134,33 +130,20 @@ export function ApprovalDocumentsClient({
     currentPage * itemsPerPage
   )
 
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
-
   // 상세 보기
   const handleViewDetail = (document: ApprovalDocument) => {
     setSelectedDocument(document)
     setIsDetailDialogOpen(true)
   }
 
-  // 승인 처리
-  const handleApprove = async (doc: ApprovalDocument) => {
-    // TODO: 실제 승인 로직 연결
-    console.log('Approve:', doc.id)
-  }
-
-  // 반려 처리
-  const handleReject = async (doc: ApprovalDocument) => {
-    // TODO: 실제 반려 로직 연결
-    console.log('Reject:', doc.id)
-  }
-
-  // 상태 뱃지
+  // 상태 뱃지 (사용자별로 다르게 표시)
   const getStatusBadge = (doc: ApprovalDocument) => {
     const styles = {
       pending: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
       approved: { backgroundColor: '#D1FAE5', color: '#10B981' },
       rejected: { backgroundColor: '#FEE2E2', color: '#EF4444' },
       cancelled: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
+      waiting: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
     }
 
     const labels = {
@@ -168,14 +151,20 @@ export function ApprovalDocumentsClient({
       approved: '승인',
       rejected: '반려',
       cancelled: '취소',
+      waiting: '대기중',
     }
 
+    // 상태 표시 로직:
+    // 1. 문서가 최종 완료 상태(approved, rejected, cancelled)이면 → 문서 상태 우선 표시
+    // 2. 문서가 진행 중(pending)이면 → 내 승인 상태에 따라 표시
     const myStatus = myApprovalStatusMap[doc.id]
     let displayStatus: keyof typeof styles
 
     if (doc.status === 'rejected' || doc.status === 'approved' || doc.status === 'cancelled') {
+      // 문서가 최종 완료되었으면 모든 사람에게 동일한 최종 상태 표시
       displayStatus = doc.status
     } else if (doc.status === 'pending' && myStatus) {
+      // 문서가 진행 중이고 내가 관여한 경우, 내 승인 상태에 따라 표시
       if (myStatus === 'approved') {
         displayStatus = 'approved'
       } else if (myStatus === 'rejected') {
@@ -184,11 +173,12 @@ export function ApprovalDocumentsClient({
         displayStatus = 'pending'
       }
     } else {
+      // 기타 경우는 원래 문서 상태 표시
       displayStatus = doc.status
     }
 
     return (
-      <Badge style={{ ...styles[displayStatus], fontSize: '12px', lineHeight: 1.4, fontWeight: 600 }}>
+      <Badge style={{ ...styles[displayStatus], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
         {labels[displayStatus]}
       </Badge>
     )
@@ -211,20 +201,26 @@ export function ApprovalDocumentsClient({
     }
 
     return (
-      <Badge style={{ ...styles[type], fontSize: '12px', lineHeight: 1.4, fontWeight: 600 }}>
+      <Badge style={{ ...styles[type], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
         {labels[type]}
       </Badge>
     )
   }
 
+  // employee 객체 추출 (배열일 경우 첫 번째 요소 반환)
+  const getEmployee = (employee: EmployeeInfo | EmployeeInfo[] | null | undefined): EmployeeInfo | null => {
+    if (!employee) return null
+    return Array.isArray(employee) ? employee[0] || null : employee
+  }
+
   // 부서명 추출
-  const getDepartmentName = (department: { name: string } | { name: string }[] | null): string => {
+  const getDepartmentName = (department: { name: string } | { name: string }[] | null | undefined): string => {
     if (!department) return '-'
     return Array.isArray(department) ? department[0]?.name || '-' : department.name
   }
 
   // 직급명 추출
-  const getRoleName = (role: { name: string } | { name: string }[] | null): string => {
+  const getRoleName = (role: { name: string } | { name: string }[] | null | undefined): string => {
     if (!role) return '-'
     return Array.isArray(role) ? role[0]?.name || '-' : role.name
   }
@@ -257,12 +253,6 @@ export function ApprovalDocumentsClient({
     })
   }
 
-  // 내가 승인할 수 있는지 확인
-  const canApprove = (doc: ApprovalDocument) => {
-    if (doc.status !== 'pending') return false
-    return myApprovalRequestIds.includes(doc.id) && myApprovalStatusMap[doc.id] === 'pending'
-  }
-
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -280,51 +270,28 @@ export function ApprovalDocumentsClient({
         <CardHeader style={{ paddingBottom: '12px' }}>
           {/* 탭 버튼 */}
           <div className="flex gap-2">
-            <button
-              className="px-4 py-2 rounded-lg transition-all"
-              style={{
-                backgroundColor: activeTab === 'all' ? '#635BFF' : '#F6F8F9',
-                color: activeTab === 'all' ? '#FFFFFF' : '#5B6A72',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-              onClick={() => {
-                setActiveTab('all')
-                setCurrentPage(1)
-              }}
-            >
-              전체
-            </button>
-            <button
-              className="px-4 py-2 rounded-lg transition-all"
-              style={{
-                backgroundColor: activeTab === 'in-progress' ? '#635BFF' : '#F6F8F9',
-                color: activeTab === 'in-progress' ? '#FFFFFF' : '#5B6A72',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-              onClick={() => {
-                setActiveTab('in-progress')
-                setCurrentPage(1)
-              }}
-            >
-              결재대기
-            </button>
-            <button
-              className="px-4 py-2 rounded-lg transition-all"
-              style={{
-                backgroundColor: activeTab === 'completed' ? '#635BFF' : '#F6F8F9',
-                color: activeTab === 'completed' ? '#FFFFFF' : '#5B6A72',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-              onClick={() => {
-                setActiveTab('completed')
-                setCurrentPage(1)
-              }}
-            >
-              결재완료
-            </button>
+            {[
+              { value: 'all', label: '전체' },
+              { value: 'in-progress', label: '결재대기' },
+              { value: 'completed', label: '결재완료' },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                className="px-4 py-2 rounded-lg transition-all"
+                style={{
+                  backgroundColor: activeTab === tab.value ? '#635BFF' : '#F6F8F9',
+                  color: activeTab === tab.value ? '#FFFFFF' : '#5B6A72',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+                onClick={() => {
+                  setActiveTab(tab.value as typeof activeTab)
+                  setCurrentPage(1)
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </CardHeader>
         <CardContent>
@@ -343,7 +310,7 @@ export function ApprovalDocumentsClient({
             {/* 필터들 */}
             <div className="flex gap-4 lg:flex-shrink-0">
               <Select value={filterStatus} onValueChange={(value: typeof filterStatus) => setFilterStatus(value)}>
-                <SelectTrigger className="w-full lg:w-[200px]">
+                <SelectTrigger className="w-full lg:w-[180px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -355,7 +322,7 @@ export function ApprovalDocumentsClient({
                 </SelectContent>
               </Select>
               <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
-                <SelectTrigger className="w-full lg:w-[200px]">
+                <SelectTrigger className="w-full lg:w-[180px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -387,101 +354,104 @@ export function ApprovalDocumentsClient({
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: '#5B6A72', fontSize: '12px' }}>
+                    <TableCell colSpan={7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: '#5B6A72', fontSize: '14px' }}>
                       결재 문서가 없습니다
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedDocuments.map((doc) => (
-                    <TableRow
-                      key={doc.id}
-                      className="transition-all hover:bg-[#F6F8F9]"
-                      style={{ borderBottom: '1px solid #E5E8EB' }}
-                    >
-                      <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
-                      <TableCell className="p-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback style={{ backgroundColor: '#635BFF', color: 'white', fontSize: '12px', fontWeight: 500 }}>
-                              {doc.employee?.name.charAt(0) || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p style={{ fontSize: '12px', fontWeight: 500, color: '#29363D' }}>
-                              {doc.employee?.name || '알 수 없음'}
-                            </p>
-                            <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                              {getRoleName(doc.employee?.role ?? null)}
-                            </p>
+                  paginatedDocuments.map((doc) => {
+                    // 내가 승인해야 할 차례인지 확인
+                    const isMyTurn = myApprovalRequestIds.includes(doc.id)
+                    const canApprove = doc.status === 'pending' && isMyTurn
+                    const employee = getEmployee(doc.employee)
+
+                    return (
+                      <TableRow
+                        key={doc.id}
+                        className="transition-colors hover:bg-muted/50"
+                        style={{ borderBottom: '1px solid #E5E8EB' }}
+                      >
+                        <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
+                        <TableCell className="p-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback style={{ backgroundColor: '#635BFF', color: 'white', fontSize: '12px', fontWeight: 500 }}>
+                                {employee?.name.charAt(0) || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
+                                {employee?.name || '알 수 없음'}
+                              </p>
+                              <p style={{ fontSize: '12px', color: '#5B6A72' }}>
+                                {getRoleName(employee?.role)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="p-3" style={{ fontSize: '12px', color: '#29363D' }}>
-                        {getDepartmentName(doc.employee?.department ?? null)}
-                      </TableCell>
-                      <TableCell className="p-3" style={{ fontSize: '12px', color: '#29363D' }}>
-                        {new Date(doc.requested_at).toLocaleString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </TableCell>
-                      <TableCell className="p-3">
-                        {(() => {
-                          if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled') {
+                        </TableCell>
+                        <TableCell className="p-3" style={{ fontSize: '14px', color: '#29363D' }}>
+                          {getDepartmentName(employee?.department)}
+                        </TableCell>
+                        <TableCell className="p-3" style={{ fontSize: '14px', color: '#29363D' }}>
+                          {new Date(doc.requested_at).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </TableCell>
+                        <TableCell className="p-3">
+                          {(() => {
+                            // 완료된 문서(승인/반려/취소)는 단순 상태 뱃지만 표시
+                            if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled') {
+                              return getStatusBadge(doc)
+                            }
+                            // 진행 중인 문서만 결재 진행 상태 표시
+                            const approvalProgress = getApprovalProgress(doc.id, doc.current_step)
+                            if (approvalProgress && approvalProgress.length > 1) {
+                              return <ApprovalProgressBadge approvers={approvalProgress} />
+                            }
                             return getStatusBadge(doc)
-                          }
-                          const approvalProgress = getApprovalProgress(doc.id, doc.current_step)
-                          if (approvalProgress && approvalProgress.length > 1) {
-                            return <ApprovalProgressBadge approvers={approvalProgress} />
-                          }
-                          return getStatusBadge(doc)
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-center p-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(doc)}
-                          style={{ color: '#29363D', padding: '4px 8px' }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-center p-3">
-                        <div className="flex items-center justify-center gap-2">
-                          {canApprove(doc) && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(doc)}
-                                style={{
-                                  backgroundColor: '#10B981',
-                                  color: 'white',
-                                }}
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                승인
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleReject(doc)}
-                                style={{
-                                  backgroundColor: '#EF4444',
-                                  color: 'white',
-                                }}
-                              >
-                                <X className="w-4 h-4 mr-1" />
-                                반려
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center p-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetail(doc)}
+                            style={{ color: '#29363D', padding: '4px 8px' }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-center p-3">
+                          <div className="flex items-center justify-center gap-2">
+                            {canApprove && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleViewDetail(doc)}
+                                  style={{ backgroundColor: '#10B981', color: 'white' }}
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  승인
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleViewDetail(doc)}
+                                  style={{ backgroundColor: '#EF4444', color: 'white' }}
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  반려
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -489,64 +459,31 @@ export function ApprovalDocumentsClient({
 
           {/* Pagination */}
           {filteredDocuments.length > itemsPerPage && (
-            <div className="mt-4">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(1)}
-                      isActive={currentPage === 1}
-                      className="cursor-pointer"
-                    >
-                      1
-                    </PaginationLink>
-                  </PaginationItem>
-                  {currentPage > 3 && totalPages > 4 && (
-                    <PaginationItem>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  )}
-                  {currentPage > 2 && currentPage < totalPages && (
-                    <PaginationItem>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(currentPage)}
-                        isActive={true}
-                        className="cursor-pointer"
-                      >
-                        {currentPage}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-                  {currentPage < totalPages - 2 && totalPages > 4 && (
-                    <PaginationItem>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  )}
-                  {totalPages > 1 && (
-                    <PaginationItem>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(totalPages)}
-                        isActive={currentPage === totalPages}
-                        className="cursor-pointer"
-                      >
-                        {totalPages}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+            <div className="flex items-center justify-between mt-4">
+              <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
+                총 {filteredDocuments.length}건 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredDocuments.length)}건 표시
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span style={{ fontSize: '14px', color: '#29363D', lineHeight: 1.5 }}>
+                  {currentPage} / {Math.ceil(filteredDocuments.length / itemsPerPage)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(filteredDocuments.length / itemsPerPage)}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

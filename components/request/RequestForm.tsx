@@ -166,7 +166,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         department: approver.department?.name || '',
       }))
       setApprovalSteps(defaultSteps)
-      toast.success('자동 결재선이 설정되었습니다')
+      // toast.success('자동 결재선이 설정되었습니다')
     }
   }
 

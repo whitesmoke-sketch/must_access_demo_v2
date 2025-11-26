@@ -55,9 +55,7 @@ interface MyDocument {
   status: DocumentStatus
   requested_at: string
   approved_at: string | null
-  rejected_at: string | null
   current_step: number | null
-  pdf_url: string | null
 }
 
 interface ApprovalStep {
@@ -65,8 +63,6 @@ interface ApprovalStep {
   step_order: number
   status: string
   approved_at: string | null
-  rejected_at: string | null
-  rejection_reason: string | null
   approver: {
     id: string
     name: string
@@ -89,6 +85,7 @@ export function MyDocumentsClient({
   const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | DocumentStatus>('all')
+  const [filterType, setFilterType] = useState<'all' | 'leave'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
@@ -100,6 +97,8 @@ export function MyDocumentsClient({
     return documents.filter((doc) => {
       const matchesSearch = doc.reason.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesStatus = filterStatus === 'all' || doc.status === filterStatus
+      // 문서 유형 필터 (현재는 연차 신청만 있음)
+      const matchesType = filterType === 'all' || filterType === 'leave'
 
       // 탭에 따른 필터링
       const matchesTab =
@@ -109,9 +108,9 @@ export function MyDocumentsClient({
           ? doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled'
           : true
 
-      return matchesSearch && matchesStatus && matchesTab
+      return matchesSearch && matchesStatus && matchesTab && matchesType
     })
-  }, [documents, searchQuery, filterStatus, activeTab])
+  }, [documents, searchQuery, filterStatus, activeTab, filterType])
 
   const paginatedDocuments = filteredDocuments.slice(
     (currentPage - 1) * itemsPerPage,
@@ -221,13 +220,17 @@ export function MyDocumentsClient({
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">기안함</h2>
-          <p className="text-sm text-gray-600 mt-1">내가 작성한 문서를 조회하고 관리합니다</p>
+          <h2 style={{ color: '#29363D', fontSize: '22px', fontWeight: 500, lineHeight: 1.25 }}>
+            기안함
+          </h2>
+          <p style={{ color: '#5B6A72', fontSize: '16px', lineHeight: 1.5 }} className="mt-1">
+            내가 작성한 문서를 조회하고 관리합니다
+          </p>
         </div>
         <Link href="/request">
           <Button className="w-full sm:w-auto" style={{ backgroundColor: '#635BFF' }}>
             <FilePlus className="w-4 h-4 mr-2" />
-            신청서 작성
+            기안 문서 작성
           </Button>
         </Link>
       </div>
@@ -263,8 +266,8 @@ export function MyDocumentsClient({
         </CardHeader>
         <CardContent>
           {/* 필터 및 검색 */}
-          <div className="mb-4 flex flex-col gap-4">
-            <div className="relative w-full">
+          <div className="mb-4 flex flex-col lg:flex-row gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 placeholder="신청 사유로 검색..."
@@ -273,9 +276,18 @@ export function MyDocumentsClient({
                 className="pl-10"
               />
             </div>
-            <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-              <SelectTrigger className="flex-1">
+            <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
+              <SelectTrigger className="w-full lg:w-[180px]">
                 <Filter className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 문서</SelectItem>
+                <SelectItem value="leave">연차 신청</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+              <SelectTrigger className="w-full lg:w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -288,80 +300,104 @@ export function MyDocumentsClient({
             </Select>
           </div>
 
-          <div className="rounded-lg border">
+          {/* 테이블 */}
+          <div className="mb-3" style={{ fontSize: '12px', color: '#5B6A72' }}>
+            전체 {filteredDocuments.length}건
+          </div>
+          <div className="rounded-lg border" style={{ borderColor: '#E5E8EB' }}>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>신청 유형</TableHead>
-                  <TableHead>신청 사유</TableHead>
-                  <TableHead>기간</TableHead>
-                  <TableHead>일수</TableHead>
-                  <TableHead>신청일</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead className="text-center">상세</TableHead>
+                <TableRow style={{ borderBottom: '2px solid #E5E8EB' }}>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>문서 종류</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>문서 제목</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>작성일</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상태</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상세</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                    <TableCell colSpan={6} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: '#5B6A72', fontSize: '14px' }}>
                       작성한 문서가 없습니다
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedDocuments.map((doc) => (
-                    <TableRow key={doc.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          style={{
-                            backgroundColor: 'rgba(99, 91, 255, 0.1)',
-                            color: '#635BFF',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            border: 'none',
-                          }}
-                        >
-                          {getLeaveTypeText(doc.leave_type)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{doc.reason}</TableCell>
-                      <TableCell>
-                        {doc.start_date} ~ {doc.end_date}
-                      </TableCell>
-                      <TableCell>{doc.requested_days}일</TableCell>
-                      <TableCell>
-                        {new Date(doc.requested_at).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const approvalProgress = getApprovalProgress(doc.id, doc.current_step, doc.status)
-                          console.log(`📋 Document ${doc.id} - approvalProgress:`, approvalProgress)
-                          console.log(`📋 Document ${doc.id} - status: ${doc.status}, current_step: ${doc.current_step}`)
-                          console.log(`📋 Document ${doc.id} - approvalHistoryMap[${doc.id}]:`, approvalHistoryMap[doc.id])
-                          if (approvalProgress && approvalProgress.length > 1) {
-                            console.log(`✅ Document ${doc.id} - Showing ApprovalProgressBadge`)
-                            return <ApprovalProgressBadge approvers={approvalProgress} />
-                          }
-                          console.log(`⚠️ Document ${doc.id} - Showing status badge`)
-                          return getStatusBadge(doc.status)
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(doc)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  paginatedDocuments.map((doc) => {
+                    const canWithdraw = doc.status === 'pending'
+                    const canCancelRequest = doc.status === 'approved'
+
+                    return (
+                      <TableRow key={doc.id} className="hover:bg-muted/50" style={{ borderBottom: '1px solid #E5E8EB' }}>
+                        <TableCell className="p-3">
+                          <Badge
+                            style={{
+                              backgroundColor: 'rgba(99, 91, 255, 0.1)',
+                              color: '#635BFF',
+                              fontSize: '12px',
+                              fontWeight: 500,
+                              border: 'none',
+                            }}
+                          >
+                            {getLeaveTypeText(doc.leave_type)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="p-3" style={{ fontSize: '14px', color: '#29363D' }}>
+                          {doc.reason} ({doc.start_date} ~ {doc.end_date})
+                        </TableCell>
+                        <TableCell className="p-3" style={{ fontSize: '14px', color: '#29363D' }}>
+                          {new Date(doc.requested_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                          })}
+                        </TableCell>
+                        <TableCell className="p-3">
+                          {(() => {
+                            const approvalProgress = getApprovalProgress(doc.id, doc.current_step, doc.status)
+                            if (approvalProgress && approvalProgress.length > 1) {
+                              return <ApprovalProgressBadge approvers={approvalProgress} />
+                            }
+                            return getStatusBadge(doc.status)
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center p-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetail(doc)}
+                            style={{ color: '#29363D', padding: '4px 8px' }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-center p-3">
+                          <div className="flex items-center justify-center gap-2">
+                            {canWithdraw && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewDetail(doc)}
+                                style={{ fontSize: '12px' }}
+                              >
+                                회수
+                              </Button>
+                            )}
+                            {canCancelRequest && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleViewDetail(doc)}
+                                style={{ backgroundColor: '#EF4444', color: 'white', fontSize: '12px' }}
+                              >
+                                취소 요청
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -407,7 +443,6 @@ export function MyDocumentsClient({
               <div>
                 <p className="text-xs text-gray-500 mb-1">신청 유형</p>
                 <Badge
-                  variant="secondary"
                   style={{
                     backgroundColor: 'rgba(99, 91, 255, 0.1)',
                     color: '#635BFF',
@@ -509,8 +544,6 @@ export function MyDocumentsClient({
                               <span className="text-xs text-gray-500">
                                 {step.approved_at
                                   ? new Date(step.approved_at).toLocaleString('ko-KR')
-                                  : step.rejected_at
-                                  ? new Date(step.rejected_at).toLocaleString('ko-KR')
                                   : '-'}
                               </span>
                             </div>
@@ -518,9 +551,6 @@ export function MyDocumentsClient({
                             <p className="text-xs text-gray-600">
                               {step.approver.department?.name} · {step.approver.role?.name}
                             </p>
-                            {step.rejection_reason && (
-                              <p className="text-sm text-gray-700 mt-1">사유: {step.rejection_reason}</p>
-                            )}
                           </div>
                         </div>
                       </div>

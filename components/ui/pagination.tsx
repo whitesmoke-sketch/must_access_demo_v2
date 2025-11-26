@@ -2,6 +2,7 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { ButtonProps, buttonVariants } from "@/components/ui/button"
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
@@ -35,20 +36,22 @@ PaginationItem.displayName = "PaginationItem"
 
 type PaginationLinkProps = {
   isActive?: boolean
-} & React.ComponentProps<"a">
+} & Pick<ButtonProps, "size"> &
+  React.ComponentProps<"a">
 
 const PaginationLink = ({
   className,
   isActive,
+  size = "icon",
   ...props
 }: PaginationLinkProps) => (
   <a
     aria-current={isActive ? "page" : undefined}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 w-9",
-      isActive
-        ? "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-        : "hover:bg-accent hover:text-accent-foreground",
+      buttonVariants({
+        variant: isActive ? "outline" : "ghost",
+        size,
+      }),
       className
     )}
     {...props}
@@ -62,11 +65,12 @@ const PaginationPrevious = ({
 }: React.ComponentProps<typeof PaginationLink>) => (
   <PaginationLink
     aria-label="Go to previous page"
-    className={cn("gap-1 pl-2.5 w-auto px-2", className)}
+    size="default"
+    className={cn("gap-1 pl-2.5", className)}
     {...props}
   >
     <ChevronLeft className="h-4 w-4" />
-    <span>이전</span>
+    <span>Previous</span>
   </PaginationLink>
 )
 PaginationPrevious.displayName = "PaginationPrevious"
@@ -77,10 +81,11 @@ const PaginationNext = ({
 }: React.ComponentProps<typeof PaginationLink>) => (
   <PaginationLink
     aria-label="Go to next page"
-    className={cn("gap-1 pr-2.5 w-auto px-2", className)}
+    size="default"
+    className={cn("gap-1 pr-2.5", className)}
     {...props}
   >
-    <span>다음</span>
+    <span>Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
 )

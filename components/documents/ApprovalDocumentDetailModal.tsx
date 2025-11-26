@@ -22,6 +22,13 @@ import { approveLeaveRequest, rejectLeaveRequest } from '@/app/(authenticated)/d
 type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
+interface EmployeeInfo {
+  id: string
+  name: string
+  department: { name: string } | { name: string }[] | null
+  role: { name: string } | { name: string }[] | null
+}
+
 interface ApprovalDocument {
   id: number
   employee_id: string
@@ -34,12 +41,7 @@ interface ApprovalDocument {
   requested_at: string
   approved_at: string | null
   current_step: number | null
-  employee: {
-    id: string
-    name: string
-    department: { name: string } | { name: string }[] | null
-    role: { name: string } | { name: string }[] | null
-  } | null
+  employee: EmployeeInfo | EmployeeInfo[] | null
 }
 
 interface ApprovalStep {
@@ -260,12 +262,20 @@ export function ApprovalDocumentDetailModal({
     }
   )
 
-  const getDepartmentName = (department: { name: string } | { name: string }[] | null): string => {
+  // employee 객체 추출 (배열일 경우 첫 번째 요소 반환)
+  const getEmployee = (employee: EmployeeInfo | EmployeeInfo[] | null | undefined): EmployeeInfo | null => {
+    if (!employee) return null
+    return Array.isArray(employee) ? employee[0] || null : employee
+  }
+
+  const getDepartmentName = (department: { name: string } | { name: string }[] | null | undefined): string => {
     if (!department) return '-'
     return Array.isArray(department) ? department[0]?.name || '-' : department.name
   }
 
   if (!document) return null
+
+  const employee = getEmployee(document.employee)
 
   return (
     <>
@@ -286,7 +296,7 @@ export function ApprovalDocumentDetailModal({
               <div className="space-y-1">
                 <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>신청자</p>
                 <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                  {document.employee?.name || '알 수 없음'}
+                  {employee?.name || '알 수 없음'}
                 </p>
               </div>
               <div className="space-y-1">
@@ -303,7 +313,7 @@ export function ApprovalDocumentDetailModal({
             <div className="space-y-1">
               <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>소속</p>
               <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                {getDepartmentName(document.employee?.department)}
+                {getDepartmentName(employee?.department)}
               </p>
             </div>
 
@@ -489,7 +499,7 @@ export function ApprovalDocumentDetailModal({
               반려 사유 입력
             </DialogTitle>
             <DialogDescription style={{ fontSize: '14px', lineHeight: 1.5 }}>
-              {document?.employee?.name}님의 연차 신청 반려 사유를 입력해주세요
+              {employee?.name}님의 연차 신청 반려 사유를 입력해주세요
             </DialogDescription>
           </DialogHeader>
 
