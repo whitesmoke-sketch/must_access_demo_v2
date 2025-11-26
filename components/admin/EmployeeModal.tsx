@@ -57,7 +57,7 @@ export function EmployeeModal({
     employment_date: '',
     phone: '',
     location: '',
-    annual_leave_days: 15,
+    annual_leave_days: 0,
     used_days: 0,
     reward_leave: 0,
   })
@@ -76,7 +76,7 @@ export function EmployeeModal({
         employment_date: employee.employment_date || '',
         phone: employee.phone || '',
         location: employee.location || '',
-        annual_leave_days: employee.annual_leave_balance?.[0]?.total_days || 15,
+        annual_leave_days: employee.annual_leave_balance?.[0]?.total_days || 0,
         used_days: employee.annual_leave_balance?.[0]?.used_days || 0,
         reward_leave: 0, // 하드코딩
       })

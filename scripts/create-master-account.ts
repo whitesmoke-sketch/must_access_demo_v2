@@ -36,7 +36,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 // 마스터 계정 정보
 const MASTER_ACCOUNT = {
-  id: '00000000-0000-0000-0000-000000000000', // 특별한 UUID
   email: 'admin@must-access.com',
   password: 'Admin@2025!',
   name: '시스템 관리자',
@@ -100,7 +99,6 @@ async function createMasterAccount() {
     // 4. Auth 사용자 생성
     console.log('\n4️⃣ Creating auth user...')
     const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      id: MASTER_ACCOUNT.id,
       email: MASTER_ACCOUNT.email,
       password: MASTER_ACCOUNT.password,
       email_confirm: true,
@@ -116,12 +114,14 @@ async function createMasterAccount() {
     console.log('   ✅ Auth user created')
     console.log('   ID:', authUser.user.id)
 
+    const userId = authUser.user.id
+
     // 5. Employee 레코드 생성
     console.log('\n5️⃣ Creating employee record...')
     const { data: employee, error: employeeError } = await supabase
       .from('employee')
       .insert({
-        id: MASTER_ACCOUNT.id,
+        id: userId,
         department_id: hqDept.id,
         role_id: adminRole.id,
         name: MASTER_ACCOUNT.name,
@@ -138,7 +138,7 @@ async function createMasterAccount() {
 
       // Rollback: auth 사용자 삭제
       console.log('   🔄 Rolling back auth user...')
-      await supabase.auth.admin.deleteUser(MASTER_ACCOUNT.id)
+      await supabase.auth.admin.deleteUser(userId)
 
       process.exit(1)
     }
@@ -151,7 +151,7 @@ async function createMasterAccount() {
     const { error: leaveError } = await supabase
       .from('annual_leave_balance')
       .insert({
-        employee_id: MASTER_ACCOUNT.id,
+        employee_id: userId,
         total_days: 25, // 관리자는 25일
         used_days: 0,
         remaining_days: 25,
@@ -173,9 +173,9 @@ async function createMasterAccount() {
     console.log('📧 Email:', MASTER_ACCOUNT.email)
     console.log('🔑 Password:', MASTER_ACCOUNT.password)
     console.log('👤 Name:', MASTER_ACCOUNT.name)
-    console.log('🆔 ID:', MASTER_ACCOUNT.id)
+    console.log('🆔 ID:', userId)
     console.log('🏢 Department: 본사 (HQ)')
-    console.log('👔 Role: 관리자 (Admin, Level 0)')
+    console.log('👔 Role: 관리자 (Admin, Level 5)')
     console.log('')
     console.log('⚠️  IMPORTANT: 프로덕션 환경에서는 반드시 비밀번호를 변경하세요!')
     console.log('')
