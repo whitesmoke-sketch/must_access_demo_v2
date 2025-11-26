@@ -43,16 +43,22 @@ interface ApprovalDocument {
 }
 
 interface ApprovalStep {
-  id: string
+  id?: string
   step_order: number
-  approver_id: string | null
+  approver_id?: string | null
   status: string
-  comment: string | null
-  approved_at: string | null
-  created_at: string
-  employee: {
+  comment?: string | null
+  approved_at?: string | null
+  created_at?: string
+  // Edge Function 응답 형식
+  employee?: {
     name: string
   } | null
+  // 페이지에서 전달되는 형식
+  approver?: {
+    id: string
+    name: string
+  } | { id: string; name: string }[] | null
 }
 
 interface ApprovalDocumentDetailModalProps {
@@ -60,6 +66,7 @@ interface ApprovalDocumentDetailModalProps {
   onOpenChange: (open: boolean) => void
   document: ApprovalDocument | null
   userId: string
+  initialApprovalSteps?: ApprovalStep[]
 }
 
 const getStatusBadge = (status: LeaveStatus) => {
@@ -114,19 +121,28 @@ export function ApprovalDocumentDetailModal({
   onOpenChange,
   document,
   userId,
+  initialApprovalSteps,
 }: ApprovalDocumentDetailModalProps) {
   const router = useRouter()
-  const [approvalSteps, setApprovalSteps] = useState<ApprovalStep[]>([])
+  const [approvalSteps, setApprovalSteps] = useState<ApprovalStep[]>(initialApprovalSteps || [])
   const [loading, setLoading] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
 
+  // initialApprovalSteps가 변경되면 상태 업데이트
   useEffect(() => {
-    if (open && document) {
+    if (initialApprovalSteps) {
+      setApprovalSteps(initialApprovalSteps)
+    }
+  }, [initialApprovalSteps])
+
+  // initialApprovalSteps가 없을 때만 Edge Function 호출
+  useEffect(() => {
+    if (open && document && !initialApprovalSteps) {
       fetchApprovalSteps()
     }
-  }, [open, document])
+  }, [open, document, initialApprovalSteps])
 
   const fetchApprovalSteps = async () => {
     if (!document) return
@@ -234,9 +250,14 @@ export function ApprovalDocumentDetailModal({
   // 2. 현재 사용자가 승인자여야 함
   // 3. 현재 사용자의 step_order가 current_step과 일치해야 함 (순차적)
   const canApprove = document?.status === 'pending' && approvalSteps.some(
-    step => step.approver_id === userId
-      && step.status === 'pending'
-      && step.step_order === document.current_step
+    step => {
+      // approver_id (Edge Function 형식) 또는 approver.id (페이지 형식) 체크
+      const approverId = step.approver_id ||
+        (step.approver ? (Array.isArray(step.approver) ? step.approver[0]?.id : step.approver.id) : null)
+      return approverId === userId
+        && step.status === 'pending'
+        && step.step_order === document.current_step
+    }
   )
 
   const getDepartmentName = (department: { name: string } | { name: string }[] | null): string => {
@@ -408,7 +429,11 @@ export function ApprovalDocumentDetailModal({
                               )}
                             </div>
                             <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '21px', color: '#29363D' }}>
-                              {step.employee ? (Array.isArray(step.employee) ? step.employee[0]?.name : step.employee.name) || '알 수 없음' : '대기중'}
+                              {step.employee
+                                ? (Array.isArray(step.employee) ? step.employee[0]?.name : step.employee.name) || '알 수 없음'
+                                : step.approver
+                                  ? (Array.isArray(step.approver) ? step.approver[0]?.name : step.approver.name) || '알 수 없음'
+                                  : '대기중'}
                             </p>
                             {step.comment && (
                               <p style={{ fontSize: '14px', lineHeight: '21px', color: '#5B6A72' }}>

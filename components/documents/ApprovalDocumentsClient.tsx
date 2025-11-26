@@ -496,6 +496,7 @@ export function ApprovalDocumentsClient({
         onOpenChange={setIsDetailDialogOpen}
         document={selectedDocument}
         userId={userId}
+        initialApprovalSteps={selectedDocument ? approvalStepsMap[selectedDocument.id] : undefined}
       />
     </div>
   )
