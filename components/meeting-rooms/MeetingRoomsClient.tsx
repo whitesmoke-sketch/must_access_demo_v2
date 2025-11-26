@@ -1041,24 +1041,6 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                 {booking.bookedBy} • {booking.start} - {booking.end}
                               </p>
                             </div>
-                            {booking.bookingId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm('이 예약을 취소하시겠습니까?')) {
-                                    handleCancelBooking(booking.bookingId!)
-                                  }
-                                }}
-                                style={{
-                                  padding: '4px',
-                                  height: 'auto',
-                                  color: '#EF4444',
-                                }}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
                           </>
                         ) : (
                           <div className="flex-1">
