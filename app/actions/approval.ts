@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 // ================================================
@@ -225,14 +225,15 @@ export async function deleteApprovalTemplate(templateId: string) {
 export async function getEligibleApprovers() {
   try {
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return { success: false, error: '인증이 필요합니다', data: [] }
     }
 
-    // 본인 정보 조회
-    const { data: currentEmployee } = await supabase
+    // 본인 정보 조회 (RLS 우회를 위해 adminSupabase 사용)
+    const { data: currentEmployee } = await adminSupabase
       .from('employee')
       .select('department_id, role:role_id(level)')
       .eq('id', user.id)
@@ -248,8 +249,8 @@ export async function getEligibleApprovers() {
       : currentEmployee.role
     const currentLevel = (currentRole as { level: number })?.level || 0
 
-    // 모든 활성 직원 조회 (본인 제외)
-    const { data, error } = await supabase
+    // 모든 활성 직원 조회 (본인 제외) - RLS 우회를 위해 adminSupabase 사용
+    const { data, error } = await adminSupabase
       .from('employee')
       .select(`
         id,
@@ -308,14 +309,15 @@ export async function generateDefaultApprovers(
 ): Promise<{ success: boolean; data?: Approver[]; error?: string }> {
   try {
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return { success: false, error: '인증이 필요합니다' }
     }
 
-    // 본인 정보 조회
-    const { data: currentEmployee } = await supabase
+    // 본인 정보 조회 (RLS 우회를 위해 adminSupabase 사용)
+    const { data: currentEmployee } = await adminSupabase
       .from('employee')
       .select(`
         id,
@@ -337,8 +339,8 @@ export async function generateDefaultApprovers(
       ? currentEmployee.role[0]
       : currentEmployee.role
 
-    // 전체 부서 목록 조회
-    const { data: allDepartments } = await supabase
+    // 전체 부서 목록 조회 (RLS 우회를 위해 adminSupabase 사용)
+    const { data: allDepartments } = await adminSupabase
       .from('department')
       .select('*')
 
@@ -356,15 +358,15 @@ export async function generateDefaultApprovers(
 
     // 1. 현재 부서의 팀리더 찾기 (본인이 일반사원인 경우)
     if (currentRole.level === 1) {
-      // 팀리더 role ID 조회
-      const { data: teamLeaderRole } = await supabase
+      // 팀리더 role ID 조회 (RLS 우회를 위해 adminSupabase 사용)
+      const { data: teamLeaderRole } = await adminSupabase
         .from('role')
         .select('id')
         .eq('level', 2)
         .single()
 
       if (teamLeaderRole) {
-        const { data: teamLeader } = await supabase
+        const { data: teamLeader } = await adminSupabase
           .from('employee')
           .select(`
             id, name, email, department_id,
@@ -394,8 +396,8 @@ export async function generateDefaultApprovers(
     // 최대 2단계 상위 부서까지 탐색 (부서장, 본부장)
     for (let i = 0; i < 2; i++) {
       if (parentDept) {
-        // 해당 부서에 소속된 모든 직원 조회
-        const { data: deptEmployees } = await supabase
+        // 해당 부서에 소속된 모든 직원 조회 (RLS 우회를 위해 adminSupabase 사용)
+        const { data: deptEmployees } = await adminSupabase
           .from('employee')
           .select(`
             id, name, email, department_id,
@@ -443,15 +445,15 @@ export async function generateDefaultApprovers(
 
     // 3. 연차 신청인 경우 HR 추가
     if (requestType === 'leave') {
-      // HR role ID 조회
-      const { data: hrRole } = await supabase
+      // HR role ID 조회 (RLS 우회를 위해 adminSupabase 사용)
+      const { data: hrRole } = await adminSupabase
         .from('role')
         .select('id')
         .eq('code', 'hr')
         .single()
 
       if (hrRole) {
-        const { data: hrEmployee } = await supabase
+        const { data: hrEmployee } = await adminSupabase
           .from('employee')
           .select(`
             id, name, email, department_id,
