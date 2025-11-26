@@ -100,7 +100,8 @@ export function LeaveManagementClient({
   const totalAnnualLeave = members.reduce((sum, m) => sum + m.annualLeave, 0)
   const totalUsedLeave = members.reduce((sum, m) => sum + m.usedAnnualLeave, 0)
   const usageRate = totalAnnualLeave > 0 ? ((totalUsedLeave / totalAnnualLeave) * 100).toFixed(1) : '0'
-  const pendingRequestsCount = leaveRequests.filter(r => r.status === 'pending').length
+  // 내가 결재할 수 있는 요청만 카운트
+  const pendingRequestsCount = leaveRequests.filter(r => r.status === 'pending' && r.canApprove === true).length
 
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
@@ -139,9 +140,9 @@ export function LeaveManagementClient({
     return { hasRequest: memberRequests.length > 0, status: 'none', count: 0 }
   }
 
-  // 승인 대기 목록
+  // 승인 대기 목록 - 현재 사용자가 결재할 수 있는 문서만 표시
   const pendingRequests = leaveRequests
-    .filter(r => r.status === 'pending')
+    .filter(r => r.status === 'pending' && r.canApprove === true)
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
     .slice(0, 5)
 

@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     }
 
     // 모든 쿼리를 병렬로 실행 (성능 최적화)
-    const [employeesResult, rewardGrantsResult, rewardUsageResult, leaveRequestsResult] = await Promise.all([
+    const [employeesResult, rewardGrantsResult, rewardUsageResult, leaveRequestsResult, myPendingStepsResult] = await Promise.all([
       // Fetch all employees with their leave balances
       supabase
         .from('employee')
@@ -97,16 +97,25 @@ Deno.serve(async (req) => {
           rejection_reason,
           requested_at,
           approved_at,
+          current_step,
           employee:employee_id(id, name),
           approver:approver_id(id, name)
         `)
-        .order('requested_at', { ascending: false })
+        .order('requested_at', { ascending: false }),
+      // Fetch approval steps where current user is the approver and status is pending
+      supabase
+        .from('approval_step')
+        .select('request_id, step_order, status')
+        .eq('request_type', 'leave')
+        .eq('approver_id', user.id)
+        .eq('status', 'pending')
     ])
 
     const { data: employees, error: employeesError } = employeesResult
     const { data: rewardGrants, error: rewardGrantsError } = rewardGrantsResult
     const { data: rewardUsage, error: rewardUsageError } = rewardUsageResult
     const { data: leaveRequests, error: leaveRequestsError } = leaveRequestsResult
+    const { data: myPendingSteps, error: myPendingStepsError } = myPendingStepsResult
 
     if (employeesError) {
       console.error('Error fetching employees:', employeesError)
@@ -125,6 +134,15 @@ Deno.serve(async (req) => {
       console.error('Error fetching leave requests:', leaveRequestsError)
       throw new Error('Failed to fetch leave requests')
     }
+
+    if (myPendingStepsError) {
+      console.error('Error fetching pending approval steps:', myPendingStepsError)
+    }
+
+    // 현재 사용자가 결재할 수 있는 요청 ID 목록 (approval_step.request_id)
+    const myApprovableRequestIds = new Set<number>(
+      myPendingSteps?.map(step => step.request_id) || []
+    )
 
     // Calculate reward leave totals
     const rewardGrantMap = new Map<string, number>()
@@ -161,6 +179,9 @@ Deno.serve(async (req) => {
         mappedLeaveType = 'annual'
       }
 
+      // 현재 사용자가 이 요청을 결재할 수 있는지 여부
+      const canApprove = myApprovableRequestIds.has(req.id)
+
       return {
         id: String(req.id),
         memberId: req.employee_id,
@@ -175,6 +196,7 @@ Deno.serve(async (req) => {
         reviewedBy: req.approver?.name || undefined,
         reviewedAt: req.approved_at || undefined,
         rejectReason: req.rejection_reason || undefined,
+        canApprove, // 현재 사용자가 결재 가능한지 여부
       }
     }) || []
 

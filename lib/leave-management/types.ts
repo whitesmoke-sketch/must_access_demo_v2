@@ -25,6 +25,7 @@ export interface LeaveRequest {
   reviewedBy?: string
   reviewedAt?: string
   rejectReason?: string
+  canApprove?: boolean // 현재 사용자가 결재 가능한지 여부
   approvers?: {
     approverId: string
     approverName: string
