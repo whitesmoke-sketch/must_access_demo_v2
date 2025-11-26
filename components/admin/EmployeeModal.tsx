@@ -62,9 +62,12 @@ export function EmployeeModal({
     reward_leave: 0,
   })
 
+  // 모달이 열릴 때만 roles를 fetch (중복 호출 방지)
   useEffect(() => {
-    loadRoles()
-  }, [])
+    if (open && roles.length === 0) {
+      loadRoles()
+    }
+  }, [open])
 
   useEffect(() => {
     if (employee) {
@@ -198,9 +201,10 @@ export function EmployeeModal({
                 onValueChange={(value) =>
                   setFormData({ ...formData, role_id: parseInt(value) })
                 }
+                disabled={roles.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="역할 선택" />
+                  <SelectValue placeholder={roles.length === 0 ? "로딩 중..." : "역할 선택"} />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
