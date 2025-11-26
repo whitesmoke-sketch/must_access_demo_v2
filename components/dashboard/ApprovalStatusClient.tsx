@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ChevronRight } from 'lucide-react'
+import { Calendar, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { ApprovalDocumentDetailModal } from '@/components/documents/ApprovalDocumentDetailModal'
+import { approveLeaveRequest, rejectLeaveRequest } from '@/app/(authenticated)/documents/actions'
+import { useRouter } from 'next/navigation'
 
 type LeaveStatus = 'pending' | 'approved' | 'rejected'
 type LeaveType = 'annual' | 'half_day' | 'reward'
@@ -55,14 +57,54 @@ export function ApprovalStatusClient({
   userId,
   approvalStepsMap
 }: ApprovalStatusClientProps) {
+  const router = useRouter()
   const [approvalTab, setApprovalTab] = useState<'pending' | 'requested'>('pending')
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [isProcessing, setIsProcessing] = useState<number | null>(null)
 
   const getEmployeeName = (employee: LeaveRequest['employee']) => {
     if (!employee) return '알 수 없음'
     return Array.isArray(employee) ? employee[0]?.name ?? '알 수 없음' : employee.name
   }
+
+  const handleApprove = async (e: React.MouseEvent, requestId: number) => {
+    e.stopPropagation()
+    setIsProcessing(requestId)
+    try {
+      const result = await approveLeaveRequest(requestId)
+      if (result.success) {
+        router.refresh()
+      } else {
+        alert(result.error || '승인 처리 중 오류가 발생했습니다.')
+      }
+    } catch {
+      alert('승인 처리 중 오류가 발생했습니다.')
+    } finally {
+      setIsProcessing(null)
+    }
+  }
+
+  const handleReject = async (e: React.MouseEvent, requestId: number) => {
+    e.stopPropagation()
+    setIsProcessing(requestId)
+    try {
+      const result = await rejectLeaveRequest(requestId, '반려되었습니다')
+      if (result.success) {
+        router.refresh()
+      } else {
+        alert(result.error || '반려 처리 중 오류가 발생했습니다.')
+      }
+    } catch {
+      alert('반려 처리 중 오류가 발생했습니다.')
+    } finally {
+      setIsProcessing(null)
+    }
+  }
+
+  // 전체 문서 개수 계산
+  const totalPendingCount = pendingRequests.length
+  const totalRequestedCount = myRequests.length
 
   return (
     <Card
@@ -72,125 +114,223 @@ export function ApprovalStatusClient({
       }}
     >
       <CardHeader style={{ paddingBottom: '12px' }}>
-        <div className="flex items-center justify-between">
-          <CardTitle style={{
-            fontSize: '16px',
-            fontWeight: 500,
-            lineHeight: '24px',
-            color: '#29363D'
-          }}>
-            결재 현황
-          </CardTitle>
-          <Link
-            href="/documents"
-            className="flex items-center gap-1 transition-opacity hover:opacity-80"
-            style={{
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#635BFF',
-            }}
-          >
-            전체보기
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
+        <CardTitle style={{
+          fontSize: '16px',
+          fontWeight: 500,
+          lineHeight: '24px',
+          color: '#29363D'
+        }}>
+          결재 현황
+        </CardTitle>
       </CardHeader>
 
       {/* Tab Buttons */}
-      <div className="px-6 pb-3 flex gap-2">
-        <button
-          className="px-4 py-2 rounded-lg transition-all"
-          style={{
-            backgroundColor: approvalTab === 'pending' ? '#635BFF' : '#F6F8F9',
-            color: approvalTab === 'pending' ? '#FFFFFF' : '#5B6A72',
-            fontSize: '14px',
-            fontWeight: 500,
-          }}
-          onClick={() => setApprovalTab('pending')}
-        >
-          결재 대기 문서
-        </button>
-        <button
-          className="px-4 py-2 rounded-lg transition-all"
-          style={{
-            backgroundColor: approvalTab === 'requested' ? '#635BFF' : '#F6F8F9',
-            color: approvalTab === 'requested' ? '#FFFFFF' : '#5B6A72',
-            fontSize: '14px',
-            fontWeight: 500,
-          }}
-          onClick={() => setApprovalTab('requested')}
-        >
-          내가 상신한 문서
-        </button>
+      <div className="px-6 pb-3 flex justify-between items-center">
+        <div className="flex gap-2">
+          <button
+            className="px-4 py-2 rounded-lg transition-all"
+            style={{
+              backgroundColor: approvalTab === 'pending' ? '#635BFF' : '#F6F8F9',
+              color: approvalTab === 'pending' ? '#FFFFFF' : '#5B6A72',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+            onClick={() => setApprovalTab('pending')}
+          >
+            결재 대기 문서
+          </button>
+          <button
+            className="px-4 py-2 rounded-lg transition-all"
+            style={{
+              backgroundColor: approvalTab === 'requested' ? '#635BFF' : '#F6F8F9',
+              color: approvalTab === 'requested' ? '#FFFFFF' : '#5B6A72',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+            onClick={() => setApprovalTab('requested')}
+          >
+            내가 상신한 문서
+          </button>
+        </div>
+        <p style={{
+          fontSize: '14px',
+          lineHeight: '19.6px',
+          color: '#5B6A72',
+          fontWeight: 500
+        }}>
+          전체 {approvalTab === 'pending' ? totalPendingCount : totalRequestedCount}건
+        </p>
       </div>
 
-      <CardContent className="flex-1 overflow-y-auto" style={{ paddingTop: '0' }}>
+      <CardContent className="flex-1 overflow-y-auto flex flex-col" style={{ paddingTop: '0' }}>
         {/* 결재 대기 문서 탭 */}
         {approvalTab === 'pending' && (
-          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {pendingRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
-                  결재할 문서가 없습니다
-                </p>
-              </div>
-            ) : (
-              pendingRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="p-4 flex items-center justify-between transition-all cursor-pointer hover:bg-[#F6F8F9]"
-                  onClick={() => {
-                    setSelectedDocument(request)
-                    setIsDetailDialogOpen(true)
+          <>
+            <div className="divide-y flex-1" style={{ borderColor: 'var(--border)' }}>
+              {pendingRequests.length === 0 ? (
+                <div className="text-center py-8">
+                  <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
+                    결재할 문서가 없습니다
+                  </p>
+                </div>
+              ) : (
+                pendingRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                    onClick={() => {
+                      setSelectedDocument(request)
+                      setIsDetailDialogOpen(true)
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                            {getEmployeeName(request.employee)}
+                          </p>
+                          <LeaveTypeBadge type={request.leave_type} />
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
+                            <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                              {request.start_date} ~ {request.end_date}
+                            </p>
+                          </div>
+                          <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#00A3FF' }}>
+                            {request.requested_days}일
+                          </p>
+                        </div>
+                        <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
+                          신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
+                          style={{
+                            backgroundColor: '#10B981',
+                            color: '#FFFFFF',
+                            fontWeight: 600,
+                            fontSize: '14px',
+                            borderRadius: '8px',
+                          }}
+                          disabled={isProcessing === request.id}
+                          onClick={(e) => handleApprove(e, request.id)}
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          승인
+                        </button>
+                        <button
+                          className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
+                          style={{
+                            backgroundColor: '#EF4444',
+                            color: '#FFFFFF',
+                            fontWeight: 600,
+                            fontSize: '14px',
+                            borderRadius: '8px',
+                          }}
+                          disabled={isProcessing === request.id}
+                          onClick={(e) => handleReject(e, request.id)}
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          반려
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {pendingRequests.length > 0 && (
+              <div className="mt-3 px-0">
+                <Link
+                  href="/documents"
+                  className="w-full py-3 transition-all block text-center"
+                  style={{
+                    backgroundColor: '#F6F8F9',
+                    color: '#5B6A72',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
                   }}
                 >
-                  <div>
-                    <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                      {getEmployeeName(request.employee)} - {getLeaveTypeLabel(request.leave_type)}
-                    </p>
-                    <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72', marginTop: '4px' }}>
-                      {request.start_date} ~ {request.end_date}
-                    </p>
-                  </div>
-                  <StatusBadge status={request.status} />
-                </div>
-              ))
+                  전체보기
+                </Link>
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {/* 내가 상신한 문서 탭 */}
         {approvalTab === 'requested' && (
-          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {myRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
-                  상신한 문서가 없습니다
-                </p>
-              </div>
-            ) : (
-              myRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="p-4 flex items-center justify-between transition-all cursor-pointer hover:bg-[#F6F8F9]"
-                  onClick={() => {
-                    setSelectedDocument(request)
-                    setIsDetailDialogOpen(true)
+          <>
+            <div className="divide-y flex-1" style={{ borderColor: 'var(--border)' }}>
+              {myRequests.length === 0 ? (
+                <div className="text-center py-8">
+                  <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
+                    상신한 문서가 없습니다
+                  </p>
+                </div>
+              ) : (
+                myRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                    onClick={() => {
+                      setSelectedDocument(request)
+                      setIsDetailDialogOpen(true)
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                            {request.leave_type === 'annual' ? '연차' : request.leave_type === 'half_day' ? '반차' : '포상휴가'}
+                          </p>
+                          <StatusBadge status={request.status} />
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
+                            <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                              {request.start_date} ~ {request.end_date}
+                            </p>
+                          </div>
+                          <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#00A3FF' }}>
+                            {request.requested_days}일
+                          </p>
+                        </div>
+                        <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
+                          신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {myRequests.length > 0 && (
+              <div className="mt-3 px-0">
+                <Link
+                  href="/documents/my"
+                  className="w-full py-3 transition-all block text-center"
+                  style={{
+                    backgroundColor: '#F6F8F9',
+                    color: '#5B6A72',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
                   }}
                 >
-                  <div>
-                    <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                      {getLeaveTypeLabel(request.leave_type)}
-                    </p>
-                    <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72', marginTop: '4px' }}>
-                      {request.start_date} ~ {request.end_date}
-                    </p>
-                  </div>
-                  <StatusBadge status={request.status} />
-                </div>
-              ))
+                  전체보기
+                </Link>
+              </div>
             )}
-          </div>
+          </>
         )}
       </CardContent>
 
@@ -248,4 +388,40 @@ function getLeaveTypeLabel(type: LeaveType): string {
     reward: '포상휴가 신청서'
   }
   return labels[type]
+}
+
+function LeaveTypeBadge({ type }: { type: LeaveType }) {
+  const configs: Record<LeaveType, { label: string; backgroundColor: string; color: string }> = {
+    annual: {
+      label: '연차',
+      backgroundColor: '#EEF2FF',
+      color: '#635BFF'
+    },
+    half_day: {
+      label: '반차',
+      backgroundColor: '#EEF2FF',
+      color: '#635BFF'
+    },
+    reward: {
+      label: '포상휴가',
+      backgroundColor: '#FDF2F8',
+      color: '#EC4899'
+    }
+  }
+
+  const config = configs[type]
+
+  return (
+    <Badge
+      style={{
+        backgroundColor: config.backgroundColor,
+        color: config.color,
+        fontSize: '12px',
+        fontWeight: 600,
+        border: 'none'
+      }}
+    >
+      {config.label}
+    </Badge>
+  )
 }
