@@ -282,19 +282,15 @@ export async function getEligibleApprovers() {
       role: Array.isArray(emp.role) ? emp.role[0] : emp.role
     }) as Approver)
 
-    // JavaScript로 본인보다 상위 직급만 필터링
-    const approvers = allApprovers.filter(
-      (approver) => (approver.role?.level || 0) > currentLevel
-    )
-
+    // 모든 직원을 결재자로 선택 가능 (본인 제외는 위에서 이미 처리됨)
     // JavaScript로 정렬 (role.level 내림차순, name 오름차순)
-    approvers.sort((a, b) => {
+    allApprovers.sort((a, b) => {
       const levelDiff = (b.role?.level || 0) - (a.role?.level || 0)
       if (levelDiff !== 0) return levelDiff
       return (a.name || '').localeCompare(b.name || '')
     })
 
-    return { success: true, data: approvers }
+    return { success: true, data: allApprovers }
   } catch (error: unknown) {
     console.error('Get eligible approvers error:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
