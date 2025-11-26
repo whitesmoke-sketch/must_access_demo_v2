@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RequestForm } from '@/components/request/RequestForm'
 
@@ -8,6 +8,7 @@ export default async function RequestPage({
   searchParams: Promise<{ type?: string }>
 }) {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
   const params = await searchParams
 
   // 인증 확인
@@ -53,7 +54,8 @@ export default async function RequestPage({
   const remainingReward = totalReward - usedReward
 
   // 구성원 목록 조회 (결재선용) - 직책, 부서 정보 포함
-  const { data: membersRaw } = await supabase
+  // RLS를 우회하기 위해 adminSupabase 사용
+  const { data: membersRaw } = await adminSupabase
     .from('employee')
     .select(`
       id,
