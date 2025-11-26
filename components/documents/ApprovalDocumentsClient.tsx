@@ -356,7 +356,7 @@ export function ApprovalDocumentsClient({
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청일시</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상태</TableHead>
                   <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상세</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>작업</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '160px', minWidth: '160px' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -377,7 +377,6 @@ export function ApprovalDocumentsClient({
                       <TableRow
                         key={doc.id}
                         className="transition-colors hover:bg-muted/50"
-                        style={{ borderBottom: '1px solid #E5E8EB' }}
                       >
                         <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
                         <TableCell className="p-3">
@@ -433,9 +432,9 @@ export function ApprovalDocumentsClient({
                             <Eye className="w-4 h-4" />
                           </Button>
                         </TableCell>
-                        <TableCell className="text-center p-3">
+                        <TableCell className="text-center p-3" style={{ width: '160px', minWidth: '160px' }}>
                           <div className="flex items-center justify-center gap-2">
-                            {canApprove && (
+                            {canApprove ? (
                               <>
                                 <Button
                                   size="sm"
@@ -454,6 +453,8 @@ export function ApprovalDocumentsClient({
                                   반려
                                 </Button>
                               </>
+                            ) : (
+                              <span>&nbsp;</span>
                             )}
                           </div>
                         </TableCell>
