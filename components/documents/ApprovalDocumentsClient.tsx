@@ -354,8 +354,8 @@ export function ApprovalDocumentsClient({
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청자</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>소속</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청일시</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상태</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상세</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '140px', minWidth: '140px' }}>상태</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '60px', minWidth: '60px' }}>상세</TableHead>
                   <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '160px', minWidth: '160px' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
@@ -408,7 +408,7 @@ export function ApprovalDocumentsClient({
                             minute: '2-digit',
                           })}
                         </TableCell>
-                        <TableCell className="p-3">
+                        <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
                           {(() => {
                             // 완료된 문서(승인/반려/취소)는 단순 상태 뱃지만 표시
                             if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled') {
@@ -422,7 +422,7 @@ export function ApprovalDocumentsClient({
                             return getStatusBadge(doc)
                           })()}
                         </TableCell>
-                        <TableCell className="text-center p-3">
+                        <TableCell className="text-center p-3" style={{ width: '60px', minWidth: '60px' }}>
                           <Button
                             variant="ghost"
                             size="sm"

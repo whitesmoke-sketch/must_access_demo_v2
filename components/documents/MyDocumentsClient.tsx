@@ -277,7 +277,7 @@ export function MyDocumentsClient({
               />
             </div>
             <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
-              <SelectTrigger className="w-full lg:w-[180px]">
+              <SelectTrigger className="w-full lg:w-[200px]">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -287,7 +287,7 @@ export function MyDocumentsClient({
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-              <SelectTrigger className="w-full lg:w-[180px]">
+              <SelectTrigger className="w-full lg:w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -304,16 +304,16 @@ export function MyDocumentsClient({
           <div className="mb-3" style={{ fontSize: '12px', color: '#5B6A72' }}>
             전체 {filteredDocuments.length}건
           </div>
-          <div className="rounded-lg border" style={{ borderColor: '#E5E8EB' }}>
+          <div>
             <Table>
               <TableHeader>
                 <TableRow style={{ borderBottom: '2px solid #E5E8EB' }}>
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>문서 종류</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>문서 제목</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>작성일</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상태</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상세</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>작업</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '140px', minWidth: '140px' }}>상태</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '60px', minWidth: '60px' }}>상세</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '120px', minWidth: '120px' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -329,7 +329,7 @@ export function MyDocumentsClient({
                     const canCancelRequest = doc.status === 'approved'
 
                     return (
-                      <TableRow key={doc.id} className="hover:bg-muted/50" style={{ borderBottom: '1px solid #E5E8EB' }}>
+                      <TableRow key={doc.id} className="hover:bg-muted/50">
                         <TableCell className="p-3">
                           <Badge
                             style={{
@@ -353,7 +353,7 @@ export function MyDocumentsClient({
                             day: '2-digit',
                           })}
                         </TableCell>
-                        <TableCell className="p-3">
+                        <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
                           {(() => {
                             const approvalProgress = getApprovalProgress(doc.id, doc.current_step, doc.status)
                             if (approvalProgress && approvalProgress.length > 1) {
@@ -362,7 +362,7 @@ export function MyDocumentsClient({
                             return getStatusBadge(doc.status)
                           })()}
                         </TableCell>
-                        <TableCell className="text-center p-3">
+                        <TableCell className="text-center p-3" style={{ width: '60px', minWidth: '60px' }}>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -372,9 +372,9 @@ export function MyDocumentsClient({
                             <Eye className="w-4 h-4" />
                           </Button>
                         </TableCell>
-                        <TableCell className="text-center p-3">
+                        <TableCell className="text-center p-3" style={{ width: '120px', minWidth: '120px' }}>
                           <div className="flex items-center justify-center gap-2">
-                            {canWithdraw && (
+                            {canWithdraw ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -383,8 +383,7 @@ export function MyDocumentsClient({
                               >
                                 회수
                               </Button>
-                            )}
-                            {canCancelRequest && (
+                            ) : canCancelRequest ? (
                               <Button
                                 size="sm"
                                 onClick={() => handleViewDetail(doc)}
@@ -392,6 +391,8 @@ export function MyDocumentsClient({
                               >
                                 취소 요청
                               </Button>
+                            ) : (
+                              <span>&nbsp;</span>
                             )}
                           </div>
                         </TableCell>
