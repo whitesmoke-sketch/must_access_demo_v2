@@ -154,26 +154,39 @@ export function LeaveManagementClient({
       return
     }
 
-    try {
-      await approveLeaveRequest(Number(requestId))
+    // 즉시 UI 업데이트 (Optimistic Update)
+    setLeaveRequests(prev => prev.map(r =>
+      r.id === requestId
+        ? { ...r, status: 'approved' as const, canApprove: false }
+        : r
+    ))
 
-      // 로컬 상태 즉시 업데이트
-      setLeaveRequests(prev => prev.map(r =>
-        r.id === requestId
-          ? { ...r, status: 'approved' as const, canApprove: false }
-          : r
-      ))
+    // 백그라운드에서 API 호출 (재시도 포함)
+    let success = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await approveLeaveRequest(Number(requestId))
+        success = true
+        break
+      } catch (error) {
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+    }
 
+    if (success) {
       toast.success('연차 신청을 승인했습니다', {
         description: `${request.memberName}님의 ${request.leaveType === 'annual' ? '연차' : '포상휴가'} 신청이 승인되었습니다.`,
       })
-
-      router.refresh()
-    } catch (error) {
-      console.error('Failed to approve leave:', error)
-      toast.error('연차 승인에 실패했습니다', {
-        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-      })
+    } else {
+      // 실패 시 UI 원복
+      setLeaveRequests(prev => prev.map(r =>
+        r.id === requestId
+          ? { ...r, status: 'pending' as const, canApprove: true }
+          : r
+      ))
+      toast.error('연차 승인에 실패했습니다')
     }
   }
 
@@ -191,30 +204,45 @@ export function LeaveManagementClient({
     const request = leaveRequests.find(r => r.id === selectedRequestId)
     if (!request) return
 
-    try {
-      await rejectLeaveRequest(Number(selectedRequestId), rejectReason)
+    const requestIdToReject = selectedRequestId
+    const reason = rejectReason
 
-      // 로컬 상태 즉시 업데이트
-      setLeaveRequests(prev => prev.map(r =>
-        r.id === selectedRequestId
-          ? { ...r, status: 'rejected' as const, canApprove: false }
-          : r
-      ))
+    // 즉시 UI 업데이트 (Optimistic Update)
+    setLeaveRequests(prev => prev.map(r =>
+      r.id === requestIdToReject
+        ? { ...r, status: 'rejected' as const, canApprove: false }
+        : r
+    ))
+    setIsRejectDialogOpen(false)
+    setRejectReason('')
+    setSelectedRequestId(null)
 
+    // 백그라운드에서 API 호출 (재시도 포함)
+    let success = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await rejectLeaveRequest(Number(requestIdToReject), reason)
+        success = true
+        break
+      } catch (error) {
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+    }
+
+    if (success) {
       toast.error('연차 신청을 반려했습니다', {
         description: `${request.memberName}님의 연차 신청이 반려되었습니다.`,
       })
-
-      setIsRejectDialogOpen(false)
-      setRejectReason('')
-      setSelectedRequestId(null)
-
-      router.refresh()
-    } catch (error) {
-      console.error('Failed to reject leave:', error)
-      toast.error('연차 반려에 실패했습니다', {
-        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-      })
+    } else {
+      // 실패 시 UI 원복
+      setLeaveRequests(prev => prev.map(r =>
+        r.id === requestIdToReject
+          ? { ...r, status: 'pending' as const, canApprove: true }
+          : r
+      ))
+      toast.error('연차 반려에 실패했습니다')
     }
   }
 
@@ -229,32 +257,49 @@ export function LeaveManagementClient({
       return
     }
 
-    // 병렬로 모든 승인 요청 처리
-    const results = await Promise.allSettled(
-      selectedRequestIds.map(requestId => approveLeaveRequest(Number(requestId)))
-    )
+    const idsToApprove = [...selectedRequestIds]
 
-    const successCount = results.filter(r => r.status === 'fulfilled').length
-    const failCount = results.filter(r => r.status === 'rejected').length
-
-    // 성공한 요청들의 ID 수집
-    const succeededIds = selectedRequestIds.filter((_, index) => results[index].status === 'fulfilled')
-
-    // 로컬 상태 즉시 업데이트 (승인된 요청 상태 변경)
+    // 즉시 UI 업데이트 (Optimistic Update)
     setLeaveRequests(prev => prev.map(request =>
-      succeededIds.includes(request.id)
+      idsToApprove.includes(request.id)
         ? { ...request, status: 'approved' as const, canApprove: false }
         : request
     ))
+    setSelectedRequestIds([])
 
-    if (failCount > 0) {
-      toast.warning(`${successCount}건 승인 완료, ${failCount}건 실패`)
+    // 백그라운드에서 API 호출 (재시도 로직 포함)
+    let failedIds: string[] = []
+    const maxRetries = 2
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const targetIds = attempt === 0 ? idsToApprove : failedIds
+      if (targetIds.length === 0) break
+
+      const results = await Promise.allSettled(
+        targetIds.map(requestId => approveLeaveRequest(Number(requestId)))
+      )
+
+      failedIds = targetIds.filter((_, index) => results[index].status === 'rejected')
+
+      if (failedIds.length === 0) break
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 500)) // 재시도 전 대기
+      }
+    }
+
+    const successCount = idsToApprove.length - failedIds.length
+
+    if (failedIds.length > 0) {
+      // 실패한 항목은 UI 원복
+      setLeaveRequests(prev => prev.map(request =>
+        failedIds.includes(request.id)
+          ? { ...request, status: 'pending' as const, canApprove: true }
+          : request
+      ))
+      toast.error(`${successCount}건 승인 완료, ${failedIds.length}건 실패 (재시도 후에도 실패)`)
     } else {
       toast.success(`${successCount}건의 연차 신청을 일괄승인했습니다`)
     }
-
-    setSelectedRequestIds([])
-    router.refresh()
   }
 
   // 전체선택/해제 함수
