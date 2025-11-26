@@ -132,3 +132,69 @@ export async function grantRewardLeave(employeeId: string, days: number, reason:
   revalidatePath('/admin/leave-management')
   return result
 }
+
+/**
+ * 연차 수동 추가 부여
+ */
+export async function addLeaveManual(employeeId: string, days: number, reason: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    throw new Error('Unauthorized')
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/add-leave-manual`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ employeeId, days, reason }),
+  })
+
+  const result = await response.json()
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to add leave manually')
+  }
+
+  revalidatePath('/admin/leave-management')
+  return result
+}
+
+/**
+ * 연차 수동 차감
+ */
+export async function deductLeaveManual(employeeId: string, days: number, reason: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    throw new Error('Unauthorized')
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/deduct-leave-manual`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ employeeId, days, reason }),
+  })
+
+  const result = await response.json()
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to deduct leave manually')
+  }
+
+  revalidatePath('/admin/leave-management')
+  return result
+}

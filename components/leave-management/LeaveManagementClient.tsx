@@ -386,7 +386,7 @@ export function LeaveManagementClient({
       {viewMode === 'policy' && <LeavePolicySettings onBack={() => setViewMode('main')} />}
 
       {/* Manual Adjustment View */}
-      {viewMode === 'manual' && <LeaveManualAdjustment onBack={() => setViewMode('main')} />}
+      {viewMode === 'manual' && <LeaveManualAdjustment onBack={() => setViewMode('main')} members={members} />}
 
       {/* Main View */}
       {viewMode === 'main' && (

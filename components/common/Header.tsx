@@ -7,11 +7,11 @@ import NotificationDropdown from '@/components/NotificationDropdown'
 import type { Notification } from '@/app/actions/notification'
 import {
   Menu,
-  Search,
-  Moon,
-  Sun,
+  // Search,  // TODO: 추후 구현 예정
+  // Moon,    // TODO: 추후 구현 예정
+  // Sun,     // TODO: 추후 구현 예정
   User,
-  Languages,
+  // Languages, // TODO: 추후 구현 예정
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -34,9 +34,10 @@ interface HeaderProps {
 export function Header({ user, employee, notifications = [], onMobileMenuClick }: HeaderProps) {
   const router = useRouter()
   const supabase = createClient()
-  const [darkMode, setDarkMode] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [currentLang, setCurrentLang] = useState<'KR' | 'EN'>('KR')
+  // TODO: 추후 구현 예정
+  // const [darkMode, setDarkMode] = useState(false)
+  // const [searchQuery, setSearchQuery] = useState('')
+  // const [currentLang, setCurrentLang] = useState<'KR' | 'EN'>('KR')
   const [currentStatus, setCurrentStatus] = useState<UserStatus>('online')
 
   const getStatusInfo = (status: UserStatus) => {
@@ -91,8 +92,8 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
           <Menu className="w-6 h-6" style={{ color: '#5B6A72' }} />
         </button>
 
-        {/* Center - Search Bar (Desktop) */}
-        <div className="hidden lg:flex items-center flex-1 max-w-md">
+        {/* TODO: 추후 구현 예정 - Center - Search Bar (Desktop) */}
+        {/* <div className="hidden lg:flex items-center flex-1 max-w-md">
           <div className="relative w-full">
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
@@ -117,14 +118,14 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
               }}
             />
           </div>
-        </div>
+        </div> */}
 
         <div className="flex-1 lg:flex-none" />
 
         {/* Right - Actions */}
         <div className="flex items-center gap-3">
-          {/* Language Toggle Dropdown */}
-          <DropdownMenu>
+          {/* TODO: 추후 구현 예정 - Language Toggle Dropdown */}
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 className="p-2 rounded-lg transition-all"
@@ -170,10 +171,10 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                 ENG
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
 
-          {/* Dark Mode Toggle */}
-          <button
+          {/* TODO: 추후 구현 예정 - Dark Mode Toggle */}
+          {/* <button
             onClick={() => setDarkMode(!darkMode)}
             className="p-2 rounded-lg transition-all"
             aria-label="다크모드 토글"
@@ -194,7 +195,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
             ) : (
               <Moon className="w-5 h-5" style={{ color: '#5B6A72' }} />
             )}
-          </button>
+          </button> */}
 
           {/* Notifications */}
           <NotificationDropdown notifications={notifications} />

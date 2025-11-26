@@ -81,6 +81,17 @@ const DialogFooter = ({
 )
 DialogFooter.displayName = "DialogFooter"
 
+const DialogBody = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn("py-4", className)}
+    {...props}
+  />
+)
+DialogBody.displayName = "DialogBody"
+
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
@@ -108,17 +119,6 @@ const DialogDescription = React.forwardRef<
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
-const DialogBody = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("space-y-4", className)}
-    {...props}
-  />
-)
-DialogBody.displayName = "DialogBody"
-
 export {
   Dialog,
   DialogPortal,
@@ -127,8 +127,8 @@ export {
   DialogClose,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,
-  DialogBody,
 }

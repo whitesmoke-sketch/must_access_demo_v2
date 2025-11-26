@@ -52,162 +52,133 @@ export function Sidebar({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [adminModeEnabled, setAdminModeEnabled] = useState(false)
 
+  // 일반 사용자 메뉴
+  const normalMenuItems = [
+    {
+      id: 'dashboard',
+      label: '대시보드',
+      icon: LayoutPanelLeft,
+      href: '/dashboard',
+      implemented: true,
+    },
+    {
+      id: 'seats',
+      label: '자유석',
+      icon: Armchair,
+      href: '/resources/seats',
+      implemented: false,
+    },
+    {
+      id: 'lockers',
+      label: '사물함',
+      icon: Lock,
+      href: '/resources/lockers',
+      implemented: false,
+    },
+    {
+      id: 'meeting-rooms',
+      label: '회의실 예약',
+      icon: DoorOpen,
+      href: '/meeting-rooms',
+      implemented: true,
+    },
+    {
+      id: 'my-leave',
+      label: '내 연차 조회',
+      icon: Calendar,
+      href: '/leave/my-leave',
+      implemented: true,
+    },
+    {
+      id: 'request-form',
+      label: '신청서 작성',
+      icon: FilePlus,
+      href: '/request',
+      implemented: true,
+    },
+    {
+      id: 'my-documents',
+      label: '내 문서',
+      icon: FileText,
+      href: '/documents/my-documents',
+      implemented: true,
+    },
+
+    {
+      id: 'approval-inbox',
+      label: '결재함',
+      icon: FileCheck,
+      href: '/documents',
+      implemented: true,
+      requiresRole: true,
+    },
+  ]
+
+  // 관리자 모드 메뉴
+  const adminMenuItems = [
+    {
+      id: 'admin-dashboard',
+      label: '관리자 대시보드',
+      icon: LayoutDashboard,
+      href: '/admin/dashboard',
+      implemented: true,
+    },
+    {
+      id: 'employees',
+      label: '조직구성원',
+      icon: Users,
+      href: '/admin/employees',
+      implemented: true,
+    },
+    {
+      id: 'visitors',
+      label: '방문자 출입기록',
+      icon: UserCheck,
+      href: '/admin/visitors',
+      implemented: false,
+    },
+    {
+      id: 'attendance',
+      label: '근태관리',
+      icon: Clock,
+      href: '/admin/attendance',
+      implemented: false,
+    },
+    {
+      id: 'leave-management-admin',
+      label: '연차 관리',
+      icon: Calendar,
+      href: '/admin/leave-management',
+      implemented: true,
+    },
+    {
+      id: 'permissions',
+      label: '권한관리',
+      icon: Shield,
+      href: '/admin/permissions',
+      implemented: false,
+    },
+    {
+      id: 'organization-management',
+      label: '조직관리',
+      icon: Building2,
+      href: '/admin/organization-management',
+      implemented: true,
+    },
+  ]
+
   const getMenuItems = () => {
-    const baseItems = [
-      {
-        id: 'dashboard',
-        label: '대시보드',
-        icon: LayoutPanelLeft,
-        href: '/dashboard',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'admin-dashboard',
-        label: '관리자 대시보드',
-        icon: LayoutDashboard,
-        href: '/admin/dashboard',
-        roles: ['hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'seats',
-        label: '자유석',
-        icon: Armchair,
-        href: '/resources/seats',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: false,
-      },
-      {
-        id: 'lockers',
-        label: '사물함',
-        icon: Lock,
-        href: '/resources/lockers',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: false,
-      },
-      {
-        id: 'meeting-rooms',
-        label: '회의실 예약',
-        icon: DoorOpen,
-        href: '/meeting-rooms',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'my-leave',
-        label: '내 연차 조회',
-        icon: Calendar,
-        href: '/leave/my-leave',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'request-form',
-        label: '신청서 작성',
-        icon: FilePlus,
-        href: '/request',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'my-documents',
-        label: '내 문서',
-        icon: FileText,
-        href: '/documents/my-documents',
-        roles: ['employee', 'team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'leave-management',
-        label: '연차 관리',
-        icon: Calendar,
-        href: '/admin/leave-management',
-        roles: ['hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'approval-inbox',
-        label: '결재함',
-        icon: FileCheck,
-        href: '/documents',
-        roles: ['team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-    ]
+    if (adminModeEnabled) {
+      return adminMenuItems
+    }
 
-    const adminItems = [
-      {
-        id: 'organization-management',
-        label: '조직 관리',
-        icon: Building2,
-        href: '/admin/organization-management',
-        roles: ['hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'employees',
-        label: '조직구성원',
-        icon: Users,
-        href: '/admin/employees',
-        roles: ['team_leader', 'department_head', 'business_head', 'hr', 'admin', 'super_admin'],
-        implemented: true,
-      },
-      {
-        id: 'visitors',
-        label: '방문자',
-        icon: UserCheck,
-        href: '/admin/visitors',
-        roles: ['admin', 'super_admin'],
-        implemented: false,
-      },
-      {
-        id: 'access',
-        label: '출입기록',
-        icon: ClipboardList,
-        href: '/admin/access',
-        roles: ['admin', 'super_admin'],
-        implemented: false,
-      },
-      {
-        id: 'attendance',
-        label: '근태관리',
-        icon: Clock,
-        href: '/admin/attendance',
-        roles: ['admin', 'super_admin'],
-        implemented: false,
-      },
-    ]
-
-    const superAdminItems = [
-      {
-        id: 'permissions',
-        label: '권한관리',
-        icon: Shield,
-        href: '/admin/permissions',
-        roles: ['super_admin'],
-        implemented: false,
-      },
-    ]
-
-    // Role level 기반 필터링
-    // level 1: 모든 메뉴
-    // level 3+: admin 메뉴 포함
-    // level 5+: super_admin 메뉴 포함
-    return [...baseItems, ...adminItems, ...superAdminItems].filter((item) => {
-      // 준비중 기능 필터링 (내 문서는 제외하고 관리자 모드가 꺼져있으면 숨김)
-      if (!item.implemented && item.id !== 'my-documents' && !adminModeEnabled) {
+    // 일반 모드: 역할에 따른 필터링
+    return normalMenuItems.filter((item) => {
+      // requiresRole이 true인 항목은 roleLevel 2 이상만
+      if (item.requiresRole && roleLevel < 2) {
         return false
       }
-
-      // level 5 (CEO, HR): 모든 메뉴 접근
-      if (roleLevel >= 5) return true
-
-      // level 3-4 (부서리더, 사업리더): admin 메뉴까지
-      if (roleLevel >= 3 && !item.roles.includes('super_admin')) return true
-
-      // level 1-2 (일반사원, 팀리더): employee 메뉴만
-      return item.roles.includes('employee')
+      return true
     })
   }
 
@@ -352,11 +323,11 @@ export function Sidebar({
                     onClick={() => {
                       setAdminModeEnabled(!adminModeEnabled)
                       toast.success(
-                        adminModeEnabled ? '관리자 모드가 해제되었습니다' : '관리자 모드가 활성화되었습니다',
+                        adminModeEnabled ? '일반 모드로 전환되었습니다' : '관리자 모드로 전환되었습니다',
                         {
                           description: adminModeEnabled
-                            ? '준비중인 기능이 숨겨집니다.'
-                            : '준비중인 기능을 확인할 수 있습니다.',
+                            ? '일반 사용자 메뉴가 표시됩니다.'
+                            : '관리자 메뉴가 표시됩니다.',
                         }
                       )
                     }}
@@ -491,11 +462,11 @@ export function Sidebar({
                 onClick={() => {
                   setAdminModeEnabled(!adminModeEnabled)
                   toast.success(
-                    adminModeEnabled ? '관리자 모드가 해제되었습니다' : '관리자 모드가 활성화되었습니다',
+                    adminModeEnabled ? '일반 모드로 전환되었습니다' : '관리자 모드로 전환되었습니다',
                     {
                       description: adminModeEnabled
-                        ? '준비중인 기능이 숨겨집니다.'
-                        : '준비중인 기능을 확인할 수 있습니다.',
+                        ? '일반 사용자 메뉴가 표시됩니다.'
+                        : '관리자 메뉴가 표시됩니다.',
                     }
                   )
                 }}

@@ -434,7 +434,7 @@ export function LeaveManagementDialogs({
               구성원의 연차를 검색하고 수동으로 조정합니다
             </DialogDescription>
           </DialogHeader>
-          <LeaveManualAdjustment onBack={() => setIsManualDialogOpen(false)} />
+          <LeaveManualAdjustment onBack={() => setIsManualDialogOpen(false)} members={members} />
         </DialogContent>
       </Dialog>
     </>
