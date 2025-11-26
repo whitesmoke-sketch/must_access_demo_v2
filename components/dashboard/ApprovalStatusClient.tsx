@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Check, X } from 'lucide-react'
+import { Calendar, Check, X, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { ApprovalDocumentDetailModal } from '@/components/documents/ApprovalDocumentDetailModal'
 import { approveLeaveRequest, rejectLeaveRequest } from '@/app/(authenticated)/documents/actions'
@@ -162,177 +162,159 @@ export function ApprovalStatusClient({
         </p>
       </div>
 
-      <CardContent className="flex-1 overflow-y-auto flex flex-col" style={{ paddingTop: '0' }}>
+      <CardContent className="flex-1 overflow-y-auto" style={{ paddingTop: '0' }}>
         {/* 결재 대기 문서 탭 */}
         {approvalTab === 'pending' && (
-          <>
-            <div className="divide-y flex-1" style={{ borderColor: 'var(--border)' }}>
-              {pendingRequests.length === 0 ? (
-                <div className="text-center py-8">
-                  <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
-                    결재할 문서가 없습니다
-                  </p>
-                </div>
-              ) : (
-                pendingRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
-                    onClick={() => {
-                      setSelectedDocument(request)
-                      setIsDetailDialogOpen(true)
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                            {getEmployeeName(request.employee)}
-                          </p>
-                          <LeaveTypeBadge type={request.leave_type} />
-                        </div>
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
-                            <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-                              {request.start_date} ~ {request.end_date}
-                            </p>
-                          </div>
-                          <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#00A3FF' }}>
-                            {request.requested_days}일
-                          </p>
-                        </div>
-                        <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
-                          신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
-                          style={{
-                            backgroundColor: '#10B981',
-                            color: '#FFFFFF',
-                            fontWeight: 600,
-                            fontSize: '14px',
-                            borderRadius: '8px',
-                          }}
-                          disabled={isProcessing === request.id}
-                          onClick={(e) => handleApprove(e, request.id)}
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          승인
-                        </button>
-                        <button
-                          className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
-                          style={{
-                            backgroundColor: '#EF4444',
-                            color: '#FFFFFF',
-                            fontWeight: 600,
-                            fontSize: '14px',
-                            borderRadius: '8px',
-                          }}
-                          disabled={isProcessing === request.id}
-                          onClick={(e) => handleReject(e, request.id)}
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          반려
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            {pendingRequests.length > 0 && (
-              <div className="mt-3 px-0">
-                <Link
-                  href="/documents"
-                  className="w-full py-3 transition-all block text-center"
-                  style={{
-                    backgroundColor: '#F6F8F9',
-                    color: '#5B6A72',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500,
+          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+            {pendingRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: '#10B981' }} />
+                <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                  모든 승인 완료
+                </p>
+                <p className="mt-1" style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                  대기 중인 승인 항목이 없습니다
+                </p>
+              </div>
+            ) : (
+              pendingRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                  onClick={() => {
+                    setSelectedDocument(request)
+                    setIsDetailDialogOpen(true)
                   }}
                 >
-                  전체보기
-                </Link>
-              </div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                          {getEmployeeName(request.employee)}
+                        </p>
+                        <LeaveTypeBadge type={request.leave_type} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
+                          <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                            {request.start_date} ~ {request.end_date}
+                          </p>
+                        </div>
+                        <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#00A3FF' }}>
+                          {request.requested_days}일
+                        </p>
+                      </div>
+                      <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
+                        신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
+                        style={{
+                          backgroundColor: '#10B981',
+                          color: '#FFFFFF',
+                          fontWeight: 600,
+                          fontSize: '14px',
+                          borderRadius: '8px',
+                        }}
+                        disabled={isProcessing === request.id}
+                        onClick={(e) => handleApprove(e, request.id)}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        승인
+                      </button>
+                      <button
+                        className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
+                        style={{
+                          backgroundColor: '#EF4444',
+                          color: '#FFFFFF',
+                          fontWeight: 600,
+                          fontSize: '14px',
+                          borderRadius: '8px',
+                        }}
+                        disabled={isProcessing === request.id}
+                        onClick={(e) => handleReject(e, request.id)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        반려
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
-          </>
+          </div>
         )}
 
         {/* 내가 상신한 문서 탭 */}
         {approvalTab === 'requested' && (
-          <>
-            <div className="divide-y flex-1" style={{ borderColor: 'var(--border)' }}>
-              {myRequests.length === 0 ? (
-                <div className="text-center py-8">
-                  <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
-                    상신한 문서가 없습니다
-                  </p>
-                </div>
-              ) : (
-                myRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
-                    onClick={() => {
-                      setSelectedDocument(request)
-                      setIsDetailDialogOpen(true)
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                            {request.leave_type === 'annual' ? '연차' : request.leave_type === 'half_day' ? '반차' : '포상휴가'}
-                          </p>
-                          <StatusBadge status={request.status} />
-                        </div>
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
-                            <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-                              {request.start_date} ~ {request.end_date}
-                            </p>
-                          </div>
-                          <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#00A3FF' }}>
-                            {request.requested_days}일
-                          </p>
-                        </div>
-                        <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
-                          신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            {myRequests.length > 0 && (
-              <div className="mt-3 px-0">
-                <Link
-                  href="/documents/my"
-                  className="w-full py-3 transition-all block text-center"
-                  style={{
-                    backgroundColor: '#F6F8F9',
-                    color: '#5B6A72',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500,
+          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+            {myRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <p style={{ fontSize: '16px', lineHeight: '24px', color: '#5B6A72' }}>
+                  상신한 문서가 없습니다
+                </p>
+              </div>
+            ) : (
+              myRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                  onClick={() => {
+                    setSelectedDocument(request)
+                    setIsDetailDialogOpen(true)
                   }}
                 >
-                  전체보기
-                </Link>
-              </div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                          {request.leave_type === 'annual' ? '연차' : request.leave_type === 'half_day' ? '반차' : '포상휴가'}
+                        </p>
+                        <StatusBadge status={request.status} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
+                          <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                            {request.start_date} ~ {request.end_date}
+                          </p>
+                        </div>
+                        <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#00A3FF' }}>
+                          {request.requested_days}일
+                        </p>
+                      </div>
+                      <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
+                        신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
-          </>
+          </div>
         )}
       </CardContent>
+
+      {/* 전체보기 버튼 - 하단 고정 */}
+      <div className="px-6 pb-4">
+        <Link
+          href={approvalTab === 'pending' ? '/documents' : '/documents/my'}
+          className="w-full py-3 transition-all block text-center hover:brightness-95"
+          style={{
+            backgroundColor: '#F6F8F9',
+            color: '#5B6A72',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 500,
+          }}
+        >
+          전체보기
+        </Link>
+      </div>
 
       <ApprovalDocumentDetailModal
         document={selectedDocument}
