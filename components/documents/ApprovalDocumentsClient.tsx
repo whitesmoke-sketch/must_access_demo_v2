@@ -94,10 +94,6 @@ export function ApprovalDocumentsClient({
   const [selectedDocument, setSelectedDocument] = useState<ApprovalDocument | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
 
-  // Debug: approvalStepsMap 확인
-  console.log('📋 ApprovalDocumentsClient - approvalStepsMap:', approvalStepsMap)
-  console.log('📋 ApprovalDocumentsClient - documents:', documents.map(d => ({ id: d.id, current_step: d.current_step })))
-
   // 통계 계산
   const stats = useMemo(() => {
     const total = documents.length
@@ -433,18 +429,15 @@ export function ApprovalDocumentsClient({
                       </TableCell>
                       <TableCell>
                         {(() => {
+                          // 완료된 문서(승인/반려/취소)는 단순 상태 뱃지만 표시
+                          if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled') {
+                            return getStatusBadge(doc)
+                          }
+                          // 진행 중인 문서만 결재 진행 상태 표시
                           const approvalProgress = getApprovalProgress(doc.id, doc.current_step)
-                          console.log(`🔍 Document ${doc.id} - approvalProgress:`, {
-                            docId: doc.id,
-                            currentStep: doc.current_step,
-                            approvalProgress,
-                            length: approvalProgress?.length
-                          })
                           if (approvalProgress && approvalProgress.length > 1) {
-                            console.log(`✅ Document ${doc.id} - Showing ApprovalProgressBadge`)
                             return <ApprovalProgressBadge approvers={approvalProgress} />
                           }
-                          console.log(`⚠️ Document ${doc.id} - Showing status badge instead`)
                           return getStatusBadge(doc)
                         })()}
                       </TableCell>
