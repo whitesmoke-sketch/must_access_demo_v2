@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     // 내가 요청한 문서 (최근 3건)
     supabase
       .from('leave_request')
-      .select('id, leave_type, start_date, end_date, status')
+      .select('id, employee_id, leave_type, requested_days, start_date, end_date, reason, status, requested_at, approved_at, current_step, employee:employee_id(id, name, department:department_id(name), role:role_id(name))')
       .eq('employee_id', user.id)
       .order('created_at', { ascending: false })
       .limit(3),
@@ -50,9 +50,10 @@ export default async function DashboardPage() {
   // 결재 대기 문서 (내가 결재해야 할 문서들)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let pendingRequests: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let approvalStepsMap: Record<number, any[]> = {}
 
   try {
-
     // approval_step에서 나에게 할당된 pending 문서 조회
     const { data: myPendingSteps, error: stepsError } = await supabase
       .from('approval_step')
@@ -61,23 +62,59 @@ export default async function DashboardPage() {
       .eq('status', 'pending')
       .limit(10)
 
-
-
     if (!stepsError && myPendingSteps && myPendingSteps.length > 0) {
       const requestIds = myPendingSteps.map(step => step.request_id)
-      const { data, error: leaveError } = await supabase
-        .from('leave_request')
-        .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
-        .in('id', requestIds)
-        .order('created_at', { ascending: true })
-        .limit(3)
 
+      // 병렬로 leave_request와 approval_steps 조회
+      const [leaveResult, stepsResult] = await Promise.all([
+        supabase
+          .from('leave_request')
+          .select('id, employee_id, leave_type, requested_days, start_date, end_date, reason, status, requested_at, approved_at, current_step, employee:employee_id(id, name, department:department_id(name), role:role_id(name))')
+          .in('id', requestIds)
+          .order('created_at', { ascending: true })
+          .limit(3),
+        supabase
+          .from('approval_step')
+          .select('request_id, step_order, status, approver_id, approved_at, comment, approver:approver_id(id, name)')
+          .eq('request_type', 'leave')
+          .in('request_id', requestIds)
+          .order('step_order', { ascending: true })
+      ])
 
+      pendingRequests = leaveResult.data || []
 
-      pendingRequests = data || []
+      // approval steps를 request_id별로 그룹핑
+      if (stepsResult.data) {
+        for (const step of stepsResult.data) {
+          if (!approvalStepsMap[step.request_id]) {
+            approvalStepsMap[step.request_id] = []
+          }
+          approvalStepsMap[step.request_id].push(step)
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to fetch pending requests:', error)
+  }
+
+  // 내 요청 문서들의 approval steps도 조회
+  if (myRequests.length > 0) {
+    const myRequestIds = myRequests.map(r => r.id)
+    const { data: mySteps } = await supabase
+      .from('approval_step')
+      .select('request_id, step_order, status, approver_id, approved_at, comment, approver:approver_id(id, name)')
+      .eq('request_type', 'leave')
+      .in('request_id', myRequestIds)
+      .order('step_order', { ascending: true })
+
+    if (mySteps) {
+      for (const step of mySteps) {
+        if (!approvalStepsMap[step.request_id]) {
+          approvalStepsMap[step.request_id] = []
+        }
+        approvalStepsMap[step.request_id].push(step)
+      }
+    }
   }
 
   // 현재 날짜 및 시간
@@ -123,6 +160,7 @@ export default async function DashboardPage() {
           pendingRequests={pendingRequests as any}
           isAdmin={isAdmin}
           userId={user.id}
+          approvalStepsMap={approvalStepsMap}
         />
       </div>
     </div>

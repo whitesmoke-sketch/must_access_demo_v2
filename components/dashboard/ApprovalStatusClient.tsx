@@ -11,14 +11,33 @@ type LeaveStatus = 'pending' | 'approved' | 'rejected'
 type LeaveType = 'annual' | 'half_day' | 'reward'
 
 interface LeaveRequest {
-  id: string
+  id: number
+  employee_id: string
   leave_type: LeaveType
+  requested_days: number
   start_date: string
   end_date: string
+  reason: string | null
   status: LeaveStatus
+  requested_at: string
+  approved_at: string | null
+  current_step: number | null
   employee?: {
+    id: string
     name: string
-  }[] | { name: string } | null
+    department?: { name: string } | { name: string }[] | null
+    role?: { name: string } | { name: string }[] | null
+  } | { id: string; name: string }[] | null
+}
+
+interface ApprovalStep {
+  request_id: number
+  step_order: number
+  status: string
+  approver_id: string | null
+  approved_at: string | null
+  comment: string | null
+  approver: { id: string; name: string } | { id: string; name: string }[] | null
 }
 
 interface ApprovalStatusClientProps {
@@ -26,13 +45,15 @@ interface ApprovalStatusClientProps {
   pendingRequests: LeaveRequest[]
   isAdmin: boolean
   userId: string
+  approvalStepsMap: Record<number, ApprovalStep[]>
 }
 
 export function ApprovalStatusClient({
   myRequests,
   pendingRequests,
   isAdmin,
-  userId
+  userId,
+  approvalStepsMap
 }: ApprovalStatusClientProps) {
   const [approvalTab, setApprovalTab] = useState<'pending' | 'requested'>('pending')
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null)
@@ -177,7 +198,8 @@ export function ApprovalStatusClient({
         document={selectedDocument}
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}
-        currentUserId={userId}
+        userId={userId}
+        initialApprovalSteps={selectedDocument ? approvalStepsMap[selectedDocument.id] : undefined}
       />
     </Card>
   )
