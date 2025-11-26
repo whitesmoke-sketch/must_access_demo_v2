@@ -205,7 +205,7 @@ export function LeaveManagementClient({
   }
 
   // 일괄승인 함수
-  const handleBulkApprove = () => {
+  const handleBulkApprove = async () => {
     if (selectedRequestIds.length === 0) {
       toast.error('승인할 요청을 선택해주세요')
       return
@@ -215,52 +215,27 @@ export function LeaveManagementClient({
       return
     }
 
-    const approvedRequests = leaveRequests.filter(r => selectedRequestIds.includes(r.id))
+    let successCount = 0
+    let failCount = 0
 
-    // 승인 처리
-    setLeaveRequests(
-      leaveRequests.map(r => {
-        if (selectedRequestIds.includes(r.id)) {
-          return {
-            ...r,
-            status: 'approved' as const,
-            reviewedBy: 'HR팀',
-            reviewedAt: new Date().toISOString(),
-            approvers: [
-              ...(r.approvers || []),
-              {
-                approverId: 'admin',
-                approverName: 'HR팀',
-                approvedAt: new Date().toISOString(),
-                status: 'approved' as const,
-              },
-            ],
-          }
-        }
-        return r
-      })
-    )
+    for (const requestId of selectedRequestIds) {
+      try {
+        await approveLeaveRequest(Number(requestId))
+        successCount++
+      } catch (error) {
+        console.error(`Failed to approve request ${requestId}:`, error)
+        failCount++
+      }
+    }
 
-    // 각 요청에 대해 사용 연차 업데이트
-    approvedRequests.forEach(request => {
-      const days = request.days
+    if (failCount > 0) {
+      toast.warning(`${successCount}건 승인 완료, ${failCount}건 실패`)
+    } else {
+      toast.success(`${successCount}건의 연차 신청을 일괄승인했습니다`)
+    }
 
-      setMembers(prev =>
-        prev.map(m => {
-          if (m.id === request.memberId) {
-            if (request.leaveType === 'annual') {
-              return { ...m, usedAnnualLeave: m.usedAnnualLeave + days }
-            } else {
-              return { ...m, usedRewardLeave: m.usedRewardLeave + days }
-            }
-          }
-          return m
-        })
-      )
-    })
-
-    toast.success(`${selectedRequestIds.length}건의 연차 신청을 일괄승인했습니다`)
     setSelectedRequestIds([])
+    router.refresh()
   }
 
   // 전체선택/해제 함수
