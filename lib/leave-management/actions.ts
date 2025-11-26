@@ -40,12 +40,17 @@ export async function getLeaveManagementData() {
 export async function approveLeaveRequest(leaveRequestId: number) {
   const supabase = await createClient()
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // getUser()로 인증 확인 후 세션 토큰 가져오기
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    throw new Error('Unauthorized')
+  }
+
+  const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
-    throw new Error('Unauthorized')
+    throw new Error('Session not found')
   }
 
   const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/approve-leave-request`, {
