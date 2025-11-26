@@ -12,64 +12,47 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
 
   const currentYear = new Date().getFullYear()
 
-  console.log('Server  LeaveInfoCards - employeeId:', employeeId)
-  console.log('Server  SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log('Server  Using local?:', process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('127.0.0.1'))
+  // 모든 쿼리를 병렬로 실행 (성능 최적화)
+  const [balanceResult, rewardGrantsResult, rewardUsageResult] = await Promise.all([
+    // 연차 잔액 조회
+    supabase
+      .from('annual_leave_balance')
+      .select('total_days, used_days, remaining_days, expiring_soon_days')
+      .eq('employee_id', employeeId)
+      .maybeSingle(),
+    // 포상휴가 부여 조회
+    supabase
+      .from('annual_leave_grant')
+      .select('granted_days, expiration_date')
+      .eq('employee_id', employeeId)
+      .in('grant_type', ['award_overtime', 'award_attendance'])
+      .eq('approval_status', 'approved'),
+    // 포상휴가 사용 조회
+    supabase
+      .from('leave_request')
+      .select('number_of_days')
+      .eq('employee_id', employeeId)
+      .eq('leave_type', 'award')
+      .eq('status', 'approved'),
+  ])
 
-  // Check auth.uid()
-  const { data: { user } } = await supabase.auth.getUser()
-  console.log('Server  auth.uid():', user?.id)
-  console.log('Server  Match?:', user?.id === employeeId)
-
-  // 연차 잔액 조회
-  const { data: balance, error } = await supabase
-    .from('annual_leave_balance')
-    .select('total_days, used_days, remaining_days, expiring_soon_days')
-    .eq('employee_id', employeeId)
-    .maybeSingle()
-
-  console.log('Server  LeaveInfoCards - balance:', balance)
-  console.log('Server  LeaveInfoCards - error:', error)
-
-  // Check all balances in database
-  const { data: allBalances } = await supabase
-    .from('annual_leave_balance')
-    .select('employee_id, total_days')
-  console.log('Server  All balances in DB:', allBalances)
+  const balance = balanceResult.data
+  const rewardGrants = rewardGrantsResult.data
 
   const totalDays = balance?.total_days || 0
   const usedDays = balance?.used_days || 0
   const remainingDays = balance?.remaining_days || 0
 
-  // 포상휴가 조회
-  // 1. 부여된 포상휴가 합계
-  const { data: rewardGrants } = await supabase
-    .from('annual_leave_grant')
-    .select('granted_days, expiration_date')
-    .eq('employee_id', employeeId)
-    .in('grant_type', ['award_overtime', 'award_attendance'])
-    .eq('approval_status', 'approved')
-
-  console.log('Server  LeaveInfoCards - rewardGrants:', rewardGrants)
-
   const totalRewardGranted = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
 
-  // 2. 사용한 포상휴가 합계
-  const { data: rewardUsage } = await supabase
-    .from('leave_request')
-    .select('number_of_days')
-    .eq('employee_id', employeeId)
-    .eq('leave_type', 'award')
-    .eq('status', 'approved')
-
-  console.log('Server  LeaveInfoCards - rewardUsage:', rewardUsage)
+  const rewardUsage = rewardUsageResult.data
 
   const totalRewardUsed = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
 
-  // 3. 잔여 포상휴가
+  // 잔여 포상휴가
   const rewardLeave = totalRewardGranted - totalRewardUsed
 
-  // 4. 포상휴가 만료일 계산 (가장 가까운 만료일)
+  // 포상휴가 만료일 계산 (가장 가까운 만료일)
   const now = new Date()
   const validGrants = rewardGrants?.filter(grant => {
     const expiryDate = new Date(grant.expiration_date)
