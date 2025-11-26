@@ -44,11 +44,14 @@ export function DepartmentCombobox({
 }: DepartmentComboboxProps) {
   const [open, setOpen] = useState(false)
   const [departments, setDepartments] = useState<DepartmentWithPath[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
+  // Popover가 열릴 때만 departments를 fetch (중복 호출 방지)
   useEffect(() => {
-    loadDepartments()
-  }, [])
+    if (open && departments.length === 0) {
+      loadDepartments()
+    }
+  }, [open])
 
   async function loadDepartments() {
     setLoading(true)

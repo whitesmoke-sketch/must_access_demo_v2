@@ -55,48 +55,75 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Fetch all employees with their leave balances
-    const { data: employees, error: employeesError } = await supabase
-      .from('employee')
-      .select(`
-        id,
-        name,
-        status,
-        department:department_id(id, name),
-        role:role_id(id, name),
-        annual_leave_balance(total_days, used_days, remaining_days)
-      `)
-      .eq('status', 'active')
-      .order('name')
+    // 모든 쿼리를 병렬로 실행 (성능 최적화)
+    const [employeesResult, rewardGrantsResult, rewardUsageResult, leaveRequestsResult] = await Promise.all([
+      // Fetch all employees with their leave balances
+      supabase
+        .from('employee')
+        .select(`
+          id,
+          name,
+          status,
+          department:department_id(id, name),
+          role:role_id(id, name),
+          annual_leave_balance(total_days, used_days, remaining_days)
+        `)
+        .eq('status', 'active')
+        .order('name'),
+      // Fetch reward leave grants (award_overtime, award_attendance)
+      supabase
+        .from('annual_leave_grant')
+        .select('employee_id, granted_days')
+        .in('grant_type', ['award_overtime', 'award_attendance'])
+        .eq('approval_status', 'approved'),
+      // Fetch reward leave usage
+      supabase
+        .from('leave_request')
+        .select('employee_id, requested_days')
+        .eq('leave_type', 'award')
+        .eq('status', 'approved'),
+      // Fetch all leave requests
+      supabase
+        .from('leave_request')
+        .select(`
+          id,
+          employee_id,
+          leave_type,
+          requested_days,
+          start_date,
+          end_date,
+          reason,
+          status,
+          rejection_reason,
+          requested_at,
+          approved_at,
+          employee:employee_id(id, name),
+          approver:approver_id(id, name)
+        `)
+        .order('requested_at', { ascending: false })
+    ])
+
+    const { data: employees, error: employeesError } = employeesResult
+    const { data: rewardGrants, error: rewardGrantsError } = rewardGrantsResult
+    const { data: rewardUsage, error: rewardUsageError } = rewardUsageResult
+    const { data: leaveRequests, error: leaveRequestsError } = leaveRequestsResult
 
     if (employeesError) {
       console.error('Error fetching employees:', employeesError)
       throw new Error('Failed to fetch employees')
     }
 
-    // Fetch reward leave grants (award_overtime, award_attendance)
-    const employeeIds = employees?.map(emp => emp.id) || []
-    const { data: rewardGrants, error: rewardGrantsError } = await supabase
-      .from('annual_leave_grant')
-      .select('employee_id, granted_days')
-      .in('employee_id', employeeIds)
-      .in('grant_type', ['award_overtime', 'award_attendance'])
-      .eq('approval_status', 'approved')
-
     if (rewardGrantsError) {
       console.error('Error fetching reward grants:', rewardGrantsError)
     }
 
-    // Fetch reward leave usage
-    const { data: rewardUsage, error: rewardUsageError } = await supabase
-      .from('leave_request')
-      .select('employee_id, requested_days')
-      .in('employee_id', employeeIds)
-      .eq('leave_type', 'award')
-      .eq('status', 'approved')
-
     if (rewardUsageError) {
       console.error('Error fetching reward usage:', rewardUsageError)
+    }
+
+    if (leaveRequestsError) {
+      console.error('Error fetching leave requests:', leaveRequestsError)
+      throw new Error('Failed to fetch leave requests')
     }
 
     // Calculate reward leave totals
@@ -124,31 +151,6 @@ Deno.serve(async (req) => {
       rewardLeave: rewardGrantMap.get(emp.id) || 0,
       usedRewardLeave: rewardUsageMap.get(emp.id) || 0,
     })) || []
-
-    // Fetch all leave requests
-    const { data: leaveRequests, error: leaveRequestsError } = await supabase
-      .from('leave_request')
-      .select(`
-        id,
-        employee_id,
-        leave_type,
-        requested_days,
-        start_date,
-        end_date,
-        reason,
-        status,
-        rejection_reason,
-        requested_at,
-        approved_at,
-        employee:employee_id(id, name),
-        approver:approver_id(id, name)
-      `)
-      .order('requested_at', { ascending: false })
-
-    if (leaveRequestsError) {
-      console.error('Error fetching leave requests:', leaveRequestsError)
-      throw new Error('Failed to fetch leave requests')
-    }
 
     // Map to LeaveRequest format
     const leaveRequestsFormatted = leaveRequests?.map(req => {
