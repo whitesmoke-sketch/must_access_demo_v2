@@ -7,8 +7,6 @@ import {
   Check,
   X,
   Eye,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +28,15 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { ApprovalDocumentDetailModal } from './ApprovalDocumentDetailModal'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
 
@@ -129,6 +136,7 @@ export function ApprovalDocumentsClient({
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
+  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
 
   // 상세 보기
   const handleViewDetail = (document: ApprovalDocument) => {
@@ -310,7 +318,7 @@ export function ApprovalDocumentsClient({
             {/* 필터들 */}
             <div className="flex gap-4 lg:flex-shrink-0">
               <Select value={filterStatus} onValueChange={(value: typeof filterStatus) => setFilterStatus(value)}>
-                <SelectTrigger className="w-full lg:w-[180px]">
+                <SelectTrigger className="w-full lg:w-[200px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -322,7 +330,7 @@ export function ApprovalDocumentsClient({
                 </SelectContent>
               </Select>
               <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
-                <SelectTrigger className="w-full lg:w-[180px]">
+                <SelectTrigger className="w-full lg:w-[200px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -338,7 +346,7 @@ export function ApprovalDocumentsClient({
           <div className="mb-3" style={{ fontSize: '12px', color: '#5B6A72' }}>
             전체 {filteredDocuments.length}건
           </div>
-          <div className="rounded-lg border" style={{ borderColor: '#E5E8EB' }}>
+          <div>
             <Table>
               <TableHeader>
                 <TableRow style={{ borderBottom: '2px solid #E5E8EB' }}>
@@ -459,31 +467,86 @@ export function ApprovalDocumentsClient({
 
           {/* Pagination */}
           {filteredDocuments.length > itemsPerPage && (
-            <div className="flex items-center justify-between mt-4">
-              <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                총 {filteredDocuments.length}건 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredDocuments.length)}건 표시
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span style={{ fontSize: '14px', color: '#29363D', lineHeight: 1.5 }}>
-                  {currentPage} / {Math.ceil(filteredDocuments.length / itemsPerPage)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(filteredDocuments.length / itemsPerPage)}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(1)}
+                      isActive={currentPage === 1}
+                      className="cursor-pointer"
+                    >
+                      1
+                    </PaginationLink>
+                  </PaginationItem>
+                  {currentPage > 2 && totalPages > 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  {currentPage > 1 && currentPage !== 2 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        isActive={false}
+                        className="cursor-pointer"
+                      >
+                        {currentPage - 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  {currentPage !== 1 && currentPage !== totalPages && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(currentPage)}
+                        isActive={true}
+                        className="cursor-pointer"
+                      >
+                        {currentPage}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  {currentPage < totalPages && currentPage !== totalPages - 1 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        isActive={false}
+                        className="cursor-pointer"
+                      >
+                        {currentPage + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  {currentPage < totalPages - 1 && totalPages > 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  {totalPages > 1 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(totalPages)}
+                        isActive={currentPage === totalPages}
+                        className="cursor-pointer"
+                      >
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </CardContent>
