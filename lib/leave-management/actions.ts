@@ -38,38 +38,48 @@ export async function getLeaveManagementData() {
  * 연차 승인
  */
 export async function approveLeaveRequest(leaveRequestId: number) {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  // getUser()로 인증 확인 후 세션 토큰 가져오기
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+    // getUser()로 인증 확인 후 세션 토큰 가져오기
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (userError || !user) {
-    throw new Error('Unauthorized')
+    if (userError || !user) {
+      console.error('[approveLeaveRequest] User error:', userError)
+      throw new Error('Unauthorized')
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      console.error('[approveLeaveRequest] Session not found')
+      throw new Error('Session not found')
+    }
+
+    console.log('[approveLeaveRequest] Calling Edge Function with leaveRequestId:', leaveRequestId)
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/approve-leave-request`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ leaveRequestId }),
+    })
+
+    const result = await response.json()
+    console.log('[approveLeaveRequest] Edge Function response:', result)
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to approve leave request')
+    }
+
+    revalidatePath('/admin/leave-management')
+    return result
+  } catch (error) {
+    console.error('[approveLeaveRequest] Error:', error)
+    throw error
   }
-
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    throw new Error('Session not found')
-  }
-
-  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/approve-leave-request`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ leaveRequestId }),
-  })
-
-  const result = await response.json()
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to approve leave request')
-  }
-
-  revalidatePath('/admin/leave-management')
-  return result
 }
 
 /**
