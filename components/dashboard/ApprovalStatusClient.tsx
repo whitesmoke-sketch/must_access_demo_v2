@@ -301,7 +301,7 @@ export function ApprovalStatusClient({
       {/* 전체보기 버튼 - 하단 고정 */}
       <div className="px-6 pb-4">
         <Link
-          href={approvalTab === 'pending' ? '/documents' : '/documents/my'}
+          href={approvalTab === 'pending' ? '/documents' : '/documents/my-documents'}
           className="w-full py-3 transition-all block text-center hover:brightness-95"
           style={{
             backgroundColor: '#F6F8F9',
