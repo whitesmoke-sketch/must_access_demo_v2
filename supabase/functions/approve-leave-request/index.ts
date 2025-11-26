@@ -5,6 +5,89 @@ interface RequestBody {
   leaveRequestId: number
 }
 
+// 연차 차감 로직 (직접 통합 + 병렬 처리 최적화)
+async function deductLeaveBalance(supabase: ReturnType<typeof createClient>, leaveRequestId: number, employeeId: string, requestedDays: number) {
+  // 1. Check idempotency and get grants in parallel
+  const today = new Date().toISOString().split('T')[0]
+  const [existingUsageResult, grantsResult] = await Promise.all([
+    supabase
+      .from('annual_leave_usage')
+      .select('id')
+      .eq('leave_request_id', leaveRequestId)
+      .limit(1),
+    supabase
+      .from('annual_leave_grant')
+      .select('id, granted_days, expiration_date')
+      .eq('employee_id', employeeId)
+      .eq('approval_status', 'approved')
+      .gte('expiration_date', today)
+      .order('expiration_date', { ascending: true })
+  ])
+
+  if (existingUsageResult.data && existingUsageResult.data.length > 0) {
+    return // Already deducted
+  }
+
+  const grants = grantsResult.data
+  if (grantsResult.error || !grants || grants.length === 0) {
+    throw new Error('사용 가능한 연차가 없습니다')
+  }
+
+  // 2. Get existing usage for grants
+  const grantIds = grants.map(g => g.id)
+  const { data: existingUsages } = await supabase
+    .from('annual_leave_usage')
+    .select('grant_id, used_days')
+    .in('grant_id', grantIds)
+
+  const usageByGrant = new Map<number, number>()
+  if (existingUsages) {
+    for (const usage of existingUsages) {
+      const current = usageByGrant.get(usage.grant_id) || 0
+      usageByGrant.set(usage.grant_id, current + Number(usage.used_days))
+    }
+  }
+
+  // 3. Deduct using FIFO
+  let remainingToDeduct = requestedDays
+  const usageRecords: Array<{ grant_id: number; used_days: number }> = []
+
+  for (const grant of grants) {
+    if (remainingToDeduct <= 0) break
+    const alreadyUsed = usageByGrant.get(grant.id) || 0
+    const available = Number(grant.granted_days) - alreadyUsed
+    if (available <= 0) continue
+
+    const deductAmount = Math.min(remainingToDeduct, available)
+    usageRecords.push({ grant_id: grant.id, used_days: deductAmount })
+    remainingToDeduct -= deductAmount
+  }
+
+  if (remainingToDeduct > 0) {
+    throw new Error(`연차 잔액이 부족합니다. (부족: ${remainingToDeduct}일)`)
+  }
+
+  // 4. Insert usage records and update balance in parallel
+  const usageInserts = usageRecords.map(record => ({
+    leave_request_id: leaveRequestId,
+    grant_id: record.grant_id,
+    used_days: record.used_days,
+    used_date: new Date().toISOString()
+  }))
+
+  const [usageResult, balanceResult] = await Promise.all([
+    supabase.from('annual_leave_usage').insert(usageInserts),
+    supabase.rpc('update_leave_balance', { p_employee_id: employeeId })
+  ])
+
+  if (usageResult.error) {
+    throw new Error(`연차 사용 기록 생성 실패: ${usageResult.error.message}`)
+  }
+  if (balanceResult.error) {
+    throw new Error(`연차 잔액 업데이트 실패: ${balanceResult.error.message}`)
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -47,8 +130,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('[휴가 승인] 시작 - requestId:', leaveRequestId, 'approverId:', user.id)
-
     // 1. Find current approval step for this user
     const { data: currentStep, error: stepError } = await supabase
       .from('approval_step')
@@ -60,7 +141,6 @@ Deno.serve(async (req) => {
       .single()
 
     if (stepError || !currentStep) {
-      console.error('[휴가 승인] 승인 단계를 찾을 수 없음:', stepError)
       return new Response(
         JSON.stringify({
           success: false,
@@ -70,24 +150,20 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('[휴가 승인] 현재 단계:', currentStep)
-
     // 2. Update current step to approved
     const { error: stepUpdateError } = await supabase
       .from('approval_step')
       .update({
         status: 'approved',
-        approved_at: new Date().toISOString(),
-        comments: null
+        approved_at: new Date().toISOString()
       })
       .eq('id', currentStep.id)
 
     if (stepUpdateError) {
-      console.error('[휴가 승인] 승인 단계 업데이트 실패:', stepUpdateError)
       throw new Error('승인 단계 업데이트 실패')
     }
 
-    // 3. Create audit record
+    // 3. Create audit record (optional - ignore errors)
     await supabase
       .from('approval_step_audit')
       .insert({
@@ -95,48 +171,44 @@ Deno.serve(async (req) => {
         action: 'approved',
         actor_id: user.id,
         old_status: 'pending',
-        new_status: 'approved',
-        comments: null
+        new_status: 'approved'
       })
 
     // 4. Check if this is the last step
     if (currentStep.is_last_step) {
-      console.log('[휴가 승인] 최종 승인 단계')
+      // Get leave request info and update status in parallel
+      const [leaveRequestResult, updateResult] = await Promise.all([
+        supabase
+          .from('leave_request')
+          .select('employee_id, requested_days')
+          .eq('id', leaveRequestId)
+          .single(),
+        supabase
+          .from('leave_request')
+          .update({
+            status: 'approved',
+            approver_id: user.id,
+            approved_at: new Date().toISOString()
+          })
+          .eq('id', leaveRequestId)
+      ])
 
-      // Update leave request to approved
-      const { error: finalUpdateError } = await supabase
-        .from('leave_request')
-        .update({
-          status: 'approved',
-          approver_id: user.id,
-          approved_at: new Date().toISOString()
-        })
-        .eq('id', leaveRequestId)
-
-      if (finalUpdateError) {
-        console.error('[휴가 승인] 최종 승인 실패:', finalUpdateError)
+      if (updateResult.error) {
         throw new Error('최종 승인 업데이트 실패')
       }
 
-      // Call deduct-leave-balance function
-      console.log('[휴가 승인] 연차 차감 호출')
-      const deductUrl = `${supabaseUrl}/functions/v1/deduct-leave-balance`
-      const deductResponse = await fetch(deductUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-        },
-        body: JSON.stringify({ requestId: leaveRequestId })
-      })
-
-      if (!deductResponse.ok) {
-        const deductError = await deductResponse.text()
-        console.error('[휴가 승인] 연차 차감 실패:', deductError)
-        throw new Error('연차 차감 실패')
+      if (leaveRequestResult.error || !leaveRequestResult.data) {
+        throw new Error('연차 정보 조회 실패')
       }
 
-      console.log('[휴가 승인] 최종 승인 완료')
+      // Deduct leave balance directly (no HTTP call)
+      await deductLeaveBalance(
+        supabase,
+        leaveRequestId,
+        leaveRequestResult.data.employee_id,
+        Number(leaveRequestResult.data.requested_days)
+      )
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -146,8 +218,6 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else {
-      console.log('[휴가 승인] 중간 승인 단계')
-
       // Find next step
       const { data: nextStep, error: nextStepError } = await supabase
         .from('approval_step')
@@ -158,7 +228,6 @@ Deno.serve(async (req) => {
         .single()
 
       if (nextStepError || !nextStep) {
-        console.error('[휴가 승인] 다음 단계를 찾을 수 없음:', nextStepError)
         throw new Error('다음 승인 단계를 찾을 수 없습니다')
       }
 
@@ -169,7 +238,6 @@ Deno.serve(async (req) => {
         .eq('id', nextStep.id)
 
       if (nextStepUpdateError) {
-        console.error('[휴가 승인] 다음 단계 활성화 실패:', nextStepUpdateError)
         throw new Error('다음 승인 단계 활성화 실패')
       }
 
@@ -180,11 +248,9 @@ Deno.serve(async (req) => {
         .eq('id', leaveRequestId)
 
       if (requestUpdateError) {
-        console.error('[휴가 승인] 현재 단계 업데이트 실패:', requestUpdateError)
         throw new Error('현재 단계 업데이트 실패')
       }
 
-      console.log('[휴가 승인] 중간 승인 완료, 다음 단계로 진행')
       return new Response(
         JSON.stringify({
           success: true,

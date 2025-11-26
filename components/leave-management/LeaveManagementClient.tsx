@@ -211,26 +211,17 @@ export function LeaveManagementClient({
       return
     }
 
-    console.log('[일괄승인] 선택된 요청 IDs:', selectedRequestIds)
-    console.log('[일괄승인] pendingRequests:', pendingRequests.map(r => ({ id: r.id, memberName: r.memberName })))
-
     if (!window.confirm(`선택한 ${selectedRequestIds.length}건의 연차 신청을 일괄승인하시겠습니까?`)) {
       return
     }
 
-    let successCount = 0
-    let failCount = 0
+    // 병렬로 모든 승인 요청 처리
+    const results = await Promise.allSettled(
+      selectedRequestIds.map(requestId => approveLeaveRequest(Number(requestId)))
+    )
 
-    for (const requestId of selectedRequestIds) {
-      console.log('[일괄승인] 승인 시도 - requestId:', requestId, 'type:', typeof requestId)
-      try {
-        await approveLeaveRequest(Number(requestId))
-        successCount++
-      } catch (error) {
-        console.error(`Failed to approve request ${requestId}:`, error)
-        failCount++
-      }
-    }
+    const successCount = results.filter(r => r.status === 'fulfilled').length
+    const failCount = results.filter(r => r.status === 'rejected').length
 
     if (failCount > 0) {
       toast.warning(`${successCount}건 승인 완료, ${failCount}건 실패`)
