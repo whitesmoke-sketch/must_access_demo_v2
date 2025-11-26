@@ -108,7 +108,7 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
                     fontSize: '12px',
                     lineHeight: 1.4,
                     color: colors.textColor,
-                    fontWeight: 500,
+                    fontWeight: 600,
                   }}
                 >
                   {approver.name}

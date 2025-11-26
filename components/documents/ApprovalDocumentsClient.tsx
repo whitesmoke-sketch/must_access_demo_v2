@@ -2,15 +2,11 @@
 
 import React, { useState, useMemo } from 'react'
 import {
-  FileText,
   Search,
   Filter,
   Check,
   X,
   Eye,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,11 +25,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ApprovalDocumentDetailModal } from './ApprovalDocumentDetailModal'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 
 type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
@@ -85,6 +90,7 @@ export function ApprovalDocumentsClient({
   myApprovalStatusMap,
   approvalStepsMap,
 }: ApprovalDocumentsClientProps) {
+  const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | LeaveStatus>('all')
   const [filterType, setFilterType] = useState<'all' | 'leave'>('all')
@@ -93,16 +99,6 @@ export function ApprovalDocumentsClient({
 
   const [selectedDocument, setSelectedDocument] = useState<ApprovalDocument | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
-
-  // 통계 계산
-  const stats = useMemo(() => {
-    const total = documents.length
-    const pending = documents.filter((d) => d.status === 'pending').length
-    const approved = documents.filter((d) => d.status === 'approved').length
-    const rejected = documents.filter((d) => d.status === 'rejected').length
-
-    return { total, pending, approved, rejected }
-  }, [documents])
 
   // 필터링 및 검색
   const filteredDocuments = useMemo(() => {
@@ -119,11 +115,18 @@ export function ApprovalDocumentsClient({
         departmentName.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = filterStatus === 'all' || doc.status === filterStatus
-      const matchesType = filterType === 'all' // 현재는 연차만 있음
+      const matchesType = filterType === 'all'
 
-      return matchesSearch && matchesStatus && matchesType
+      // 탭에 따른 필터링
+      const matchesTab = activeTab === 'in-progress'
+        ? doc.status === 'pending'
+        : activeTab === 'completed'
+        ? (doc.status === 'approved' || doc.status === 'rejected')
+        : true
+
+      return matchesSearch && matchesStatus && matchesType && matchesTab
     })
-  }, [documents, searchQuery, filterStatus, filterType])
+  }, [documents, searchQuery, filterStatus, filterType, activeTab])
 
   // 페이지네이션
   const paginatedDocuments = filteredDocuments.slice(
@@ -131,20 +134,33 @@ export function ApprovalDocumentsClient({
     currentPage * itemsPerPage
   )
 
+  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
+
   // 상세 보기
   const handleViewDetail = (document: ApprovalDocument) => {
     setSelectedDocument(document)
     setIsDetailDialogOpen(true)
   }
 
-  // 상태 뱃지 (사용자별로 다르게 표시)
+  // 승인 처리
+  const handleApprove = async (doc: ApprovalDocument) => {
+    // TODO: 실제 승인 로직 연결
+    console.log('Approve:', doc.id)
+  }
+
+  // 반려 처리
+  const handleReject = async (doc: ApprovalDocument) => {
+    // TODO: 실제 반려 로직 연결
+    console.log('Reject:', doc.id)
+  }
+
+  // 상태 뱃지
   const getStatusBadge = (doc: ApprovalDocument) => {
     const styles = {
       pending: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
       approved: { backgroundColor: '#D1FAE5', color: '#10B981' },
       rejected: { backgroundColor: '#FEE2E2', color: '#EF4444' },
       cancelled: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
-      waiting: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
     }
 
     const labels = {
@@ -152,20 +168,14 @@ export function ApprovalDocumentsClient({
       approved: '승인',
       rejected: '반려',
       cancelled: '취소',
-      waiting: '대기중',
     }
 
-    // 상태 표시 로직:
-    // 1. 문서가 최종 완료 상태(approved, rejected, cancelled)이면 → 문서 상태 우선 표시
-    // 2. 문서가 진행 중(pending)이면 → 내 승인 상태에 따라 표시
     const myStatus = myApprovalStatusMap[doc.id]
     let displayStatus: keyof typeof styles
 
     if (doc.status === 'rejected' || doc.status === 'approved' || doc.status === 'cancelled') {
-      // 문서가 최종 완료되었으면 모든 사람에게 동일한 최종 상태 표시
       displayStatus = doc.status
     } else if (doc.status === 'pending' && myStatus) {
-      // 문서가 진행 중이고 내가 관여한 경우, 내 승인 상태에 따라 표시
       if (myStatus === 'approved') {
         displayStatus = 'approved'
       } else if (myStatus === 'rejected') {
@@ -174,12 +184,11 @@ export function ApprovalDocumentsClient({
         displayStatus = 'pending'
       }
     } else {
-      // 기타 경우는 원래 문서 상태 표시
       displayStatus = doc.status
     }
 
     return (
-      <Badge style={{ ...styles[displayStatus], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+      <Badge style={{ ...styles[displayStatus], fontSize: '12px', lineHeight: 1.4, fontWeight: 600 }}>
         {labels[displayStatus]}
       </Badge>
     )
@@ -202,7 +211,7 @@ export function ApprovalDocumentsClient({
     }
 
     return (
-      <Badge style={{ ...styles[type], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+      <Badge style={{ ...styles[type], fontSize: '12px', lineHeight: 1.4, fontWeight: 600 }}>
         {labels[type]}
       </Badge>
     )
@@ -248,146 +257,137 @@ export function ApprovalDocumentsClient({
     })
   }
 
+  // 내가 승인할 수 있는지 확인
+  const canApprove = (doc: ApprovalDocument) => {
+    if (doc.status !== 'pending') return false
+    return myApprovalRequestIds.includes(doc.id) && myApprovalStatusMap[doc.id] === 'pending'
+  }
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
       <div>
         <h2 style={{ color: '#29363D', fontSize: '22px', fontWeight: 500, lineHeight: 1.25 }}>
-          결재 문서 관리
+          결재함
         </h2>
         <p style={{ color: '#5B6A72', fontSize: '16px', lineHeight: 1.5 }} className="mt-1">
           모든 결재 문서를 조회하고 승인/반려 처리합니다
         </p>
       </div>
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                  전체 문서
-                </p>
-                <p style={{ fontSize: '28px', fontWeight: 600, color: '#29363D', lineHeight: 1.2, marginTop: '8px' }}>
-                  {stats.total}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(99,91,255,0.1)' }}>
-                <FileText className="w-6 h-6" style={{ color: '#635BFF' }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                  승인 대기
-                </p>
-                <p style={{ fontSize: '28px', fontWeight: 600, color: '#FFAE1F', lineHeight: 1.2, marginTop: '8px' }}>
-                  {stats.pending}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FFF8E5' }}>
-                <Clock className="w-6 h-6" style={{ color: '#FFAE1F' }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                  승인 완료
-                </p>
-                <p style={{ fontSize: '28px', fontWeight: 600, color: '#10B981', lineHeight: 1.2, marginTop: '8px' }}>
-                  {stats.approved}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#D1FAE5' }}>
-                <Check className="w-6 h-6" style={{ color: '#10B981' }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                  반려
-                </p>
-                <p style={{ fontSize: '28px', fontWeight: 600, color: '#EF4444', lineHeight: 1.2, marginTop: '8px' }}>
-                  {stats.rejected}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEE2E2' }}>
-                <X className="w-6 h-6" style={{ color: '#EF4444' }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 필터 및 검색 */}
+      {/* 문서 목록 */}
       <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+        <CardHeader style={{ paddingBottom: '12px' }}>
+          {/* 탭 버튼 */}
+          <div className="flex gap-2">
+            <button
+              className="px-4 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: activeTab === 'all' ? '#635BFF' : '#F6F8F9',
+                color: activeTab === 'all' ? '#FFFFFF' : '#5B6A72',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+              onClick={() => {
+                setActiveTab('all')
+                setCurrentPage(1)
+              }}
+            >
+              전체
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: activeTab === 'in-progress' ? '#635BFF' : '#F6F8F9',
+                color: activeTab === 'in-progress' ? '#FFFFFF' : '#5B6A72',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+              onClick={() => {
+                setActiveTab('in-progress')
+                setCurrentPage(1)
+              }}
+            >
+              결재대기
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: activeTab === 'completed' ? '#635BFF' : '#F6F8F9',
+                color: activeTab === 'completed' ? '#FFFFFF' : '#5B6A72',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+              onClick={() => {
+                setActiveTab('completed')
+                setCurrentPage(1)
+              }}
+            >
+              결재완료
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* 필터 및 검색 */}
+          <div className="mb-4 flex flex-col lg:flex-row gap-4">
+            {/* 검색 인풋 */}
+            <div className="relative w-full lg:flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#5B6A72' }} />
               <Input
-                placeholder="이름, 부서명으로 검색..."
+                placeholder="이름, 팀명으로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={filterStatus} onValueChange={(value: typeof filterStatus) => setFilterStatus(value)}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 상태</SelectItem>
-                <SelectItem value="pending">승인 대기</SelectItem>
-                <SelectItem value="approved">승인 완료</SelectItem>
-                <SelectItem value="rejected">반려</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* 필터들 */}
+            <div className="flex gap-4 lg:flex-shrink-0">
+              <Select value={filterStatus} onValueChange={(value: typeof filterStatus) => setFilterStatus(value)}>
+                <SelectTrigger className="w-full lg:w-[200px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 상태</SelectItem>
+                  <SelectItem value="pending">승인 대기</SelectItem>
+                  <SelectItem value="approved">승인 완료</SelectItem>
+                  <SelectItem value="rejected">반려</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
+                <SelectTrigger className="w-full lg:w-[200px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 문서</SelectItem>
+                  <SelectItem value="leave">연차 신청</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* 문서 목록 */}
-      <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
-        <CardHeader>
-          <CardTitle style={{ color: '#29363D', fontSize: '16px', fontWeight: 500, lineHeight: 1.5 }}>
-            결재 문서 목록
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          {/* 테이블 */}
+          <div className="mb-3" style={{ fontSize: '12px', color: '#5B6A72' }}>
+            전체 {filteredDocuments.length}건
+          </div>
           <div className="rounded-lg border" style={{ borderColor: '#E5E8EB' }}>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>문서 유형</TableHead>
-                  <TableHead style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>신청자</TableHead>
-                  <TableHead style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>소속</TableHead>
-                  <TableHead style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>신청일시</TableHead>
-                  <TableHead style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>상태</TableHead>
-                  <TableHead className="text-right" style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>작업</TableHead>
+                <TableRow style={{ borderBottom: '2px solid #E5E8EB' }}>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>문서 유형</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청자</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>소속</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청일시</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상태</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>상세</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: '#5B6A72', fontSize: '14px', lineHeight: 1.5 }}>
+                    <TableCell colSpan={7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: '#5B6A72', fontSize: '12px' }}>
                       결재 문서가 없습니다
                     </TableCell>
                   </TableRow>
@@ -395,10 +395,11 @@ export function ApprovalDocumentsClient({
                   paginatedDocuments.map((doc) => (
                     <TableRow
                       key={doc.id}
-                      className="transition-colors hover:bg-muted/50"
+                      className="transition-all hover:bg-[#F6F8F9]"
+                      style={{ borderBottom: '1px solid #E5E8EB' }}
                     >
-                      <TableCell>{getLeaveTypeBadge(doc.leave_type)}</TableCell>
-                      <TableCell>
+                      <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
+                      <TableCell className="p-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
                             <AvatarFallback style={{ backgroundColor: '#635BFF', color: 'white', fontSize: '12px', fontWeight: 500 }}>
@@ -406,19 +407,19 @@ export function ApprovalDocumentsClient({
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D', lineHeight: 1.5 }}>
+                            <p style={{ fontSize: '12px', fontWeight: 500, color: '#29363D' }}>
                               {doc.employee?.name || '알 수 없음'}
                             </p>
                             <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                              {getRoleName(doc.employee?.role)}
+                              {getRoleName(doc.employee?.role ?? null)}
                             </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell style={{ fontSize: '14px', color: '#29363D', lineHeight: 1.5 }}>
-                        {getDepartmentName(doc.employee?.department)}
+                      <TableCell className="p-3" style={{ fontSize: '12px', color: '#29363D' }}>
+                        {getDepartmentName(doc.employee?.department ?? null)}
                       </TableCell>
-                      <TableCell style={{ fontSize: '14px', color: '#29363D', lineHeight: 1.5 }}>
+                      <TableCell className="p-3" style={{ fontSize: '12px', color: '#29363D' }}>
                         {new Date(doc.requested_at).toLocaleString('ko-KR', {
                           year: 'numeric',
                           month: '2-digit',
@@ -427,13 +428,11 @@ export function ApprovalDocumentsClient({
                           minute: '2-digit',
                         })}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="p-3">
                         {(() => {
-                          // 완료된 문서(승인/반려/취소)는 단순 상태 뱃지만 표시
                           if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled') {
                             return getStatusBadge(doc)
                           }
-                          // 진행 중인 문서만 결재 진행 상태 표시
                           const approvalProgress = getApprovalProgress(doc.id, doc.current_step)
                           if (approvalProgress && approvalProgress.length > 1) {
                             return <ApprovalProgressBadge approvers={approvalProgress} />
@@ -441,15 +440,45 @@ export function ApprovalDocumentsClient({
                           return getStatusBadge(doc)
                         })()}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-center p-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewDetail(doc)}
+                          style={{ color: '#29363D', padding: '4px 8px' }}
                         >
-                          <Eye className="w-4 h-4 mr-1" />
-                          상세보기
+                          <Eye className="w-4 h-4" />
                         </Button>
+                      </TableCell>
+                      <TableCell className="text-center p-3">
+                        <div className="flex items-center justify-center gap-2">
+                          {canApprove(doc) && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprove(doc)}
+                                style={{
+                                  backgroundColor: '#10B981',
+                                  color: 'white',
+                                }}
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                승인
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleReject(doc)}
+                                style={{
+                                  backgroundColor: '#EF4444',
+                                  color: 'white',
+                                }}
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                반려
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -460,31 +489,64 @@ export function ApprovalDocumentsClient({
 
           {/* Pagination */}
           {filteredDocuments.length > itemsPerPage && (
-            <div className="flex items-center justify-between mt-4">
-              <p style={{ fontSize: '12px', color: '#5B6A72', lineHeight: 1.4 }}>
-                총 {filteredDocuments.length}건 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredDocuments.length)}건 표시
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span style={{ fontSize: '14px', color: '#29363D', lineHeight: 1.5 }}>
-                  {currentPage} / {Math.ceil(filteredDocuments.length / itemsPerPage)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(filteredDocuments.length / itemsPerPage)}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(1)}
+                      isActive={currentPage === 1}
+                      className="cursor-pointer"
+                    >
+                      1
+                    </PaginationLink>
+                  </PaginationItem>
+                  {currentPage > 3 && totalPages > 4 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  {currentPage > 2 && currentPage < totalPages && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(currentPage)}
+                        isActive={true}
+                        className="cursor-pointer"
+                      >
+                        {currentPage}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  {currentPage < totalPages - 2 && totalPages > 4 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  {totalPages > 1 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(totalPages)}
+                        isActive={currentPage === totalPages}
+                        className="cursor-pointer"
+                      >
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </CardContent>
