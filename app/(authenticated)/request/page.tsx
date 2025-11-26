@@ -52,12 +52,31 @@ export default async function RequestPage({
   const usedReward = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
   const remainingReward = totalReward - usedReward
 
-  // 구성원 목록 조회 (결재선용)
-  const { data: members } = await supabase
+  // 구성원 목록 조회 (결재선용) - 직책, 부서 정보 포함
+  const { data: membersRaw } = await supabase
     .from('employee')
-    .select('id, name, email, department_id, role_id')
+    .select(`
+      id,
+      name,
+      email,
+      department_id,
+      role_id,
+      department:department_id(name),
+      role:role_id(name)
+    `)
     .eq('status', 'active')
     .order('name')
+
+  // MemberCombobox가 기대하는 형식으로 변환
+  const members = membersRaw?.map(m => ({
+    id: m.id,
+    name: m.name,
+    email: m.email,
+    department_id: m.department_id,
+    role_id: m.role_id,
+    position: (m.role as any)?.name || '직원',
+    team: (m.department as any)?.name || '팀 정보 없음'
+  })) || []
 
   return (
     <div className="space-y-6 pb-24">
@@ -89,7 +108,7 @@ export default async function RequestPage({
           reward_used: usedReward,
           reward_remaining: remainingReward
         } : null}
-        members={members || []}
+        members={members}
         initialDocumentType={params.type}
       />
     </div>
