@@ -157,6 +157,13 @@ export function LeaveManagementClient({
     try {
       await approveLeaveRequest(Number(requestId))
 
+      // 로컬 상태 즉시 업데이트
+      setLeaveRequests(prev => prev.map(r =>
+        r.id === requestId
+          ? { ...r, status: 'approved' as const, canApprove: false }
+          : r
+      ))
+
       toast.success('연차 신청을 승인했습니다', {
         description: `${request.memberName}님의 ${request.leaveType === 'annual' ? '연차' : '포상휴가'} 신청이 승인되었습니다.`,
       })
@@ -186,6 +193,13 @@ export function LeaveManagementClient({
 
     try {
       await rejectLeaveRequest(Number(selectedRequestId), rejectReason)
+
+      // 로컬 상태 즉시 업데이트
+      setLeaveRequests(prev => prev.map(r =>
+        r.id === selectedRequestId
+          ? { ...r, status: 'rejected' as const, canApprove: false }
+          : r
+      ))
 
       toast.error('연차 신청을 반려했습니다', {
         description: `${request.memberName}님의 연차 신청이 반려되었습니다.`,
@@ -222,6 +236,16 @@ export function LeaveManagementClient({
 
     const successCount = results.filter(r => r.status === 'fulfilled').length
     const failCount = results.filter(r => r.status === 'rejected').length
+
+    // 성공한 요청들의 ID 수집
+    const succeededIds = selectedRequestIds.filter((_, index) => results[index].status === 'fulfilled')
+
+    // 로컬 상태 즉시 업데이트 (승인된 요청 상태 변경)
+    setLeaveRequests(prev => prev.map(request =>
+      succeededIds.includes(request.id)
+        ? { ...request, status: 'approved' as const, canApprove: false }
+        : request
+    ))
 
     if (failCount > 0) {
       toast.warning(`${successCount}건 승인 완료, ${failCount}건 실패`)
