@@ -225,45 +225,15 @@ serve(async (req) => {
             sent_at: new Date().toISOString()
           }))
 
-          const { data: insertedNotifications, error: notificationError } = await supabase
+          const { error: notificationError } = await supabase
             .from('notification')
             .insert(notificationRecords)
-            .select()
 
           if (notificationError) {
             console.error('[Create Meeting] Notification insert error:', notificationError)
           } else {
             console.log('[Create Meeting] Notifications created:', attendeesWithoutOrganizer.length)
-
-            // 각 참석자에게 실시간 알림 Broadcast
-            if (insertedNotifications) {
-              for (const notification of insertedNotifications) {
-                try {
-                  const channel = supabase.channel(`notifications:${notification.recipient_id}`)
-
-                  // 채널 구독 후 메시지 전송
-                  await new Promise<void>((resolve, reject) => {
-                    channel.subscribe((status: string) => {
-                      if (status === 'SUBSCRIBED') {
-                        channel.send({
-                          type: 'broadcast',
-                          event: 'new_notification',
-                          payload: notification
-                        }).then(() => {
-                          console.log('[Create Meeting] Broadcast sent to:', notification.recipient_id)
-                          supabase.removeChannel(channel)
-                          resolve()
-                        }).catch(reject)
-                      } else if (status === 'CHANNEL_ERROR') {
-                        reject(new Error('Channel error'))
-                      }
-                    })
-                  })
-                } catch (broadcastError) {
-                  console.error('[Create Meeting] Broadcast error:', broadcastError)
-                }
-              }
-            }
+            // postgres_changes가 자동으로 클라이언트에 알림을 전송함
           }
         }
       }

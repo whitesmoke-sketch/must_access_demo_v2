@@ -340,45 +340,15 @@ export async function createBooking(input: CreateBookingInput) {
 
       // notification 테이블은 INSERT에 RLS 정책이 없으므로 adminClient 사용
       const adminClient = createAdminClient()
-      const { data: insertedNotifications, error: notificationError } = await adminClient
+      const { error: notificationError } = await adminClient
         .from('notification')
         .insert(notificationRecords)
-        .select()
 
       if (notificationError) {
         console.error('Failed to create notifications:', notificationError)
       } else {
         console.log('[Basic Booking] Notifications created for attendees:', input.attendee_ids.length)
-
-        // 각 참석자에게 실시간 알림 Broadcast
-        if (insertedNotifications) {
-          for (const notification of insertedNotifications) {
-            try {
-              const channel = adminClient.channel(`notifications:${notification.recipient_id}`)
-
-              // 채널 구독 후 메시지 전송
-              await new Promise<void>((resolve, reject) => {
-                channel.subscribe((status) => {
-                  if (status === 'SUBSCRIBED') {
-                    channel.send({
-                      type: 'broadcast',
-                      event: 'new_notification',
-                      payload: notification
-                    }).then(() => {
-                      console.log('[Basic Booking] Broadcast sent to:', notification.recipient_id)
-                      adminClient.removeChannel(channel)
-                      resolve()
-                    }).catch(reject)
-                  } else if (status === 'CHANNEL_ERROR') {
-                    reject(new Error('Channel error'))
-                  }
-                })
-              })
-            } catch (broadcastError) {
-              console.error('[Basic Booking] Broadcast error:', broadcastError)
-            }
-          }
-        }
+        // postgres_changes가 자동으로 클라이언트에 알림을 전송함
       }
     }
   }

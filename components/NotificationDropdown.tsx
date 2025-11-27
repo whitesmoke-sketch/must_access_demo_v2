@@ -25,19 +25,23 @@ export default function NotificationDropdown({ notifications: initialNotificatio
     setNotifications(initialNotifications)
   }, [initialNotifications])
 
-  // Supabase Realtime Broadcast 구독 - 새 알림 실시간 수신
+  // Supabase Realtime postgres_changes 구독 - DB INSERT 감지
   useEffect(() => {
     const supabase = createClient()
 
-    // Broadcast 채널 사용 (RLS 문제 회피)
     const channel = supabase
-      .channel(`notifications:${userId}`)
+      .channel('notification-changes')
       .on(
-        'broadcast',
-        { event: 'new_notification' },
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notification',
+          filter: `recipient_id=eq.${userId}`,
+        },
         (payload) => {
-          console.log('[Realtime] Broadcast received:', payload)
-          const newNotification = payload.payload as Notification
+          console.log('[Realtime] New notification from DB:', payload)
+          const newNotification = payload.new as Notification
 
           // 새 알림을 목록 맨 앞에 추가
           setNotifications((prev) => {
@@ -57,7 +61,7 @@ export default function NotificationDropdown({ notifications: initialNotificatio
       .subscribe((status, err) => {
         console.log('[Realtime] Subscription status:', status, err || '')
         if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Subscribed to broadcast channel for user:', userId)
+          console.log('[Realtime] Subscribed to notification changes for user:', userId)
         }
       })
 
