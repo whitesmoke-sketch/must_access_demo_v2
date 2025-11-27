@@ -225,14 +225,28 @@ serve(async (req) => {
             sent_at: new Date().toISOString()
           }))
 
-          const { error: notificationError } = await supabase
+          const { data: insertedNotifications, error: notificationError } = await supabase
             .from('notification')
             .insert(notificationRecords)
+            .select()
 
           if (notificationError) {
             console.error('[Create Meeting] Notification insert error:', notificationError)
           } else {
-            console.log('[Create Meeting] Notifications created:', employees.length)
+            console.log('[Create Meeting] Notifications created:', attendeesWithoutOrganizer.length)
+
+            // 각 참석자에게 실시간 알림 Broadcast
+            if (insertedNotifications) {
+              for (const notification of insertedNotifications) {
+                const channel = supabase.channel(`notifications:${notification.recipient_id}`)
+                await channel.send({
+                  type: 'broadcast',
+                  event: 'new_notification',
+                  payload: notification
+                })
+                console.log('[Create Meeting] Broadcast sent to:', notification.recipient_id)
+              }
+            }
           }
         }
       }
