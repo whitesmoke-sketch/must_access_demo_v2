@@ -29,13 +29,6 @@ export default function NotificationDropdown({ notifications: initialNotificatio
   useEffect(() => {
     const supabase = createClient()
 
-    // 인증 상태 확인
-    supabase.auth.getUser().then(({ data }) => {
-      console.log('[Realtime] Auth check - User ID:', data?.user?.id)
-      console.log('[Realtime] Expected User ID:', userId)
-      console.log('[Realtime] Match:', data?.user?.id === userId)
-    })
-
     const channel = supabase
       .channel(`notification-changes-${userId}`)
       .on(
@@ -44,11 +37,14 @@ export default function NotificationDropdown({ notifications: initialNotificatio
           event: 'INSERT',
           schema: 'public',
           table: 'notification',
-          // RLS가 자동으로 recipient_id 필터링 처리
         },
         (payload) => {
-          console.log('[Realtime] New notification from DB:', payload)
           const newNotification = payload.new as Notification
+
+          // 본인 알림만 처리 (RLS 비활성화 상태이므로 클라이언트에서 필터링)
+          if (newNotification.recipient_id !== userId) {
+            return
+          }
 
           // 새 알림을 목록 맨 앞에 추가
           setNotifications((prev) => {
@@ -65,12 +61,7 @@ export default function NotificationDropdown({ notifications: initialNotificatio
           })
         }
       )
-      .subscribe((status, err) => {
-        console.log('[Realtime] Subscription status:', status, err || '')
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Subscribed to notification changes for user:', userId)
-        }
-      })
+      .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
