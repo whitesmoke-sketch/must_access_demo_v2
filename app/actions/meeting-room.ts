@@ -340,14 +340,28 @@ export async function createBooking(input: CreateBookingInput) {
 
       // notification 테이블은 INSERT에 RLS 정책이 없으므로 adminClient 사용
       const adminClient = createAdminClient()
-      const { error: notificationError } = await adminClient
+      const { data: insertedNotifications, error: notificationError } = await adminClient
         .from('notification')
         .insert(notificationRecords)
+        .select()
 
       if (notificationError) {
         console.error('Failed to create notifications:', notificationError)
       } else {
         console.log('[Basic Booking] Notifications created for attendees:', input.attendee_ids.length)
+
+        // 각 참석자에게 실시간 알림 Broadcast
+        if (insertedNotifications) {
+          for (const notification of insertedNotifications) {
+            const channel = adminClient.channel(`notifications:${notification.recipient_id}`)
+            await channel.send({
+              type: 'broadcast',
+              event: 'new_notification',
+              payload: notification
+            })
+            console.log('[Basic Booking] Broadcast sent to:', notification.recipient_id)
+          }
+        }
       }
     }
   }

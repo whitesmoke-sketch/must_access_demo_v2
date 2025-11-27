@@ -25,30 +25,19 @@ export default function NotificationDropdown({ notifications: initialNotificatio
     setNotifications(initialNotifications)
   }, [initialNotifications])
 
-  // Supabase Realtime 구독 - 새 알림 실시간 수신
+  // Supabase Realtime Broadcast 구독 - 새 알림 실시간 수신
   useEffect(() => {
     const supabase = createClient()
 
-    // RLS가 자동으로 recipient_id 필터링을 처리함
-    // filter 없이 구독하고 RLS에 의존
+    // Broadcast 채널 사용 (RLS 문제 회피)
     const channel = supabase
-      .channel(`user-notifications-${userId}`)
+      .channel(`notifications:${userId}`)
       .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notification',
-        },
+        'broadcast',
+        { event: 'new_notification' },
         (payload) => {
-          console.log('[Realtime] Notification event received:', payload)
-          const newNotification = payload.new as Notification
-
-          // RLS가 없는 경우를 대비해 클라이언트에서도 필터링
-          if (newNotification.recipient_id !== userId) {
-            console.log('[Realtime] Ignoring notification for different user')
-            return
-          }
+          console.log('[Realtime] Broadcast received:', payload)
+          const newNotification = payload.payload as Notification
 
           // 새 알림을 목록 맨 앞에 추가
           setNotifications((prev) => {
@@ -68,18 +57,11 @@ export default function NotificationDropdown({ notifications: initialNotificatio
       .subscribe((status, err) => {
         console.log('[Realtime] Subscription status:', status, err || '')
         if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Successfully subscribed to notifications for user:', userId)
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('[Realtime] Channel error:', err)
-        }
-        if (status === 'TIMED_OUT') {
-          console.error('[Realtime] Subscription timed out')
+          console.log('[Realtime] Subscribed to broadcast channel for user:', userId)
         }
       })
 
     return () => {
-      console.log('[Realtime] Unsubscribing from notifications')
       supabase.removeChannel(channel)
     }
   }, [userId])
