@@ -22,10 +22,10 @@ export interface GoogleTokenResult {
  * refresh_token으로 새 access_token 발급
  */
 export async function refreshGoogleAccessToken(refreshToken: string): Promise<GoogleTokenResult> {
-  const clientSecret = process.env.SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 
   if (!clientSecret) {
-    console.error('[Google Auth] SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET 없음')
+    console.error('[Google Auth] GOOGLE_CLIENT_SECRET 환경변수 없음')
     return { accessToken: null, error: 'Google client secret 없음', needsReauth: true }
   }
 
