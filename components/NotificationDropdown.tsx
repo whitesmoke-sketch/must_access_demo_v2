@@ -30,14 +30,14 @@ export default function NotificationDropdown({ notifications: initialNotificatio
     const supabase = createClient()
 
     const channel = supabase
-      .channel('notification-changes')
+      .channel(`notification-changes-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'notification',
-          filter: `recipient_id=eq.${userId}`,
+          // RLS가 자동으로 recipient_id 필터링 처리
         },
         (payload) => {
           console.log('[Realtime] New notification from DB:', payload)
