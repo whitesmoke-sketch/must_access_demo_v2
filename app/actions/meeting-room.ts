@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getValidGoogleAccessToken } from '@/lib/google-auth'
 
@@ -307,7 +307,7 @@ export async function createBooking(input: CreateBookingInput) {
         minute: '2-digit'
       })
 
-      // 각 참석자에게 알림 생성
+      // 각 참석자에게 알림 생성 (Admin 클라이언트 사용 - RLS 우회)
       const notificationRecords = input.attendee_ids.map(empId => ({
         recipient_id: empId,
         type: 'meeting_invitation',
@@ -338,7 +338,9 @@ export async function createBooking(input: CreateBookingInput) {
         sent_at: new Date().toISOString()
       }))
 
-      const { error: notificationError } = await supabase
+      // notification 테이블은 INSERT에 RLS 정책이 없으므로 adminClient 사용
+      const adminClient = createAdminClient()
+      const { error: notificationError } = await adminClient
         .from('notification')
         .insert(notificationRecords)
 
