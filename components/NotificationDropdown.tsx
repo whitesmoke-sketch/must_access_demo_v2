@@ -29,6 +29,13 @@ export default function NotificationDropdown({ notifications: initialNotificatio
   useEffect(() => {
     const supabase = createClient()
 
+    // 인증 상태 확인
+    supabase.auth.getUser().then(({ data }) => {
+      console.log('[Realtime] Auth check - User ID:', data?.user?.id)
+      console.log('[Realtime] Expected User ID:', userId)
+      console.log('[Realtime] Match:', data?.user?.id === userId)
+    })
+
     const channel = supabase
       .channel(`notification-changes-${userId}`)
       .on(
