@@ -29,29 +29,57 @@ export default function NotificationDropdown({ notifications: initialNotificatio
   useEffect(() => {
     const supabase = createClient()
 
+    // RLS가 자동으로 recipient_id 필터링을 처리함
+    // filter 없이 구독하고 RLS에 의존
     const channel = supabase
-      .channel('notifications')
+      .channel(`user-notifications-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'notification',
-          filter: `recipient_id=eq.${userId}`,
         },
         (payload) => {
+          console.log('[Realtime] Notification event received:', payload)
           const newNotification = payload.new as Notification
+
+          // RLS가 없는 경우를 대비해 클라이언트에서도 필터링
+          if (newNotification.recipient_id !== userId) {
+            console.log('[Realtime] Ignoring notification for different user')
+            return
+          }
+
           // 새 알림을 목록 맨 앞에 추가
-          setNotifications((prev) => [newNotification, ...prev])
+          setNotifications((prev) => {
+            // 중복 방지
+            if (prev.some(n => n.id === newNotification.id)) {
+              return prev
+            }
+            return [newNotification, ...prev]
+          })
+
           // 토스트 알림 표시
           toast.info(newNotification.title, {
             description: newNotification.message,
           })
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log('[Realtime] Subscription status:', status, err || '')
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] Successfully subscribed to notifications for user:', userId)
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[Realtime] Channel error:', err)
+        }
+        if (status === 'TIMED_OUT') {
+          console.error('[Realtime] Subscription timed out')
+        }
+      })
 
     return () => {
+      console.log('[Realtime] Unsubscribing from notifications')
       supabase.removeChannel(channel)
     }
   }, [userId])
