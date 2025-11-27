@@ -353,13 +353,30 @@ export async function createBooking(input: CreateBookingInput) {
         // 각 참석자에게 실시간 알림 Broadcast
         if (insertedNotifications) {
           for (const notification of insertedNotifications) {
-            const channel = adminClient.channel(`notifications:${notification.recipient_id}`)
-            await channel.send({
-              type: 'broadcast',
-              event: 'new_notification',
-              payload: notification
-            })
-            console.log('[Basic Booking] Broadcast sent to:', notification.recipient_id)
+            try {
+              const channel = adminClient.channel(`notifications:${notification.recipient_id}`)
+
+              // 채널 구독 후 메시지 전송
+              await new Promise<void>((resolve, reject) => {
+                channel.subscribe((status) => {
+                  if (status === 'SUBSCRIBED') {
+                    channel.send({
+                      type: 'broadcast',
+                      event: 'new_notification',
+                      payload: notification
+                    }).then(() => {
+                      console.log('[Basic Booking] Broadcast sent to:', notification.recipient_id)
+                      adminClient.removeChannel(channel)
+                      resolve()
+                    }).catch(reject)
+                  } else if (status === 'CHANNEL_ERROR') {
+                    reject(new Error('Channel error'))
+                  }
+                })
+              })
+            } catch (broadcastError) {
+              console.error('[Basic Booking] Broadcast error:', broadcastError)
+            }
           }
         }
       }
