@@ -198,7 +198,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
           </button> */}
 
           {/* Notifications */}
-          <NotificationDropdown notifications={notifications} />
+          <NotificationDropdown notifications={notifications} userId={user.id} />
 
           {/* Profile Avatar */}
           <DropdownMenu>

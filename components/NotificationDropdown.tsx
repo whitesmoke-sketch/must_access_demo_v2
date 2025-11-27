@@ -1,22 +1,60 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { markAsRead } from '@/app/actions/notification'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import type { Notification } from '@/app/actions/notification'
 import MeetingInvitationModal from './MeetingInvitationModal'
 
 interface NotificationDropdownProps {
   notifications: Notification[]
+  userId: string
 }
 
-export default function NotificationDropdown({ notifications: initialNotifications }: NotificationDropdownProps) {
+export default function NotificationDropdown({ notifications: initialNotifications, userId }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState(initialNotifications)
   const [selectedMeetingNotification, setSelectedMeetingNotification] = useState<Notification | null>(null)
   const router = useRouter()
+
+  // 서버에서 새로운 초기 알림이 오면 동기화
+  useEffect(() => {
+    setNotifications(initialNotifications)
+  }, [initialNotifications])
+
+  // Supabase Realtime 구독 - 새 알림 실시간 수신
+  useEffect(() => {
+    const supabase = createClient()
+
+    const channel = supabase
+      .channel('notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notification',
+          filter: `recipient_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification
+          // 새 알림을 목록 맨 앞에 추가
+          setNotifications((prev) => [newNotification, ...prev])
+          // 토스트 알림 표시
+          toast.info(newNotification.title, {
+            description: newNotification.message,
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
 
   // 읽지 않은 알림 개수
   const unreadCount = notifications.filter(n => !n.is_read).length
