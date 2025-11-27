@@ -101,11 +101,12 @@ const config: Config = {
   			]
   		},
 		borderRadius: {
-			lg: 'var(--radius)',
-			md: '8px',
 			sm: '4px',
-			xl: '12px',
-			'2xl': '16px',
+			md: '8px',
+			lg: '12px',
+			xl: '16px',
+			'2xl': '20px',
+			'3xl': '24px',
 			card: '16px',
 			button: '8px'
 		},
