@@ -102,8 +102,10 @@ const config: Config = {
   		},
 		borderRadius: {
 			lg: 'var(--radius)',
-			md: 'calc(var(--radius) - 2px)',
-			sm: 'calc(var(--radius) - 4px)',
+			md: '8px',
+			sm: '4px',
+			xl: '12px',
+			'2xl': '16px',
 			card: '16px',
 			button: '8px'
 		},

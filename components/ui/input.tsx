@@ -22,9 +22,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label 
-            htmlFor={inputId} 
-            className="block text-caption font-medium text-gray-700 mb-1"
+          <label
+            htmlFor={inputId}
+            className="block text-caption font-medium text-foreground mb-1"
           >
             {label}
           </label>
@@ -34,10 +34,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           type={type}
           className={cn(
             'flex h-10 w-full rounded-button border border-border bg-surface px-3 py-2',
-            'text-body placeholder:text-gray-500',
+            'text-body placeholder:text-muted-foreground',
             'transition-all duration-fast',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0',
-            'disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500',
+            'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground',
             error && 'border-error focus-visible:ring-error',
             className
           )}
@@ -48,7 +48,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <p className="mt-1 text-caption text-error">{error}</p>
         )}
         {helperText && !error && (
-          <p className="mt-1 text-caption text-gray-500">{helperText}</p>
+          <p className="mt-1 text-caption text-muted-foreground">{helperText}</p>
         )}
       </div>
     )

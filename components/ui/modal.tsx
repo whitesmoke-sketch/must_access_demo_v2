@@ -74,14 +74,14 @@ export function Modal({
               </h2>
             )}
             {description && (
-              <p className="mt-1 text-caption text-gray-500">
+              <p className="mt-1 text-caption text-muted-foreground">
                 {description}
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="ml-4 p-1 rounded-lg hover:bg-gray-100 interactive"
+            className="ml-4 p-1 rounded-lg hover:bg-muted interactive"
             aria-label="닫기"
           >
             <X className="w-5 h-5" />

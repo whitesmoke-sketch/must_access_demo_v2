@@ -77,7 +77,7 @@ export default function MeetingInvitationModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-muted rounded-full transition-colors"
           >
             <X size={20} />
           </button>
@@ -186,7 +186,7 @@ export default function MeetingInvitationModal({
             <button
               onClick={() => handleResponse('declined')}
               disabled={loading}
-              className="flex-1 px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="flex-1 px-6 py-3 border border-border rounded-lg font-semibold hover:bg-muted disabled:opacity-50 transition-colors"
             >
               {loading ? '처리중...' : '❌ 불참'}
             </button>

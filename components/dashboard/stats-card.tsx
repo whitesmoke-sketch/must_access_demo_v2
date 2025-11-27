@@ -65,7 +65,7 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        'rounded-card bg-surface border border-border card-shadow p-6',
+        'rounded-card bg-surface card-shadow p-6',
         'hover:shadow-lg interactive',
         className
       )}
@@ -76,7 +76,7 @@ export function StatsCard({
       </div>
 
       {/* Title */}
-      <h3 className="text-caption text-gray-500 mb-1">{title}</h3>
+      <h3 className="text-caption text-muted-foreground mb-1">{title}</h3>
 
       {/* Value */}
       <div className="flex items-baseline gap-2">

@@ -27,7 +27,7 @@ export function ChartContainer({
   return (
     <div
       className={cn(
-        'rounded-card bg-surface border border-border card-shadow',
+        'rounded-card bg-surface card-shadow',
         className
       )}
     >
@@ -36,7 +36,7 @@ export function ChartContainer({
         <div>
           <h3 className="text-h2 font-semibold">{title}</h3>
           {description && (
-            <p className="mt-1 text-caption text-gray-500">{description}</p>
+            <p className="mt-1 text-caption text-muted-foreground">{description}</p>
           )}
         </div>
         {action && <div className="ml-4">{action}</div>}

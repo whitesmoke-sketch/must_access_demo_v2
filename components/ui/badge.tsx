@@ -27,7 +27,7 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
       const priorityStyles = {
         'very-high': 'bg-secondary text-white',
         'high': 'bg-error text-white',
-        'medium': 'bg-warning text-[#29363D]',
+        'medium': 'bg-warning text-foreground',
         'low': 'bg-success text-white',
       }
 
@@ -46,9 +46,9 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
 
     // Status Badge
     const variants = {
-      default: 'bg-gray-100 text-gray-700 border border-gray-300',
+      default: 'bg-muted text-foreground border border-border',
       success: 'bg-success text-white',
-      warning: 'bg-warning text-[#29363D]',
+      warning: 'bg-warning text-foreground',
       error: 'bg-error text-white',
       info: 'bg-info text-white',
     }
