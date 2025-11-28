@@ -116,9 +116,20 @@ CREATE INDEX idx_email ON employee(email);
 CREATE INDEX idx_status ON employee(status);
 CREATE INDEX idx_employment_date ON employee(employment_date);
 
--- Add department.manager_id after employee table exists
-ALTER TABLE department ADD COLUMN manager_id UUID REFERENCES employee(id);
-CREATE INDEX idx_dept_manager ON department(manager_id);
+-- Leader table (N:N relationship between department and employee)
+-- Supports: 1 department : N leaders, 1 person : N departments as leader
+CREATE TABLE leader (
+  department_id BIGINT NOT NULL REFERENCES department(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  PRIMARY KEY (department_id, employee_id)
+);
+
+CREATE INDEX idx_leader_employee ON leader(employee_id);
+CREATE INDEX idx_leader_department ON leader(department_id);
+
+COMMENT ON TABLE leader IS '부서-리더 다대다 관계 테이블 (1조직:N리더, 1사람:N조직 리더)';
 
 -- Department history table
 CREATE TABLE department_history (
@@ -342,10 +353,10 @@ CREATE TABLE approval_template_step (
   template_id uuid REFERENCES approval_template(id) ON DELETE CASCADE NOT NULL,
   approver_id uuid REFERENCES employee(id) ON DELETE CASCADE NOT NULL,
   step_order integer NOT NULL,
+  approval_type VARCHAR(20) DEFAULT 'single' CHECK (approval_type IN ('single', 'agreement')),
   created_at timestamptz DEFAULT now(),
 
-  -- Constraint: no duplicate step_order in same template
-  CONSTRAINT unique_template_step_order UNIQUE (template_id, step_order),
+  -- Constraint: no duplicate step_order in same template (removed - same step_order allowed for agreement)
   -- Constraint: step_order must be positive
   CONSTRAINT positive_step_order CHECK (step_order > 0)
 );
@@ -353,6 +364,22 @@ CREATE TABLE approval_template_step (
 CREATE INDEX idx_approval_template_step_template ON approval_template_step(template_id);
 
 COMMENT ON TABLE approval_template_step IS 'Approvers and order in templates';
+COMMENT ON COLUMN approval_template_step.approval_type IS '결재 유형: single(단독), agreement(합의-전원승인필요)';
+
+-- Approval template CC table (참조자)
+CREATE TABLE approval_template_cc (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID NOT NULL REFERENCES approval_template(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  CONSTRAINT unique_template_cc UNIQUE(template_id, employee_id)
+);
+
+CREATE INDEX idx_approval_template_cc_template ON approval_template_cc(template_id);
+CREATE INDEX idx_approval_template_cc_employee ON approval_template_cc(employee_id);
+
+COMMENT ON TABLE approval_template_cc IS '결재선 템플릿의 참조자 목록';
 
 -- Approval step table (actual approval steps for requests)
 CREATE TABLE approval_step (
@@ -361,6 +388,7 @@ CREATE TABLE approval_step (
   request_id bigint NOT NULL, -- Actual request ID (leave_request.id, document_request.id, etc.)
   approver_id uuid REFERENCES employee(id) ON DELETE SET NULL,
   step_order integer NOT NULL,
+  approval_type VARCHAR(20) DEFAULT 'single' CHECK (approval_type IN ('single', 'agreement')),
   status text NOT NULL DEFAULT 'waiting',
   comment text,
   approved_at timestamptz,
@@ -369,8 +397,6 @@ CREATE TABLE approval_step (
 
   -- Constraint: valid status values
   CONSTRAINT valid_approval_status CHECK (status IN ('waiting', 'pending', 'approved', 'rejected')),
-  -- Constraint: no duplicate step_order in same request
-  CONSTRAINT unique_request_step_order UNIQUE (request_type, request_id, step_order),
   -- Constraint: step_order must be positive
   CONSTRAINT positive_approval_step_order CHECK (step_order > 0)
 );
@@ -382,8 +408,39 @@ CREATE INDEX idx_approval_step_status ON approval_step(status);
 COMMENT ON TABLE approval_step IS 'Actual approval step records for requests';
 COMMENT ON COLUMN approval_step.request_type IS 'Request type: leave, document, etc.';
 COMMENT ON COLUMN approval_step.request_id IS 'Actual request ID (BIGINT - leave_request.id, etc.)';
+COMMENT ON COLUMN approval_step.approval_type IS '결재 유형: single(단독), agreement(합의-전원승인필요)';
 COMMENT ON COLUMN approval_step.status IS 'waiting: pending turn, pending: current turn, approved: approved, rejected: rejected';
 COMMENT ON COLUMN approval_step.is_last_step IS 'Indicates if this is the final approval step for the request';
+
+-- Approval CC table (참조자)
+CREATE TABLE approval_cc (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_type TEXT NOT NULL,
+  request_id BIGINT NOT NULL,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+
+  -- 알림 발송 시각
+  submitted_notified_at TIMESTAMPTZ,    -- 결재 상신 시 알림
+  completed_notified_at TIMESTAMPTZ,    -- 결재 완료 시 알림
+
+  -- 열람 시각
+  read_at TIMESTAMPTZ,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  CONSTRAINT unique_approval_cc UNIQUE(request_type, request_id, employee_id)
+);
+
+CREATE INDEX idx_approval_cc_request ON approval_cc(request_type, request_id);
+CREATE INDEX idx_approval_cc_employee ON approval_cc(employee_id);
+CREATE INDEX idx_approval_cc_unread ON approval_cc(employee_id) WHERE read_at IS NULL;
+
+COMMENT ON TABLE approval_cc IS '결재 요청의 참조자 목록';
+COMMENT ON COLUMN approval_cc.request_type IS '요청 유형: leave, document 등';
+COMMENT ON COLUMN approval_cc.request_id IS '실제 요청 ID (leave_request.id 등)';
+COMMENT ON COLUMN approval_cc.submitted_notified_at IS '결재 상신 시 알림 발송 시각';
+COMMENT ON COLUMN approval_cc.completed_notified_at IS '결재 완료 시 알림 발송 시각';
+COMMENT ON COLUMN approval_cc.read_at IS '참조자가 문서를 열람한 시각';
 
 -- Approval organization snapshot table
 CREATE TABLE approval_organization_snapshot (
@@ -397,8 +454,7 @@ CREATE TABLE approval_organization_snapshot (
   role_id BIGINT NOT NULL,
   role_name TEXT NOT NULL,
   role_level INTEGER NOT NULL,
-  manager_id UUID REFERENCES employee(id),
-  manager_name TEXT,
+  leaders JSONB DEFAULT '[]'::jsonb,
   snapshot_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -406,6 +462,7 @@ CREATE INDEX idx_approval_snapshot_step ON approval_organization_snapshot(approv
 CREATE INDEX idx_approval_snapshot_employee ON approval_organization_snapshot(employee_id);
 
 COMMENT ON TABLE approval_organization_snapshot IS 'Snapshot of organization structure at approval creation time';
+COMMENT ON COLUMN approval_organization_snapshot.leaders IS '승인 시점의 부서 리더 목록 [{id, name}, ...]';
 
 -- Approval step audit table
 CREATE TABLE approval_step_audit (
@@ -1098,7 +1155,6 @@ SELECT
   d.name,
   d.code,
   d.parent_department_id,
-  d.manager_id,
   d.display_order,
   d.created_at,
   d.updated_at,
@@ -1109,16 +1165,24 @@ SELECT
   get_department_path(d.id) AS full_path,
   COUNT(DISTINCT e.id) FILTER (WHERE e.deleted_at IS NULL AND e.status::text = 'active'::text) AS active_member_count,
   COUNT(DISTINCT child.id) FILTER (WHERE child.deleted_at IS NULL) AS child_count,
-  COALESCE(m.name, ''::VARCHAR) AS manager_name,
+  -- 리더 정보를 JSON 배열로 반환
+  COALESCE(
+    (
+      SELECT jsonb_agg(jsonb_build_object('id', le.id, 'name', le.name))
+      FROM leader l
+      JOIN employee le ON le.id = l.employee_id
+      WHERE l.department_id = d.id
+    ),
+    '[]'::jsonb
+  ) AS leaders,
   COALESCE(cb.name, ''::VARCHAR) AS created_by_name,
   COALESCE(ub.name, ''::VARCHAR) AS updated_by_name
 FROM department d
 LEFT JOIN employee e ON e.department_id = d.id
 LEFT JOIN department child ON child.parent_department_id = d.id
-LEFT JOIN employee m ON m.id = d.manager_id
 LEFT JOIN employee cb ON cb.id = d.created_by
 LEFT JOIN employee ub ON ub.id = d.updated_by
 WHERE d.deleted_at IS NULL
-GROUP BY d.id, d.name, d.code, d.parent_department_id, d.manager_id, d.display_order,
+GROUP BY d.id, d.name, d.code, d.parent_department_id, d.display_order,
          d.created_at, d.updated_at, d.created_by, d.updated_by, d.deleted_at, d.deleted_by,
-         m.name, cb.name, ub.name;
+         cb.name, ub.name;

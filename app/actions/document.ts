@@ -2,13 +2,14 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { createApprovalSteps } from './approval'
+import { createApprovalSteps, ApprovalStepInput, ApprovalType } from './approval'
 
 interface ApprovalStep {
   order: number
   approverId: string
   approverName: string
   approverPosition: string
+  approvalType?: ApprovalType  // 'single' | 'agreement'
   isDelegated?: boolean
   delegateId?: string
   delegateName?: string
@@ -59,15 +60,21 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
         return { success: false, error: leaveError.message }
       }
 
-      // 2. 승인 단계 생성 (새로운 approval_step 테이블 사용)
-      const approverIds = data.approval_steps.map(step =>
-        step.isDelegated && step.delegateId ? step.delegateId : step.approverId
-      )
+      // 2. 승인 단계 생성 (새로운 approval_step 테이블 사용, 합의 + 참조자 지원)
+      const approvalSteps: ApprovalStepInput[] = data.approval_steps.map(step => ({
+        approver_id: step.isDelegated && step.delegateId ? step.delegateId : step.approverId,
+        step_order: step.order,
+        approval_type: step.approvalType || 'single'
+      }))
+
+      // 참조자 ID 추출
+      const ccEmployeeIds = data.reference_steps.map(ref => ref.memberId)
 
       const approvalResult = await createApprovalSteps(
         'leave',
         leaveRequest.id,
-        approverIds
+        approvalSteps,
+        ccEmployeeIds
       )
 
       if (!approvalResult.success) {

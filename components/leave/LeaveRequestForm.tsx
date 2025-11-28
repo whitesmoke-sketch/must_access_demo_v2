@@ -40,7 +40,7 @@ import { ApprovalLineEditor, type ApprovalStep } from "@/components/approval-lin
 import { ApprovalTemplateLoadModal } from "@/components/approval-template-modal";
 import { ApprovalTemplateSaveModal } from "@/components/approval-template-save-modal";
 
-import { generateDefaultApprovers, createApprovalSteps } from "@/app/actions/approval";
+import { generateDefaultApprovers, createApprovalSteps, ApprovalStepInput } from "@/app/actions/approval";
 import { createLeaveRequest } from "@/app/actions/leave";
 
 const leaveTypes = [
@@ -136,10 +136,17 @@ export function LeaveRequestForm({ employeeId }: LeaveRequestFormProps) {
       const requestId = leaveResult.data.id;
 
       // 2. 승인 단계 생성
+      const steps: ApprovalStepInput[] = approvers.map((a, index) => ({
+        approver_id: a.id,
+        step_order: index + 1,
+        approval_type: 'single' as const
+      }));
+
       const approvalResult = await createApprovalSteps(
         "leave",
         requestId,
-        approvers.map((a) => a.id)
+        steps,
+        [] // ccEmployeeIds - 참조자 (현재 UI에서 미지원)
       );
 
       if (!approvalResult.success) {

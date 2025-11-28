@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createApprovalTemplate } from "@/app/actions/approval";
+import { createApprovalTemplate, ApprovalStepInput } from "@/app/actions/approval";
 import { toast } from "sonner";
 
 interface ApprovalTemplateSaveModalProps {
@@ -47,10 +47,19 @@ export function ApprovalTemplateSaveModal({
     }
 
     setSaving(true);
+
+    // approverIds를 ApprovalStepInput[] 형식으로 변환
+    const steps: ApprovalStepInput[] = approverIds.map((id, index) => ({
+      approver_id: id,
+      step_order: index + 1,
+      approval_type: 'single' as const
+    }));
+
     const result = await createApprovalTemplate(
       name.trim(),
       requestType,
-      approverIds,
+      steps,
+      [], // ccEmployeeIds - 참조자 (현재 UI에서 미지원)
       isDefault
     );
 

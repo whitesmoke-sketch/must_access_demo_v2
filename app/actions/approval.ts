@@ -17,11 +17,14 @@ export interface ApprovalTemplate {
   updated_at: string
 }
 
+export type ApprovalType = 'single' | 'agreement'
+
 export interface ApprovalTemplateStep {
   id: string
   template_id: string
   approver_id: string
   step_order: number
+  approval_type: ApprovalType
   approver?: {
     id: string
     name: string
@@ -34,15 +37,28 @@ export interface ApprovalTemplateStep {
   }
 }
 
+export interface ApprovalTemplateCC {
+  id: string
+  template_id: string
+  employee_id: string
+  employee?: {
+    id: string
+    name: string
+    email: string
+  }
+}
+
 export interface ApprovalStep {
   id: string
   request_type: string
   request_id: number
   approver_id: string
   step_order: number
+  approval_type: ApprovalType
   status: 'waiting' | 'pending' | 'approved' | 'rejected'
   comment: string | null
   approved_at: string | null
+  is_last_step: boolean
   approver?: {
     id: string
     name: string
@@ -51,6 +67,21 @@ export interface ApprovalStep {
       name: string
       code: string
     }
+  }
+}
+
+export interface ApprovalCC {
+  id: string
+  request_type: string
+  request_id: number
+  employee_id: string
+  submitted_notified_at: string | null
+  completed_notified_at: string | null
+  read_at: string | null
+  employee?: {
+    id: string
+    name: string
+    email: string
   }
 }
 
@@ -120,12 +151,22 @@ export async function getApprovalTemplates(requestType: 'leave' | 'document') {
 }
 
 /**
- * 결재선 템플릿 저장
+ * 결재 단계 정보 (합의 지원)
+ */
+export interface ApprovalStepInput {
+  approver_id: string
+  step_order: number
+  approval_type: ApprovalType  // 'single' | 'agreement'
+}
+
+/**
+ * 결재선 템플릿 저장 (합의 + 참조자 지원)
  */
 export async function createApprovalTemplate(
   name: string,
   requestType: 'leave' | 'document',
-  approvers: string[], // approver_id 배열
+  steps: ApprovalStepInput[], // 결재 단계 배열 (합의 지원)
+  ccEmployeeIds: string[] = [], // 참조자 ID 배열
   isDefault: boolean = false
 ) {
   try {
@@ -136,7 +177,7 @@ export async function createApprovalTemplate(
       return { success: false, error: '인증이 필요합니다' }
     }
 
-    if (approvers.length === 0) {
+    if (steps.length === 0) {
       return { success: false, error: '최소 1명의 승인자가 필요합니다' }
     }
 
@@ -167,21 +208,41 @@ export async function createApprovalTemplate(
     }
 
     // 템플릿 단계 생성
-    const steps = approvers.map((approverId, index) => ({
+    const templateSteps = steps.map((step) => ({
       template_id: template.id,
-      approver_id: approverId,
-      step_order: index + 1,
+      approver_id: step.approver_id,
+      step_order: step.step_order,
+      approval_type: step.approval_type,
     }))
 
     const { error: stepsError } = await supabase
       .from('approval_template_step')
-      .insert(steps)
+      .insert(templateSteps)
 
     if (stepsError) {
       console.error('Create template steps error:', stepsError)
       // 롤백: 템플릿 삭제
       await supabase.from('approval_template').delete().eq('id', template.id)
       return { success: false, error: stepsError.message }
+    }
+
+    // 참조자 생성
+    if (ccEmployeeIds.length > 0) {
+      const ccRecords = ccEmployeeIds.map((employeeId) => ({
+        template_id: template.id,
+        employee_id: employeeId,
+      }))
+
+      const { error: ccError } = await supabase
+        .from('approval_template_cc')
+        .insert(ccRecords)
+
+      if (ccError) {
+        console.error('Create template CC error:', ccError)
+        // 롤백: 템플릿 삭제 (CASCADE로 steps도 삭제됨)
+        await supabase.from('approval_template').delete().eq('id', template.id)
+        return { success: false, error: ccError.message }
+      }
     }
 
     return { success: true, data: template }
@@ -485,17 +546,18 @@ export async function generateDefaultApprovers(
 // ================================================
 
 /**
- * 신청서에 대한 승인 단계 생성 (Edge Function 사용)
+ * 신청서에 대한 승인 단계 생성 (Edge Function 사용, 합의 + 참조자 지원)
  */
 export async function createApprovalSteps(
   requestType: 'leave' | 'document',
   requestId: number,
-  approvers: string[] // approver_id 배열
+  steps: ApprovalStepInput[], // 결재 단계 배열 (합의 지원)
+  ccEmployeeIds: string[] = [] // 참조자 ID 배열
 ) {
   try {
     const supabase = await createClient()
 
-    if (approvers.length === 0) {
+    if (steps.length === 0) {
       return { success: false, error: '최소 1명의 승인자가 필요합니다' }
     }
 
@@ -519,12 +581,14 @@ export async function createApprovalSteps(
     const requestBody = {
       requestType,
       requestId,
-      approvalSteps: approvers.map((approverId, index) => ({
-        order: index + 1,
-        approverId,
-        approverName: '', // Edge Function에서 채울 필요 없음 (DB에서 관계로 조회 가능)
+      approvalSteps: steps.map((step) => ({
+        order: step.step_order,
+        approverId: step.approver_id,
+        approvalType: step.approval_type,
+        approverName: '',
         approverPosition: '',
-      }))
+      })),
+      ccEmployeeIds: ccEmployeeIds
     }
 
     console.log('Sending to Edge Function:', JSON.stringify(requestBody, null, 2))
@@ -593,7 +657,7 @@ export async function getApprovalSteps(
 }
 
 /**
- * 승인 또는 반려 처리
+ * 승인 또는 반려 처리 (합의 로직 지원)
  */
 export async function processApproval(
   stepId: string,
@@ -647,98 +711,88 @@ export async function processApproval(
       return { success: false, error: updateError.message }
     }
 
-    // 승인인 경우, 다음 단계를 pending으로 변경
-    if (action === 'approved') {
-      const { data: nextStep } = await supabase
-        .from('approval_step')
-        .select('id')
-        .eq('request_type', step.request_type)
-        .eq('request_id', step.request_id)
-        .eq('step_order', step.step_order + 1)
-        .single()
-
-      if (nextStep) {
-        // 다음 단계가 있으면 pending으로 변경
-        await supabase
-          .from('approval_step')
-          .update({ status: 'pending' })
-          .eq('id', nextStep.id)
-
-        // current_step 업데이트
-        if (step.request_type === 'leave') {
-          await supabase
-            .from('leave_request')
-            .update({ current_step: step.step_order + 1 })
-            .eq('id', step.request_id)
-        }
-      } else {
-        // 마지막 단계였으면 요청 승인 완료
-        if (step.request_type === 'leave') {
-          // 1. 연차 신청 상태를 'approved'로 변경
-          await supabase
-            .from('leave_request')
-            .update({ status: 'approved', approved_at: new Date().toISOString() })
-            .eq('id', step.request_id)
-
-          // 2. 연차 정보 조회
-          const { data: leaveRequest, error: leaveError } = await supabase
-            .from('leave_request')
-            .select('employee_id, requested_days')
-            .eq('id', step.request_id)
-            .single()
-
-          if (leaveError) {
-            console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
-          }
-
-          if (leaveRequest) {
-            console.log('[연차 차감] 연차 정보:', leaveRequest)
-
-            // 3. 연차 잔액 차감
-            const { data: currentBalance, error: balanceError } = await supabase
-              .from('annual_leave_balance')
-              .select('used_days, remaining_days')
-              .eq('employee_id', leaveRequest.employee_id)
-              .single()
-
-            if (balanceError) {
-              console.error('[연차 차감] 잔액 조회 실패:', balanceError)
-            }
-
-            if (currentBalance) {
-              const newUsedDays = Number(currentBalance.used_days) + Number(leaveRequest.requested_days)
-              const newRemainingDays = Number(currentBalance.remaining_days) - Number(leaveRequest.requested_days)
-
-              console.log('[연차 차감] 현재:', currentBalance)
-              console.log('[연차 차감] 신청일수:', leaveRequest.requested_days)
-              console.log('[연차 차감] 새로운 값:', { newUsedDays, newRemainingDays })
-
-              const { error: updateError } = await supabase
-                .from('annual_leave_balance')
-                .update({
-                  used_days: newUsedDays,
-                  remaining_days: newRemainingDays,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('employee_id', leaveRequest.employee_id)
-
-              if (updateError) {
-                console.error('[연차 차감] 업데이트 실패:', updateError)
-              } else {
-                console.log('[연차 차감] 성공!')
-              }
-            }
-          }
-        }
-      }
-    } else {
-      // 반려인 경우, 요청 상태를 rejected로 변경
+    // 반려인 경우, 요청 상태를 rejected로 변경
+    if (action === 'rejected') {
       if (step.request_type === 'leave') {
         await supabase
           .from('leave_request')
-          .update({ status: 'rejected' })
+          .update({ status: 'rejected', rejected_at: new Date().toISOString() })
           .eq('id', step.request_id)
       }
+
+      revalidatePath('/leave/my-leave')
+      revalidatePath('/leave/approval-inbox')
+      return { success: true }
+    }
+
+    // 승인인 경우: 합의 로직 처리
+    // 같은 step_order에 있는 모든 결재자들의 상태 확인
+    const { data: sameOrderSteps, error: sameOrderError } = await supabase
+      .from('approval_step')
+      .select('id, status, approval_type')
+      .eq('request_type', step.request_type)
+      .eq('request_id', step.request_id)
+      .eq('step_order', step.step_order)
+
+    if (sameOrderError) {
+      console.error('Same order steps query error:', sameOrderError)
+      return { success: false, error: sameOrderError.message }
+    }
+
+    // 같은 단계의 모든 결재자가 승인했는지 확인
+    const allApproved = sameOrderSteps?.every(s =>
+      s.id === stepId ? true : s.status === 'approved'  // 현재 승인한 것도 포함
+    )
+
+    if (!allApproved) {
+      // 합의 단계에서 아직 승인 안 한 사람이 있음 - 대기
+      console.log('[합의] 아직 승인 대기 중인 결재자가 있습니다.')
+      revalidatePath('/leave/my-leave')
+      revalidatePath('/leave/approval-inbox')
+      return { success: true }
+    }
+
+    // 모든 결재자가 승인함 - 다음 단계로 진행
+    console.log('[합의] 모든 결재자가 승인함, 다음 단계로 진행')
+
+    // 다음 단계 조회 (step_order가 현재보다 큰 것 중 최소값)
+    const { data: nextSteps, error: nextStepsError } = await supabase
+      .from('approval_step')
+      .select('id, step_order')
+      .eq('request_type', step.request_type)
+      .eq('request_id', step.request_id)
+      .gt('step_order', step.step_order)
+      .order('step_order', { ascending: true })
+
+    if (nextStepsError) {
+      console.error('Next steps query error:', nextStepsError)
+      return { success: false, error: nextStepsError.message }
+    }
+
+    if (nextSteps && nextSteps.length > 0) {
+      // 다음 단계의 step_order 찾기
+      const nextStepOrder = nextSteps[0].step_order
+
+      // 다음 단계의 모든 결재자를 pending으로 변경 (합의의 경우 여러 명)
+      const nextStepIds = nextSteps
+        .filter(s => s.step_order === nextStepOrder)
+        .map(s => s.id)
+
+      await supabase
+        .from('approval_step')
+        .update({ status: 'pending' })
+        .in('id', nextStepIds)
+
+      // current_step 업데이트
+      if (step.request_type === 'leave') {
+        await supabase
+          .from('leave_request')
+          .update({ current_step: nextStepOrder })
+          .eq('id', step.request_id)
+      }
+    } else {
+      // 마지막 단계였으면 요청 승인 완료
+      await completeApproval(supabase, step.request_type, step.request_id)
     }
 
     revalidatePath('/leave/my-leave')
@@ -748,6 +802,81 @@ export async function processApproval(
   } catch (error: unknown) {
     console.error('Process approval error:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * 결재 완료 처리 (내부 함수)
+ */
+async function completeApproval(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestType: string,
+  requestId: number
+) {
+  if (requestType === 'leave') {
+    // 1. 연차 신청 상태를 'approved'로 변경
+    await supabase
+      .from('leave_request')
+      .update({ status: 'approved', approved_at: new Date().toISOString() })
+      .eq('id', requestId)
+
+    // 2. 연차 정보 조회
+    const { data: leaveRequest, error: leaveError } = await supabase
+      .from('leave_request')
+      .select('employee_id, requested_days')
+      .eq('id', requestId)
+      .single()
+
+    if (leaveError) {
+      console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
+    }
+
+    if (leaveRequest) {
+      console.log('[연차 차감] 연차 정보:', leaveRequest)
+
+      // 3. 연차 잔액 차감
+      const { data: currentBalance, error: balanceError } = await supabase
+        .from('annual_leave_balance')
+        .select('used_days, remaining_days')
+        .eq('employee_id', leaveRequest.employee_id)
+        .single()
+
+      if (balanceError) {
+        console.error('[연차 차감] 잔액 조회 실패:', balanceError)
+      }
+
+      if (currentBalance) {
+        const newUsedDays = Number(currentBalance.used_days) + Number(leaveRequest.requested_days)
+        const newRemainingDays = Number(currentBalance.remaining_days) - Number(leaveRequest.requested_days)
+
+        console.log('[연차 차감] 현재:', currentBalance)
+        console.log('[연차 차감] 신청일수:', leaveRequest.requested_days)
+        console.log('[연차 차감] 새로운 값:', { newUsedDays, newRemainingDays })
+
+        const { error: updateError } = await supabase
+          .from('annual_leave_balance')
+          .update({
+            used_days: newUsedDays,
+            remaining_days: newRemainingDays,
+            updated_at: new Date().toISOString()
+          })
+          .eq('employee_id', leaveRequest.employee_id)
+
+        if (updateError) {
+          console.error('[연차 차감] 업데이트 실패:', updateError)
+        } else {
+          console.log('[연차 차감] 성공!')
+        }
+      }
+    }
+
+    // 4. 참조자에게 완료 알림 발송
+    await supabase
+      .from('approval_cc')
+      .update({ completed_notified_at: new Date().toISOString() })
+      .eq('request_type', requestType)
+      .eq('request_id', requestId)
+      .is('completed_notified_at', null)
   }
 }
 
@@ -775,11 +904,7 @@ export async function createApprovalSnapshotForStep(
         department_id,
         department:department_id (
           id,
-          name,
-          manager_id,
-          manager:manager_id (
-            name
-          )
+          name
         ),
         role:role_id (
           id,
@@ -802,6 +927,22 @@ export async function createApprovalSnapshotForStep(
 
     const departmentPath = pathError ? employee.department.name : pathData
 
+    // Get department leaders
+    const { data: leaderData, error: leaderError } = await supabase
+      .from('leader')
+      .select(`
+        employee:employee_id (
+          id,
+          name
+        )
+      `)
+      .eq('department_id', employee.department_id)
+
+    const leaders = leaderError ? [] : (leaderData?.map(l => ({
+      id: l.employee.id,
+      name: l.employee.name
+    })) || [])
+
     // Create snapshot
     const { error: snapshotError } = await supabase
       .from('approval_organization_snapshot')
@@ -815,8 +956,7 @@ export async function createApprovalSnapshotForStep(
         role_id: employee.role.id,
         role_name: employee.role.name,
         role_level: employee.role.level,
-        manager_id: employee.department.manager_id,
-        manager_name: employee.department.manager?.name || null
+        leaders: leaders
       })
 
     if (snapshotError) {
@@ -990,5 +1130,215 @@ export async function bulkValidateApprovalChains(approvalIds: string[]) {
   } catch (error: any) {
     console.error('Bulk validate exception:', error)
     return { success: false, error: error.message }
+  }
+}
+
+// =====================================================
+// 참조자 (CC) 관련 함수
+// =====================================================
+
+/**
+ * 결재 요청의 참조자 목록 조회
+ */
+export async function getApprovalCCList(
+  requestType: 'leave' | 'document',
+  requestId: number
+) {
+  try {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('approval_cc')
+      .select(`
+        *,
+        employee:employee_id (
+          id,
+          name,
+          email
+        )
+      `)
+      .eq('request_type', requestType)
+      .eq('request_id', requestId)
+
+    if (error) {
+      console.error('Get approval CC list error:', error)
+      return { success: false, error: error.message, data: [] }
+    }
+
+    return { success: true, data: data || [] }
+  } catch (error: unknown) {
+    console.error('Get approval CC list error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
+  }
+}
+
+/**
+ * 참조자 추가
+ */
+export async function addApprovalCC(
+  requestType: 'leave' | 'document',
+  requestId: number,
+  employeeIds: string[]
+) {
+  try {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: '인증이 필요합니다' }
+    }
+
+    if (employeeIds.length === 0) {
+      return { success: false, error: '참조자를 선택해주세요' }
+    }
+
+    const ccRecords = employeeIds.map((employeeId) => ({
+      request_type: requestType,
+      request_id: requestId,
+      employee_id: employeeId,
+    }))
+
+    const { error } = await supabase
+      .from('approval_cc')
+      .upsert(ccRecords, { onConflict: 'request_type,request_id,employee_id' })
+
+    if (error) {
+      console.error('Add approval CC error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error: unknown) {
+    console.error('Add approval CC error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * 참조자 제거
+ */
+export async function removeApprovalCC(
+  requestType: 'leave' | 'document',
+  requestId: number,
+  employeeId: string
+) {
+  try {
+    const supabase = await createClient()
+
+    const { error } = await supabase
+      .from('approval_cc')
+      .delete()
+      .eq('request_type', requestType)
+      .eq('request_id', requestId)
+      .eq('employee_id', employeeId)
+
+    if (error) {
+      console.error('Remove approval CC error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error: unknown) {
+    console.error('Remove approval CC error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * 참조 문서 열람 처리
+ */
+export async function markApprovalCCAsRead(
+  requestType: 'leave' | 'document',
+  requestId: number
+) {
+  try {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: '인증이 필요합니다' }
+    }
+
+    const { error } = await supabase
+      .from('approval_cc')
+      .update({ read_at: new Date().toISOString() })
+      .eq('request_type', requestType)
+      .eq('request_id', requestId)
+      .eq('employee_id', user.id)
+      .is('read_at', null)
+
+    if (error) {
+      console.error('Mark approval CC as read error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error: unknown) {
+    console.error('Mark approval CC as read error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * 내가 참조로 포함된 결재 목록 조회
+ */
+export async function getMyCCRequests(requestType?: 'leave' | 'document') {
+  try {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: '인증이 필요합니다', data: [] }
+    }
+
+    let query = supabase
+      .from('approval_cc')
+      .select('*')
+      .eq('employee_id', user.id)
+
+    if (requestType) {
+      query = query.eq('request_type', requestType)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Get my CC requests error:', error)
+      return { success: false, error: error.message, data: [] }
+    }
+
+    return { success: true, data: data || [] }
+  } catch (error: unknown) {
+    console.error('Get my CC requests error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
+  }
+}
+
+/**
+ * 참조자에게 상신 알림 발송 (결재 상신 시 호출)
+ */
+export async function notifyCCOnSubmit(
+  requestType: 'leave' | 'document',
+  requestId: number
+) {
+  try {
+    const supabase = await createClient()
+
+    const { error } = await supabase
+      .from('approval_cc')
+      .update({ submitted_notified_at: new Date().toISOString() })
+      .eq('request_type', requestType)
+      .eq('request_id', requestId)
+      .is('submitted_notified_at', null)
+
+    if (error) {
+      console.error('Notify CC on submit error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error: unknown) {
+    console.error('Notify CC on submit error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

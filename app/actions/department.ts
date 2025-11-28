@@ -12,7 +12,6 @@ export interface Department {
   name: string
   code: string
   parent_department_id: number | null
-  manager_id: string | null
   display_order: number
   created_at: string
   updated_at: string
@@ -22,11 +21,16 @@ export interface Department {
   deleted_by: string | null
 }
 
+export interface Leader {
+  id: string
+  name: string
+}
+
 export interface DepartmentWithStats extends Department {
   full_path: string
   active_member_count: number
   child_count: number
-  manager_name: string
+  leaders: Leader[]
   created_by_name: string
   updated_by_name: string
 }
@@ -45,7 +49,6 @@ export interface CreateDepartmentData {
   name: string
   code: string
   parent_department_id: number | null
-  manager_id?: string | null
   display_order?: number
 }
 
@@ -53,7 +56,6 @@ export interface UpdateDepartmentData {
   name?: string
   code?: string
   parent_department_id?: number | null
-  manager_id?: string | null
   display_order?: number
 }
 
@@ -394,7 +396,6 @@ export async function createDepartment(data: CreateDepartmentData) {
         name: data.name,
         code: data.code,
         parent_department_id: data.parent_department_id,
-        manager_id: data.manager_id,
         display_order: displayOrder,
         created_by: user.user.id,
         updated_by: user.user.id
@@ -857,5 +858,188 @@ export async function checkPendingApprovals(departmentId: number) {
   } catch (err) {
     console.error('Check pending approvals exception:', err)
     return { success: false, error: 'Failed to check pending approvals' }
+  }
+}
+
+// =====================================================
+// LEADER MANAGEMENT ACTIONS
+// =====================================================
+
+/**
+ * Get leaders for a department
+ */
+export async function getDepartmentLeaders(departmentId: number) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const { data, error } = await supabase
+      .from('leader')
+      .select(`
+        department_id,
+        employee_id,
+        created_at,
+        employee:employee_id (
+          id,
+          name,
+          email
+        )
+      `)
+      .eq('department_id', departmentId)
+
+    if (error) {
+      console.error('Get department leaders error:', error)
+      return { success: false, error: error.message }
+    }
+
+    const leaders = data?.map(l => ({
+      id: l.employee.id,
+      name: l.employee.name,
+      email: l.employee.email,
+      created_at: l.created_at
+    })) || []
+
+    return { success: true, data: leaders }
+  } catch (err) {
+    console.error('Get department leaders exception:', err)
+    return { success: false, error: 'Failed to fetch department leaders' }
+  }
+}
+
+/**
+ * Add leader to department
+ */
+export async function addDepartmentLeader(departmentId: number, employeeId: string) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Validate permission
+    const { data: employee } = await supabase
+      .from('employee')
+      .select('role:role_id(code, level)')
+      .eq('id', user.user.id)
+      .single()
+
+    if (!employee?.role || employee.role.level < 3) {
+      return { success: false, error: 'Insufficient permissions' }
+    }
+
+    const { data, error } = await supabase
+      .from('leader')
+      .insert({
+        department_id: departmentId,
+        employee_id: employeeId
+      })
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === '23505') { // unique violation
+        return { success: false, error: '이미 해당 부서의 리더입니다.' }
+      }
+      console.error('Add department leader error:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/admin/organization-management')
+    return { success: true, data }
+  } catch (err) {
+    console.error('Add department leader exception:', err)
+    return { success: false, error: 'Failed to add department leader' }
+  }
+}
+
+/**
+ * Remove leader from department
+ */
+export async function removeDepartmentLeader(departmentId: number, employeeId: string) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Validate permission
+    const { data: employee } = await supabase
+      .from('employee')
+      .select('role:role_id(code, level)')
+      .eq('id', user.user.id)
+      .single()
+
+    if (!employee?.role || employee.role.level < 3) {
+      return { success: false, error: 'Insufficient permissions' }
+    }
+
+    const { error } = await supabase
+      .from('leader')
+      .delete()
+      .eq('department_id', departmentId)
+      .eq('employee_id', employeeId)
+
+    if (error) {
+      console.error('Remove department leader error:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/admin/organization-management')
+    return { success: true }
+  } catch (err) {
+    console.error('Remove department leader exception:', err)
+    return { success: false, error: 'Failed to remove department leader' }
+  }
+}
+
+/**
+ * Get all departments where employee is a leader
+ */
+export async function getLeaderDepartments(employeeId: string) {
+  try {
+    const supabase = await createClient()
+
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const { data, error } = await supabase
+      .from('leader')
+      .select(`
+        department_id,
+        created_at,
+        department:department_id (
+          id,
+          name,
+          code
+        )
+      `)
+      .eq('employee_id', employeeId)
+
+    if (error) {
+      console.error('Get leader departments error:', error)
+      return { success: false, error: error.message }
+    }
+
+    const departments = data?.map(l => ({
+      id: l.department.id,
+      name: l.department.name,
+      code: l.department.code,
+      created_at: l.created_at
+    })) || []
+
+    return { success: true, data: departments }
+  } catch (err) {
+    console.error('Get leader departments exception:', err)
+    return { success: false, error: 'Failed to fetch leader departments' }
   }
 }
