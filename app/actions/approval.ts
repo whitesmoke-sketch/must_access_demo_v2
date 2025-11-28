@@ -130,7 +130,8 @@ export async function getApprovalTemplates(requestType: 'leave' | 'document') {
             id,
             name,
             email,
-            role:role_id (name, code, level)
+            role:role_id (name, code, level),
+            department:department_id (name)
           )
         )
       `)
@@ -143,7 +144,45 @@ export async function getApprovalTemplates(requestType: 'leave' | 'document') {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
     }
 
-    return { success: true, data: data || [] }
+    // UI가 기대하는 형식으로 데이터 변환
+    // approval_template_step -> approvers
+    interface ApproverFromDB {
+      id: string
+      name: string
+      email: string
+      role: { name: string; code: string; level: number } | null
+      department: { name: string } | null
+    }
+
+    interface TemplateStepFromDB {
+      step_order: number
+      approval_type: string
+      approver: ApproverFromDB | null
+    }
+
+    interface TemplateFromDB {
+      id: string
+      name: string
+      is_default: boolean
+      approval_template_step: TemplateStepFromDB[]
+    }
+
+    const transformedData = (data || []).map((template: TemplateFromDB) => ({
+      id: template.id,
+      name: template.name,
+      is_default: template.is_default,
+      approvers: (template.approval_template_step || [])
+        .sort((a, b) => a.step_order - b.step_order)
+        .map((step) => ({
+          id: step.approver?.id || '',
+          name: step.approver?.name || '',
+          email: step.approver?.email || '',
+          role: step.approver?.role?.name || '',
+          department: step.approver?.department?.name || '',
+        }))
+    }))
+
+    return { success: true, data: transformedData }
   } catch (error: unknown) {
     console.error('Get templates error:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
