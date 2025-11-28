@@ -798,7 +798,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         open={showSaveModal}
         onOpenChange={setShowSaveModal}
         requestType="leave"
-        approvers={approvalSteps}
+        approverIds={approvalSteps.map(step => step.id)}
       />
     </div>
   )
