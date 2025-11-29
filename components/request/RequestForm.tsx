@@ -36,6 +36,7 @@ interface ServerApprovalStep {
   approverId: string
   approverName: string
   approverPosition: string
+  approvalType: 'single' | 'agreement'  // 결재 유형: single(단독), agreement(합의)
   isDelegated?: boolean
   delegateId?: string
   delegateName?: string
@@ -287,11 +288,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
     try {
       // 결재선을 서버 형식으로 변환
-      const serverApprovalSteps: ServerApprovalStep[] = approvalSteps.map((step, index) => ({
-        order: index + 1,
+      const serverApprovalSteps: ServerApprovalStep[] = approvalSteps.map((step) => ({
+        order: step.order || 1,  // 실제 순번 사용
         approverId: step.id,
         approverName: step.name,
         approverPosition: step.role,
+        approvalType: step.approverRole === 'reviewer' ? 'agreement' : 'single',  // 합의자는 agreement
       }))
 
       // 폼 데이터 구성
