@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRef } from "react";
-import { ChevronUp, ChevronDown, Plus, User, Edit2, Trash2, GripVertical } from "lucide-react";
+import { Plus, User, Edit2, Trash2, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ApproverSelector, type Approver } from "./approver-selector";
@@ -41,68 +41,56 @@ interface ApprovalLineEditorProps {
   currentUser?: CurrentUser;
 }
 
-interface DraggableApprovalItemProps {
-  approver: ApprovalStep;
-  index: number;
-  moveApprover: (dragIndex: number, hoverIndex: number) => void;
-  onEdit: (index: number) => void;
-  onRemove: (index: number) => void;
-  onMoveUp: (index: number) => void;
-  onMoveDown: (index: number) => void;
-  isFirst: boolean;
-  isLast: boolean;
+interface DraggableApprovalGroupProps {
+  order: number;
+  stepsInOrder: ApprovalStep[];
+  allApprovers: ApprovalStep[];
+  onEdit: (approverId: string) => void;
+  onRemove: (approverId: string) => void;
+  moveOrderGroup: (dragOrder: number, hoverOrder: number) => void;
 }
 
-const DraggableApprovalItem: React.FC<DraggableApprovalItemProps> = ({
-  approver,
-  index,
-  moveApprover,
+const DraggableApprovalGroup: React.FC<DraggableApprovalGroupProps> = ({
+  order,
+  stepsInOrder,
+  allApprovers,
   onEdit,
   onRemove,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
+  moveOrderGroup,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const [{ isDragging }, drag] = useDrag({
-    type: 'APPROVAL_ITEM',
-    item: { index },
+    type: 'APPROVAL_GROUP',
+    item: { order },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
   const [, drop] = useDrop({
-    accept: 'APPROVAL_ITEM',
-    hover: (item: { index: number }) => {
-      if (item.index !== index) {
-        moveApprover(item.index, index);
-        item.index = index;
+    accept: 'APPROVAL_GROUP',
+    hover: (item: { order: number }) => {
+      if (item.order !== order) {
+        moveOrderGroup(item.order, order);
+        item.order = order;
       }
     },
   });
 
   drag(drop(ref));
 
-  // Role-based styling
-  const isReviewer = approver.approverRole === 'reviewer';
-  const roleStyle = isReviewer
-    ? { iconBg: 'rgba(248, 198, 83, 0.2)', iconColor: '#F8C653' }
-    : { iconBg: 'rgba(99, 91, 255, 0.1)', iconColor: 'var(--primary)' };
-
   return (
     <div
       ref={ref}
-      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 rounded-lg"
+      className="rounded-lg p-3"
       style={{
         backgroundColor: 'var(--muted)',
         opacity: isDragging ? 0.5 : 1,
         cursor: 'move',
       }}
     >
-      <div className="flex items-center gap-3 w-full sm:w-auto">
+      <div className="flex items-center gap-3">
         {/* Drag Handle */}
         <div
           className="flex items-center justify-center flex-shrink-0"
@@ -119,92 +107,82 @@ const DraggableApprovalItem: React.FC<DraggableApprovalItemProps> = ({
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
           style={{
-            backgroundColor: isReviewer ? 'rgba(248, 198, 83, 0.2)' : 'rgba(99, 91, 255, 0.2)',
-            fontSize: '14px',
+            backgroundColor: 'rgba(99, 91, 255, 0.2)',
+            fontSize: 'var(--font-size-caption)',
             fontWeight: 600,
-            color: isReviewer ? '#F8C653' : 'var(--primary)'
+            color: 'var(--primary)'
           }}
         >
-          {index + 1}
+          {order}
         </div>
 
-        {/* User Icon */}
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: roleStyle.iconBg }}
-        >
-          <User className="w-5 h-5" style={{ color: roleStyle.iconColor }} />
-        </div>
+        {/* Group Container */}
+        <div className="flex-1 space-y-3">
+          {stepsInOrder.map((step) => {
+            // Role-based styling
+            const roleStyle = step.approverRole === 'reviewer'
+              ? { iconBg: 'rgba(248, 198, 83, 0.2)', iconColor: '#F8C653' }
+              : { iconBg: 'rgba(99, 91, 255, 0.1)', iconColor: 'var(--primary)' };
 
-        {/* User Info */}
-        <div className="flex-1 min-w-0">
-          <p style={{
-            fontSize: 'var(--font-size-body)',
-            fontWeight: 600,
-            color: 'var(--card-foreground)',
-            lineHeight: 1.5
-          }}>
-            {approver.isDelegated && approver.delegateName
-              ? `${approver.delegateName} (대결)`
-              : approver.name}
-          </p>
-          <p style={{
-            fontSize: 'var(--font-size-caption)',
-            color: 'var(--muted-foreground)',
-            lineHeight: 1.4
-          }}>
-            {isReviewer ? '합의자' : '결재자'} · {approver.role}
-            {approver.isDelegated && ` (원 결재자: ${approver.name})`}
-          </p>
+            return (
+              <div
+                key={step.id}
+                className="flex items-center gap-3"
+              >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: roleStyle.iconBg }}
+                  >
+                    <User className="w-5 h-5" style={{ color: roleStyle.iconColor }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p style={{
+                      fontSize: 'var(--font-size-body)',
+                      fontWeight: 600,
+                      color: 'var(--foreground)',
+                      lineHeight: 1.5
+                    }}>
+                      {step.isDelegated && step.delegateName
+                        ? `${step.delegateName} (대결)`
+                        : step.name}
+                    </p>
+                    <p style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: 1.4
+                    }}>
+                      {step.approverRole === 'reviewer' ? '합의자' : '결재자'} · {step.role}
+                      {step.isDelegated && ` (원 결재자: ${step.name})`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(step.id)}
+                    className="h-8 w-9 p-0"
+                    title="수정"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRemove(step.id)}
+                    className="h-8 w-9 p-0"
+                    title="삭제"
+                  >
+                    <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1 w-full md:w-auto md:ml-auto justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onMoveUp(index)}
-          disabled={isFirst}
-          style={{ opacity: isFirst ? 0.3 : 1 }}
-          className="h-8 w-8 p-0"
-          title="위로 이동"
-        >
-          <ChevronUp className="w-4 h-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onMoveDown(index)}
-          disabled={isLast}
-          style={{ opacity: isLast ? 0.3 : 1 }}
-          className="h-8 w-8 p-0"
-          title="아래로 이동"
-        >
-          <ChevronDown className="w-4 h-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onEdit(index)}
-          className="h-8 w-8 p-0"
-          title="결재자 변경"
-        >
-          <Edit2 className="w-4 h-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onRemove(index)}
-          className="h-8 w-8 p-0"
-          title="제거"
-        >
-          <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
-        </Button>
       </div>
     </div>
   );
@@ -220,7 +198,7 @@ export function ApprovalLineEditor({
 }: ApprovalLineEditorProps) {
   const [showAddDialog, setShowAddDialog] = React.useState(false);
   const [showDelegateDialog, setShowDelegateDialog] = React.useState(false);
-  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
+  const [editingApproverId, setEditingApproverId] = React.useState<string | null>(null);
   const [isDelegating, setIsDelegating] = React.useState(false);
   const [selectedApproverRole, setSelectedApproverRole] = React.useState<'approver' | 'reviewer'>('approver');
   const [selectedOrder, setSelectedOrder] = React.useState<number>(1);
@@ -238,89 +216,98 @@ export function ApprovalLineEditor({
     onApproversChange([...approvers, newApprover]);
     setShowAddDialog(false);
 
-    // 다음 추가를 위해 순번 초기화
-    const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
-    setSelectedOrder(maxOrder + 1);
-
     const roleLabel = selectedApproverRole === 'reviewer' ? '합의자' : '결재자';
     toast.success(`${roleLabel} 추가 완료`, {
       description: `${approver.name}님이 ${selectedOrder}순위로 추가되었습니다.`,
     });
   };
 
-  const handleRemoveApprover = (index: number) => {
-    const updated = approvers.filter((_, i) => i !== index);
+  const handleRemoveApprover = (approverId: string) => {
+    const updated = approvers.filter((a) => a.id !== approverId);
     onApproversChange(updated);
     toast.success('제거되었습니다');
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const updated = [...approvers];
-    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-    onApproversChange(updated);
-    toast.success('순서가 변경되었습니다');
+  // 순번 그룹 이동 (드래그 앤 드롭용)
+  const moveOrderGroup = (dragOrder: number, hoverOrder: number) => {
+    if (dragOrder === hoverOrder) return;
+
+    const newApprovers = approvers.map(approver => {
+      if (approver.order === dragOrder) {
+        return { ...approver, order: hoverOrder };
+      } else if (approver.order === hoverOrder) {
+        return { ...approver, order: dragOrder };
+      }
+      return approver;
+    });
+
+    onApproversChange(newApprovers);
   };
 
-  const handleMoveDown = (index: number) => {
-    if (index === approvers.length - 1) return;
-    const updated = [...approvers];
-    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-    onApproversChange(updated);
-    toast.success('순서가 변경되었습니다');
-  };
-
-  const moveApprover = (dragIndex: number, hoverIndex: number) => {
-    const updated = [...approvers];
-    const [dragged] = updated.splice(dragIndex, 1);
-    updated.splice(hoverIndex, 0, dragged);
-    onApproversChange(updated);
-  };
-
-  const handleOpenEditDialog = (index: number, delegating: boolean = false) => {
-    setEditingIndex(index);
+  const handleOpenEditDialog = (approverId: string, delegating: boolean = false) => {
+    setEditingApproverId(approverId);
     setIsDelegating(delegating);
     setShowDelegateDialog(true);
   };
 
   const handleApproverChange = (approver: Approver) => {
-    if (editingIndex === null) return;
+    if (editingApproverId === null) return;
 
-    const updated = [...approvers];
+    const updated = approvers.map(a => {
+      if (a.id !== editingApproverId) return a;
+
+      if (isDelegating) {
+        // 대결자 지정
+        return {
+          ...a,
+          isDelegated: true,
+          delegateId: approver.id,
+          delegateName: approver.name,
+        };
+      } else {
+        // 결재자 교체
+        return {
+          id: approver.id,
+          name: approver.name,
+          email: approver.email,
+          role: approver.role,
+          department: approver.department,
+          isDelegated: false,
+          approverRole: a.approverRole,
+          order: a.order,
+        };
+      }
+    });
+
     if (isDelegating) {
-      // 대결자 지정
-      updated[editingIndex] = {
-        ...updated[editingIndex],
-        isDelegated: true,
-        delegateId: approver.id,
-        delegateName: approver.name,
-      };
       toast.success('대결자 지정 완료', {
         description: `${approver.name}님을 대결자로 지정했습니다.`,
       });
     } else {
-      // 결재자 교체
-      updated[editingIndex] = {
-        id: approver.id,
-        name: approver.name,
-        email: approver.email,
-        role: approver.role,
-        department: approver.department,
-        isDelegated: false,
-        approverRole: updated[editingIndex].approverRole,
-        order: updated[editingIndex].order,
-      };
       toast.success('결재자 변경 완료', {
         description: `${approver.name}님으로 변경했습니다.`,
       });
     }
+
     onApproversChange(updated);
     setShowDelegateDialog(false);
-    setEditingIndex(null);
+    setEditingApproverId(null);
   };
 
   // 이미 선택된 승인자 ID 목록
   const excludeIds = approvers.map((a) => a.id);
+
+  // 순번별로 그룹화
+  const groupedApprovers: { [key: number]: ApprovalStep[] } = {};
+  approvers.forEach(approver => {
+    const order = approver.order || 1;
+    if (!groupedApprovers[order]) {
+      groupedApprovers[order] = [];
+    }
+    groupedApprovers[order].push(approver);
+  });
+
+  const orders = Object.keys(groupedApprovers).map(Number).sort((a, b) => a - b);
 
   return (
     <div className="space-y-6">
@@ -337,7 +324,7 @@ export function ApprovalLineEditor({
             <p style={{
               fontSize: 'var(--font-size-body)',
               fontWeight: 600,
-              color: 'var(--card-foreground)',
+              color: 'var(--foreground)',
               lineHeight: 1.5
             }}>
               {currentUser.name}
@@ -360,7 +347,7 @@ export function ApprovalLineEditor({
         </div>
       )}
 
-      {/* 결재자 목록 */}
+      {/* 결재자 목록 - 순번별 그룹화 */}
       {approvers.length === 0 ? (
         <div className="text-center py-8">
           <p style={{
@@ -374,20 +361,21 @@ export function ApprovalLineEditor({
       ) : (
         <DndProvider backend={HTML5Backend}>
           <div className="space-y-3">
-            {approvers.map((approver, index) => (
-              <DraggableApprovalItem
-                key={`${approver.id}-${index}`}
-                approver={approver}
-                index={index}
-                moveApprover={moveApprover}
-                onEdit={(i) => handleOpenEditDialog(i, false)}
-                onRemove={handleRemoveApprover}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
-                isFirst={index === 0}
-                isLast={index === approvers.length - 1}
-              />
-            ))}
+            {orders.map((order) => {
+              const stepsInOrder = groupedApprovers[order];
+
+              return (
+                <DraggableApprovalGroup
+                  key={order}
+                  order={order}
+                  stepsInOrder={stepsInOrder}
+                  allApprovers={approvers}
+                  onEdit={(approverId) => handleOpenEditDialog(approverId, false)}
+                  onRemove={handleRemoveApprover}
+                  moveOrderGroup={moveOrderGroup}
+                />
+              );
+            })}
           </div>
         </DndProvider>
       )}
@@ -438,7 +426,10 @@ export function ApprovalLineEditor({
 
       {/* 결재선 추가 다이얼로그 */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent style={{ backgroundColor: 'var(--background)' }}>
+        <DialogContent
+          className="!p-4 !border-0"
+          style={{ backgroundColor: 'var(--background)' }}
+        >
           <DialogHeader>
             <DialogTitle style={{
               fontSize: 'var(--font-size-h4)',
@@ -457,89 +448,85 @@ export function ApprovalLineEditor({
             </DialogDescription>
           </DialogHeader>
 
-          <div style={{
-            backgroundColor: 'var(--card)',
-            borderRadius: '16px',
-            padding: '16px',
-            boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
-          }}>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label style={{
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5
-                }}>
-                  역할
-                </Label>
-                <Select
-                  value={selectedApproverRole}
-                  onValueChange={(value: 'approver' | 'reviewer') => setSelectedApproverRole(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="approver">결재자</SelectItem>
-                    <SelectItem value="reviewer">합의자</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label style={{
+                fontSize: 'var(--font-size-body)',
+                color: 'var(--foreground)',
+                lineHeight: 1.5
+              }}>
+                역할
+              </Label>
+              <Select
+                value={selectedApproverRole}
+                onValueChange={(value: 'approver' | 'reviewer') => setSelectedApproverRole(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approver">결재자</SelectItem>
+                  <SelectItem value="reviewer">합의자</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label style={{
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5
-                }}>
-                  결재 순번
-                </Label>
-                <Select
-                  value={selectedOrder.toString()}
-                  onValueChange={(value) => setSelectedOrder(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(() => {
-                      const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
-                      const existingOrders = [...new Set(approvers.map(a => a.order || 1))].sort((a, b) => a - b);
-                      const newOrder = maxOrder + 1;
-                      const options = approvers.length > 0 ? [...existingOrders, newOrder] : [1];
-                      return options.map(order => (
-                        <SelectItem key={order} value={order.toString()}>
-                          {order}순위 {existingOrders.includes(order) ? '(기존 순번에 추가)' : '(새 순번)'}
-                        </SelectItem>
-                      ));
-                    })()}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label style={{
+                fontSize: 'var(--font-size-body)',
+                color: 'var(--foreground)',
+                lineHeight: 1.5
+              }}>
+                결재 순번
+              </Label>
+              <Select
+                value={selectedOrder.toString()}
+                onValueChange={(value) => setSelectedOrder(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(() => {
+                    const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
+                    const existingOrders = [...new Set(approvers.map(a => a.order || 1))].sort((a, b) => a - b);
+                    const newOrder = maxOrder + 1;
+                    const options = approvers.length > 0 ? [...existingOrders, newOrder] : [1];
+                    return options.map(order => (
+                      <SelectItem key={order} value={order.toString()}>
+                        {order}순위{existingOrders.includes(order) ? ' (기존 순번에 추가)' : ' (새 순번)'}
+                      </SelectItem>
+                    ));
+                  })()}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label style={{
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5
-                }}>
-                  구성원
-                </Label>
-                <ApproverSelector
-                  onSelectApprover={handleAddApprover}
-                  excludeIds={excludeIds}
-                  placeholder="구성원 검색 및 선택"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label style={{
+                fontSize: 'var(--font-size-body)',
+                color: 'var(--foreground)',
+                lineHeight: 1.5
+              }}>
+                구성원
+              </Label>
+              <ApproverSelector
+                onSelectApprover={handleAddApprover}
+                excludeIds={excludeIds}
+                placeholder="구성원 검색 및 선택"
+              />
             </div>
           </div>
 
           <DialogFooter>
             <Button
-              variant="outline"
               onClick={() => setShowAddDialog(false)}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+              }}
             >
-              취소
+              확인
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -547,7 +534,10 @@ export function ApprovalLineEditor({
 
       {/* 결재자 변경/대결자 지정 다이얼로그 */}
       <Dialog open={showDelegateDialog} onOpenChange={setShowDelegateDialog}>
-        <DialogContent style={{ backgroundColor: 'var(--background)' }}>
+        <DialogContent
+          className="!p-4 !border-0"
+          style={{ backgroundColor: 'var(--background)' }}
+        >
           <DialogHeader>
             <DialogTitle style={{
               fontSize: 'var(--font-size-h4)',
@@ -568,39 +558,32 @@ export function ApprovalLineEditor({
             </DialogDescription>
           </DialogHeader>
 
-          <div style={{
-            backgroundColor: 'var(--card)',
-            borderRadius: '16px',
-            padding: '16px',
-            boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
-          }}>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label style={{
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5
-                }}>
-                  {isDelegating ? '대결자 선택 *' : '결재자 선택 *'}
-                </Label>
-                <ApproverSelector
-                  onSelectApprover={handleApproverChange}
-                  excludeIds={excludeIds}
-                  placeholder="구성원 검색 및 선택"
-                />
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label style={{
+                fontSize: 'var(--font-size-body)',
+                color: 'var(--foreground)',
+                lineHeight: 1.5
+              }}>
+                구성원
+              </Label>
+              <ApproverSelector
+                onSelectApprover={handleApproverChange}
+                excludeIds={excludeIds}
+                placeholder="구성원 검색 및 선택"
+              />
             </div>
           </div>
 
           <DialogFooter>
             <Button
-              variant="outline"
-              onClick={() => {
-                setShowDelegateDialog(false);
-                setEditingIndex(null);
+              onClick={() => setShowDelegateDialog(false)}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
               }}
             >
-              취소
+              확인
             </Button>
           </DialogFooter>
         </DialogContent>
