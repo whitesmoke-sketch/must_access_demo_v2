@@ -9,8 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DatePicker } from '@/components/ui/date-picker'
 import { DocumentTypeSelector } from './DocumentTypeSelector'
 import { LeaveBalanceCards } from './LeaveBalanceCards'
 import { ApprovalLineEditor, type ApprovalStep as EditorApprovalStep } from '@/components/approval/approval-line-editor'
@@ -19,9 +18,7 @@ import { ApprovalTemplateSaveModal } from '@/components/approval/approval-templa
 import { ReferenceSelector } from './ReferenceSelector'
 import { submitDocumentRequest } from '@/app/actions/document'
 import { generateDefaultApprovers } from '@/app/actions/approval'
-import { CalendarIcon, Upload, X } from 'lucide-react'
-import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { Upload, X, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 type DocumentType =
@@ -431,58 +428,51 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>시작일 *</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {startDate ? format(startDate, 'PPP', { locale: ko }) : '날짜 선택'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={startDate}
-                            onSelect={setStartDate}
-                            locale={ko}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <DatePicker
+                        date={startDate}
+                        onDateChange={setStartDate}
+                        placeholder="시작일 선택"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>종료일 *</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {endDate ? format(endDate, 'PPP', { locale: ko }) : '날짜 선택'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={endDate}
-                            onSelect={setEndDate}
-                            locale={ko}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <DatePicker
+                        date={endDate}
+                        onDateChange={setEndDate}
+                        placeholder="종료일 선택"
+                      />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>사용 일수</Label>
-                    <Input
-                      value={`${calculatedDays}일`}
-                      disabled
-                      style={{ backgroundColor: 'var(--muted)' }}
-                    />
-                  </div>
+                  {calculatedDays > 0 && (
+                    <div
+                      className="p-4 rounded-lg flex items-center gap-3"
+                      style={{ backgroundColor: documentType === 'reward_leave' ? 'rgba(255, 102, 146, 0.05)' : 'rgba(99, 91, 255, 0.05)' }}
+                    >
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: documentType === 'reward_leave' ? '#FF6692' : 'var(--primary)' }} />
+                      <div>
+                        <p style={{
+                          fontSize: 'var(--font-size-body)',
+                          fontWeight: 600,
+                          color: 'var(--card-foreground)',
+                          lineHeight: 1.5
+                        }}>
+                          사용 일수: {calculatedDays}일
+                        </p>
+                        <p style={{
+                          fontSize: 'var(--font-size-caption)',
+                          color: 'var(--muted-foreground)',
+                          lineHeight: 1.4
+                        }}>
+                          신청 후 잔여 {documentType === 'reward_leave' ? '포상휴가' : '연차'}: {
+                            documentType === 'reward_leave'
+                              ? (balance?.reward_remaining || 0) - calculatedDays
+                              : (balance?.remaining_days || 0) - calculatedDays
+                          }일
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -490,28 +480,14 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 <>
                   <div className="space-y-2">
                     <Label>날짜 *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {startDate ? format(startDate, 'PPP', { locale: ko }) : '날짜 선택'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={(date) => {
-                            setStartDate(date)
-                            setEndDate(date)
-                          }}
-                          locale={ko}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <DatePicker
+                      date={startDate}
+                      onDateChange={(date) => {
+                        setStartDate(date)
+                        setEndDate(date)
+                      }}
+                      placeholder="날짜 선택"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -593,25 +569,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 <>
                   <div className="space-y-2">
                     <Label>야근 날짜 *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {overtimeDate ? format(overtimeDate, 'PPP', { locale: ko }) : '날짜 선택'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={overtimeDate}
-                          onSelect={setOvertimeDate}
-                          locale={ko}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <DatePicker
+                      date={overtimeDate}
+                      onDateChange={setOvertimeDate}
+                      placeholder="야근 날짜 선택"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="overtimeHours">야근 시간 *</Label>
@@ -772,12 +734,45 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           />
 
           {/* 하단 고정 버튼 */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-white z-20">
+          <style>{`
+            .request-form-footer {
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              padding: 1rem;
+              z-index: 20;
+              transition: all 300ms;
+              border-top: 1px solid var(--border);
+              background-color: var(--card);
+            }
+            @media (min-width: 768px) {
+              .request-form-footer {
+                left: 80px;
+              }
+            }
+          `}</style>
+          <div className="request-form-footer">
             <div className="max-w-4xl mx-auto flex gap-3">
-              <Button variant="outline" onClick={handleCancel} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={handleCancel}
+                className="flex-1"
+                disabled={isSubmitting}
+                style={{ height: '42px' }}
+              >
                 취소
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1">
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex-1"
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: 'var(--primary-foreground)',
+                  height: '42px',
+                }}
+              >
                 {isSubmitting ? '제출 중...' : '제출'}
               </Button>
             </div>

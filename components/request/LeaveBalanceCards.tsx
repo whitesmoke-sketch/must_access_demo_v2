@@ -28,14 +28,14 @@ export function LeaveBalanceCards({ balance, documentType }: LeaveBalanceCardsPr
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       {/* 총 연차/포상휴가 */}
       <Card className="hidden md:block" style={{
-        backgroundColor: 'rgba(41, 54, 61, 0.05)',
+        backgroundColor: 'var(--muted)',
         borderRadius: 'var(--radius)',
         border: 'none',
       }}>
         <CardContent className="pt-6">
           <p style={{
             fontSize: 'var(--font-size-caption)',
-            color: '#29363D',
+            color: 'var(--foreground)',
             lineHeight: 1.4
           }}>
             총 {leaveTypeName}
@@ -43,7 +43,7 @@ export function LeaveBalanceCards({ balance, documentType }: LeaveBalanceCardsPr
           <div style={{
             fontSize: '24px',
             fontWeight: 700,
-            color: '#29363D',
+            color: 'var(--foreground)',
             lineHeight: 1.2,
             marginTop: '8px'
           }}>
@@ -54,14 +54,14 @@ export function LeaveBalanceCards({ balance, documentType }: LeaveBalanceCardsPr
 
       {/* 사용한 연차/포상휴가 */}
       <Card className="hidden md:block" style={{
-        backgroundColor: 'rgba(91, 106, 114, 0.05)',
+        backgroundColor: 'var(--muted)',
         borderRadius: 'var(--radius)',
         border: 'none',
       }}>
         <CardContent className="pt-6">
           <p style={{
             fontSize: 'var(--font-size-caption)',
-            color: '#5B6A72',
+            color: 'var(--muted-foreground)',
             lineHeight: 1.4
           }}>
             사용한 {leaveTypeName}
@@ -69,7 +69,7 @@ export function LeaveBalanceCards({ balance, documentType }: LeaveBalanceCardsPr
           <div style={{
             fontSize: '24px',
             fontWeight: 700,
-            color: '#5B6A72',
+            color: 'var(--muted-foreground)',
             lineHeight: 1.2,
             marginTop: '8px'
           }}>
