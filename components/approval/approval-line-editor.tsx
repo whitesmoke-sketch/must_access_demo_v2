@@ -223,6 +223,7 @@ export function ApprovalLineEditor({
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
   const [isDelegating, setIsDelegating] = React.useState(false);
   const [selectedApproverRole, setSelectedApproverRole] = React.useState<'approver' | 'reviewer'>('approver');
+  const [selectedOrder, setSelectedOrder] = React.useState<number>(1);
 
   const handleAddApprover = (approver: Approver) => {
     const newApprover: ApprovalStep = {
@@ -232,14 +233,18 @@ export function ApprovalLineEditor({
       role: approver.role,
       department: approver.department,
       approverRole: selectedApproverRole,
-      order: approvers.length + 1,
+      order: selectedOrder,
     };
     onApproversChange([...approvers, newApprover]);
     setShowAddDialog(false);
 
+    // 다음 추가를 위해 순번 초기화
+    const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
+    setSelectedOrder(maxOrder + 1);
+
     const roleLabel = selectedApproverRole === 'reviewer' ? '합의자' : '결재자';
     toast.success(`${roleLabel} 추가 완료`, {
-      description: `${approver.name}님이 추가되었습니다.`,
+      description: `${approver.name}님이 ${selectedOrder}순위로 추가되었습니다.`,
     });
   };
 
@@ -393,7 +398,13 @@ export function ApprovalLineEditor({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setShowAddDialog(true)}
+          onClick={() => {
+            // 다이얼로그 열 때 다음 순번으로 기본 설정
+            const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
+            setSelectedOrder(maxOrder + 1);
+            setSelectedApproverRole('approver');
+            setShowAddDialog(true);
+          }}
         >
           <Plus className="w-4 h-4 mr-2" />
           결재선 추가
@@ -442,7 +453,7 @@ export function ApprovalLineEditor({
               lineHeight: 1.4,
               color: 'var(--muted-foreground)',
             }}>
-              역할을 선택하고 구성원을 추가하세요
+              역할과 순번을 선택하고 구성원을 추가하세요
             </DialogDescription>
           </DialogHeader>
 
@@ -481,7 +492,38 @@ export function ApprovalLineEditor({
                   fontWeight: 500,
                   lineHeight: 1.5
                 }}>
-                  구성원 선택 *
+                  결재 순번
+                </Label>
+                <Select
+                  value={selectedOrder.toString()}
+                  onValueChange={(value) => setSelectedOrder(parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
+                      const existingOrders = [...new Set(approvers.map(a => a.order || 1))].sort((a, b) => a - b);
+                      const newOrder = maxOrder + 1;
+                      const options = approvers.length > 0 ? [...existingOrders, newOrder] : [1];
+                      return options.map(order => (
+                        <SelectItem key={order} value={order.toString()}>
+                          {order}순위 {existingOrders.includes(order) ? '(기존 순번에 추가)' : '(새 순번)'}
+                        </SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label style={{
+                  fontSize: 'var(--font-size-body)',
+                  fontWeight: 500,
+                  lineHeight: 1.5
+                }}>
+                  구성원
                 </Label>
                 <ApproverSelector
                   onSelectApprover={handleAddApprover}
