@@ -7,6 +7,37 @@ export interface ButtonProps
   size?: 'sm' | 'md' | 'lg'
 }
 
+const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-button font-medium interactive'
+
+const variants = {
+  primary: 'bg-primary text-white hover:brightness-90 focus-visible:outline-primary',
+  secondary: 'bg-secondary text-white hover:brightness-90 focus-visible:outline-secondary',
+  ghost: 'bg-transparent hover:bg-muted text-foreground',
+  outline: 'bg-white border border-border text-foreground hover:bg-muted',
+  danger: 'bg-error text-white hover:brightness-90 focus-visible:outline-error',
+}
+
+const sizes = {
+  sm: 'h-8 px-3 text-sm',
+  md: 'h-10 px-4 text-body',
+  lg: 'h-12 px-6 text-lg',
+}
+
+/**
+ * buttonVariants - 클래스 이름만 반환하는 함수 (Calendar 등에서 사용)
+ */
+export function buttonVariants({
+  variant = 'primary',
+  size = 'md',
+  className,
+}: {
+  variant?: keyof typeof variants
+  size?: keyof typeof sizes
+  className?: string
+} = {}) {
+  return cn(baseStyles, variants[variant], sizes[size], className)
+}
+
 /**
  * Button - Figma Guidelines
  * - Variants: Primary / Secondary / Ghost / Outline
@@ -17,22 +48,6 @@ export interface ButtonProps
  */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-button font-medium interactive'
-    
-    const variants = {
-      primary: 'bg-primary text-white hover:brightness-90 focus-visible:outline-primary',
-      secondary: 'bg-secondary text-white hover:brightness-90 focus-visible:outline-secondary',
-      ghost: 'bg-transparent border border-border text-foreground hover:bg-muted',
-      outline: 'bg-white border border-border text-foreground hover:bg-muted',
-      danger: 'bg-error text-white hover:brightness-90 focus-visible:outline-error',
-    }
-    
-    const sizes = {
-      sm: 'h-8 px-3 text-sm',
-      md: 'h-10 px-4 text-body',
-      lg: 'h-12 px-6 text-lg',
-    }
-
     return (
       <button
         className={cn(

@@ -9,7 +9,7 @@ import {
 import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 
 function Calendar({
   className,
@@ -26,7 +26,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "bg-background group/calendar p-3 [--cell-size:2rem] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        "bg-background group/calendar p-3 [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
@@ -49,19 +49,21 @@ function Calendar({
           defaultClassNames.nav
         ),
         button_previous: cn(
-          "h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50 transition-all duration-150 ease-in-out opacity-50 hover:opacity-100",
+          buttonVariants({ variant: "outline" }),
+          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100 transition-all duration-150 ease-in-out",
           defaultClassNames.button_previous
         ),
         button_next: cn(
-          "h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50 transition-all duration-150 ease-in-out opacity-50 hover:opacity-100",
+          buttonVariants({ variant: "outline" }),
+          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100 transition-all duration-150 ease-in-out",
           defaultClassNames.button_next
         ),
         month_caption: cn(
-          "flex h-[--cell-size] w-full items-center justify-center px-[--cell-size]",
+          "flex h-7 w-full items-center justify-center",
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
-          "flex h-[--cell-size] w-full items-center justify-center gap-1.5 text-sm font-medium",
+          "flex h-7 w-full items-center justify-center gap-1.5 text-sm font-medium",
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
@@ -73,21 +75,18 @@ function Calendar({
           defaultClassNames.dropdown
         ),
         caption_label: cn(
-          "select-none font-medium",
-          captionLayout === "label"
-            ? "text-sm"
-            : "[&>svg]:text-muted-foreground flex h-8 items-center gap-1 rounded-md pl-2 pr-1 text-sm [&>svg]:size-3.5",
+          "select-none font-medium text-sm",
           defaultClassNames.caption_label
         ),
-        table: "w-full border-collapse",
+        table: "w-full border-collapse space-x-1",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "text-muted-foreground flex-1 select-none rounded-md text-[0.8rem] font-normal",
+          "text-muted-foreground w-8 select-none rounded-md text-[0.8rem] font-normal",
           defaultClassNames.weekday
         ),
         week: cn("mt-2 flex w-full", defaultClassNames.week),
         week_number_header: cn(
-          "w-[--cell-size] select-none",
+          "w-8 select-none",
           defaultClassNames.week_number_header
         ),
         week_number: cn(
@@ -95,21 +94,30 @@ function Calendar({
           defaultClassNames.week_number
         ),
         day: cn(
-          "group/day relative aspect-square h-full w-full select-none p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md",
+          "group/day relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-[var(--primary-bg)] [&:has([aria-selected].day-range-end)]:rounded-r-md",
+          props.mode === "range"
+            ? "[&:has(>.day-range-end)]:rounded-r-md [&:has(>.day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
+            : "[&:has([aria-selected])]:rounded-md",
           defaultClassNames.day
         ),
         range_start: cn(
-          "bg-[var(--primary-bg)] rounded-l-md",
+          "day-range-start aria-selected:bg-[var(--primary)] aria-selected:text-[var(--primary-foreground)]",
           defaultClassNames.range_start
         ),
-        range_middle: cn("rounded-none bg-[var(--primary-bg)]", defaultClassNames.range_middle),
-        range_end: cn("bg-[var(--primary-bg)] rounded-r-md", defaultClassNames.range_end),
+        range_middle: cn(
+          "aria-selected:bg-[var(--primary-bg)] aria-selected:text-[var(--primary)]",
+          defaultClassNames.range_middle
+        ),
+        range_end: cn(
+          "day-range-end aria-selected:bg-[var(--primary)] aria-selected:text-[var(--primary-foreground)]",
+          defaultClassNames.range_end
+        ),
         today: cn(
-          "bg-[var(--accent)] text-[var(--accent-foreground)] font-medium rounded-md data-[selected=true]:rounded-none",
+          "bg-[var(--accent)] text-[var(--accent-foreground)] font-medium",
           defaultClassNames.today
         ),
         outside: cn(
-          "text-[var(--muted-foreground)] aria-selected:text-[var(--muted-foreground)]",
+          "day-outside text-[var(--muted-foreground)] aria-selected:text-[var(--muted-foreground)]",
           defaultClassNames.outside
         ),
         disabled: cn(
@@ -154,7 +162,7 @@ function Calendar({
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
-              <div className="flex size-[--cell-size] items-center justify-center text-center">
+              <div className="flex size-8 items-center justify-center text-center">
                 {children}
               </div>
             </td>
@@ -173,40 +181,24 @@ function CalendarDayButton({
   modifiers,
   ...props
 }: React.ComponentProps<typeof DayButton>) {
-  const defaultClassNames = getDefaultClassNames()
-
   const ref = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
   return (
-    <Button
+    <button
       ref={ref}
-      variant="ghost"
-      size="sm"
-      data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
+      type="button"
       className={cn(
+        buttonVariants({ variant: "ghost" }),
+        "size-8 p-0 font-normal aria-selected:opacity-100",
         "transition-all duration-150 ease-in-out",
-        "data-[selected-single=true]:bg-[var(--primary)] data-[selected-single=true]:text-[var(--primary-foreground)] data-[selected-single=true]:hover:bg-[var(--primary-hover)]",
-        "data-[range-middle=true]:bg-[var(--primary-bg)] data-[range-middle=true]:text-[var(--primary)]",
-        "data-[range-start=true]:bg-[var(--primary)] data-[range-start=true]:text-[var(--primary-foreground)]",
-        "data-[range-end=true]:bg-[var(--primary)] data-[range-end=true]:text-[var(--primary-foreground)]",
-        "group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50",
-        "flex aspect-square h-auto w-full min-w-[--cell-size] flex-col gap-1 font-normal leading-none",
-        "data-[range-end=true]:rounded-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md",
-        "group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px]",
-        "[&>span]:text-xs [&>span]:opacity-70",
-        defaultClassNames.day,
+        "hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]",
+        "focus:bg-[var(--accent)] focus:text-[var(--accent-foreground)]",
+        "aria-selected:bg-[var(--primary)] aria-selected:text-[var(--primary-foreground)]",
+        "aria-selected:hover:bg-[var(--primary-hover)] aria-selected:hover:text-[var(--primary-foreground)]",
+        "aria-selected:focus:bg-[var(--primary)] aria-selected:focus:text-[var(--primary-foreground)]",
         className
       )}
       {...props}
