@@ -175,14 +175,19 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       email: string
       role: string
       department: string
+      step_order?: number
+      approval_type?: string
     }>
   }) {
+    // 템플릿 데이터를 EditorApprovalStep 형식으로 변환
     const loadedSteps: EditorApprovalStep[] = template.approvers.map((approver) => ({
       id: approver.id,
       name: approver.name,
       email: approver.email,
       role: approver.role,
       department: approver.department,
+      order: approver.step_order || 1,
+      approverRole: approver.approval_type === 'agreement' ? 'reviewer' : 'approver',
     }))
     setApprovalSteps(loadedSteps)
     toast.success('템플릿을 불러왔습니다')

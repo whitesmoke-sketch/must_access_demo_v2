@@ -179,6 +179,8 @@ export async function getApprovalTemplates(requestType: 'leave' | 'document') {
           email: step.approver?.email || '',
           role: step.approver?.role?.name || '',
           department: step.approver?.department?.name || '',
+          step_order: step.step_order,
+          approval_type: step.approval_type,
         }))
     }))
 

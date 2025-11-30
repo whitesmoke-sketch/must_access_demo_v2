@@ -105,9 +105,27 @@ export function LeaveRequestForm({ employeeId }: LeaveRequestFormProps) {
   }, []);
 
   const handleLoadTemplate = (template: {
-    approvers: ApprovalStep[];
+    approvers: Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      department: string;
+      step_order?: number;
+      approval_type?: string;
+    }>;
   }) => {
-    setApprovers(template.approvers);
+    // 템플릿 데이터를 ApprovalStep 형식으로 변환
+    const mappedApprovers: ApprovalStep[] = template.approvers.map((a) => ({
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      role: a.role,
+      department: a.department,
+      order: a.step_order || 1,
+      approverRole: a.approval_type === 'agreement' ? 'reviewer' : 'approver',
+    }));
+    setApprovers(mappedApprovers);
     toast.success("결재선 템플릿을 불러왔습니다");
   };
 

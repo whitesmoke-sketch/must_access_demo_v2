@@ -21,6 +21,7 @@ interface ApprovalStep {
   isDelegated?: boolean
   delegateId?: string
   delegateName?: string
+  approvalType?: 'single' | 'agreement'
 }
 
 interface Member {
@@ -89,13 +90,17 @@ export function ApprovalLineSelector({
       id: string
       name: string
       role: string
+      step_order?: number
+      approval_type?: string
     }>
   }) {
-    const loadedSteps: ApprovalStep[] = template.approvers.map((approver, index) => ({
-      order: index + 1,
+    // 템플릿 데이터에서 step_order를 사용하여 올바른 순서 유지
+    const loadedSteps: ApprovalStep[] = template.approvers.map((approver) => ({
+      order: approver.step_order || 1,
       approverId: approver.id,
       approverName: approver.name,
-      approverPosition: approver.role
+      approverPosition: approver.role,
+      approvalType: approver.approval_type === 'agreement' ? 'agreement' : 'single'
     }))
     setApprovalSteps(loadedSteps)
     toast.success('템플릿을 불러왔습니다')

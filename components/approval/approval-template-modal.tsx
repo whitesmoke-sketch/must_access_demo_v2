@@ -29,6 +29,8 @@ interface ApprovalTemplate {
     email: string;
     role: string;
     department: string;
+    step_order: number;
+    approval_type: string;
   }>;
 }
 
