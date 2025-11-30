@@ -153,6 +153,65 @@ export async function approveLeaveRequest(requestId: number) {
   }
 }
 
+export async function withdrawLeaveRequest(requestId: number) {
+  const supabase = await createClient()
+
+  // 인증 확인
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { success: false, error: '인증되지 않았습니다' }
+  }
+
+  try {
+    // 본인이 작성한 문서인지 확인
+    const { data: leaveRequest, error: leaveError } = await supabase
+      .from('leave_request')
+      .select('id, employee_id, status')
+      .eq('id', requestId)
+      .single()
+
+    if (leaveError || !leaveRequest) {
+      return { success: false, error: '문서를 찾을 수 없습니다' }
+    }
+
+    // 본인 문서인지 확인
+    if (leaveRequest.employee_id !== user.id) {
+      return { success: false, error: '본인이 작성한 문서만 회수할 수 있습니다' }
+    }
+
+    // pending 상태인지 확인
+    if (leaveRequest.status !== 'pending') {
+      return { success: false, error: '결재 진행 중인 문서만 회수할 수 있습니다' }
+    }
+
+    // leave_request 상태를 'retrieved'로 업데이트
+    const { error: updateError } = await supabase
+      .from('leave_request')
+      .update({
+        status: 'retrieved',
+        current_step: null
+      })
+      .eq('id', requestId)
+
+    if (updateError) {
+      console.error('Failed to withdraw leave request:', updateError)
+      return { success: false, error: '회수 처리 중 오류가 발생했습니다' }
+    }
+
+    console.log('✅ Leave request withdrawn:', requestId)
+
+    // 페이지 재검증
+    revalidatePath('/documents')
+    revalidatePath('/documents/my-documents')
+    revalidatePath('/dashboard')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Withdraw error:', error)
+    return { success: false, error: '회수 처리 중 오류가 발생했습니다' }
+  }
+}
+
 export async function rejectLeaveRequest(requestId: number, rejectReason: string) {
   const supabase = await createClient()
 

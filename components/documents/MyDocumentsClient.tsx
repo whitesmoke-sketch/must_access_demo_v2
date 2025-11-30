@@ -11,6 +11,7 @@ import {
   XCircle,
   Clock as ClockIcon,
   FilePlus,
+  Undo2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,9 +41,11 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
+import { withdrawLeaveRequest } from '@/app/(authenticated)/documents/actions'
 
-type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retrieved'
 
 interface MyDocument {
   id: number
@@ -82,6 +85,7 @@ export function MyDocumentsClient({
   userId,
   approvalHistoryMap,
 }: MyDocumentsClientProps) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | DocumentStatus>('all')
@@ -91,6 +95,29 @@ export function MyDocumentsClient({
 
   const [selectedDocument, setSelectedDocument] = useState<MyDocument | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [withdrawingId, setWithdrawingId] = useState<number | null>(null)
+
+  // 회수 처리
+  const handleWithdraw = async (documentId: number) => {
+    if (withdrawingId) return // 이미 처리 중인 경우
+
+    setWithdrawingId(documentId)
+    try {
+      const result = await withdrawLeaveRequest(documentId)
+
+      if (result.success) {
+        toast.success('문서가 회수되었습니다')
+        router.refresh()
+      } else {
+        toast.error(result.error || '회수 처리 중 오류가 발생했습니다')
+      }
+    } catch (error) {
+      console.error('Withdraw error:', error)
+      toast.error('회수 처리 중 오류가 발생했습니다')
+    } finally {
+      setWithdrawingId(null)
+    }
+  }
 
   // 필터링 및 검색
   const filteredDocuments = useMemo(() => {
@@ -105,7 +132,7 @@ export function MyDocumentsClient({
         activeTab === 'in-progress'
           ? doc.status === 'pending'
           : activeTab === 'completed'
-          ? doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled'
+          ? doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled' || doc.status === 'retrieved'
           : true
 
       return matchesSearch && matchesStatus && matchesTab && matchesType
@@ -127,18 +154,20 @@ export function MyDocumentsClient({
 
   // 상태 뱃지 (Figma 디자인과 동일한 CSS 변수 사용)
   const getStatusBadge = (status: DocumentStatus) => {
-    const styles = {
+    const styles: Record<DocumentStatus, { backgroundColor: string; color: string }> = {
       pending: { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' },
       approved: { backgroundColor: 'var(--success-bg)', color: 'var(--success)' },
       rejected: { backgroundColor: 'var(--destructive-bg)', color: 'var(--destructive)' },
       cancelled: { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' },
+      retrieved: { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' },
     }
 
-    const labels = {
+    const labels: Record<DocumentStatus, string> = {
       pending: '승인 대기',
       approved: '승인 완료',
       rejected: '반려',
       cancelled: '취소됨',
+      retrieved: '회수됨',
     }
 
     return (
@@ -161,8 +190,8 @@ export function MyDocumentsClient({
     const steps = approvalHistoryMap[docId]
     if (!steps || steps.length === 0) return null
 
-    // 최종 상태(승인완료, 반려, 취소)인 경우 진행과정 표시 안함
-    if (status === 'approved' || status === 'rejected' || status === 'cancelled') {
+    // 최종 상태(승인완료, 반려, 취소, 회수)인 경우 진행과정 표시 안함
+    if (status === 'approved' || status === 'rejected' || status === 'cancelled' || status === 'retrieved') {
       return null
     }
 
@@ -208,6 +237,8 @@ export function MyDocumentsClient({
         return { label: '승인', color: 'var(--success)', bgColor: 'var(--success-bg)', icon: CheckCircle }
       case 'rejected':
         return { label: '반려', color: 'var(--destructive)', bgColor: 'var(--destructive-bg)', icon: XCircle }
+      case 'retrieved':
+        return { label: '회수', color: 'var(--muted-foreground)', bgColor: 'var(--muted)', icon: Undo2 }
       case 'pending':
         return { label: '대기중', color: 'var(--muted-foreground)', bgColor: 'var(--muted)', icon: ClockIcon }
       default:
@@ -311,6 +342,7 @@ export function MyDocumentsClient({
                   <SelectItem value="approved">승인 완료</SelectItem>
                   <SelectItem value="rejected">반려</SelectItem>
                   <SelectItem value="cancelled">취소됨</SelectItem>
+                  <SelectItem value="retrieved">회수됨</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
@@ -420,15 +452,18 @@ export function MyDocumentsClient({
                             {canWithdraw ? (
                               <Button
                                 size="sm"
-                                onClick={() => handleViewDetail(doc)}
+                                onClick={() => handleWithdraw(doc.id)}
+                                disabled={withdrawingId === doc.id}
                                 style={{
                                   backgroundColor: 'var(--muted-foreground)',
                                   color: 'var(--background)',
                                 }}
                               >
-                                회수
+                                {withdrawingId === doc.id ? '처리중...' : '회수'}
                               </Button>
-                            ) : canCancelRequest ? (
+                            ) : (
+                              /* 취소 요청 버튼 - 추후 구현 예정
+                              canCancelRequest ? (
                               <Button
                                 size="sm"
                                 onClick={() => handleViewDetail(doc)}
@@ -442,7 +477,7 @@ export function MyDocumentsClient({
                               >
                                 취소 요청
                               </Button>
-                            ) : (
+                            ) : */
                               <span>&nbsp;</span>
                             )}
                           </div>
