@@ -174,7 +174,7 @@ export function LeaveManualAdjustment({ onBack, members }: LeaveManualAdjustment
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[500px] p-0" align="start">
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
               <Command>
                 <CommandInput placeholder="이름 또는 팀으로 검색..." />
                 <CommandList>
