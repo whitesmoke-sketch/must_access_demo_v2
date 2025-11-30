@@ -410,7 +410,7 @@ export function ApprovalDocumentsClient({
           </div>
 
           {/* 테이블 */}
-          <div className="mb-3" style={{ fontSize: 'var(--font-size-copyright)', color: 'var(--muted-foreground)' }}>
+          <div className="mb-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
             전체 {filteredDocuments.length}건
           </div>
           <div>
