@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createApprovalSteps, ApprovalStepInput, ApprovalType } from './approval'
+import { createNotification } from './notification'
 
 interface ApprovalStep {
   order: number
@@ -80,6 +81,63 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
       if (!approvalResult.success) {
         console.error('Approval steps creation error:', approvalResult.error)
         return { success: false, error: approvalResult.error || '승인 단계 생성 실패' }
+      }
+
+      // 2-1. 알림 발송: 신청자 이름 조회
+      const { data: requester } = await supabase
+        .from('employee')
+        .select('name')
+        .eq('id', data.employee_id)
+        .single()
+      const requesterName = requester?.name || '알 수 없음'
+
+      // 문서 유형 한글명
+      const documentTypeLabels: Record<string, string> = {
+        annual_leave: '연차',
+        half_day: '반차',
+        reward_leave: '포상휴가',
+        condolence: '경조사비',
+        overtime: '야근수당',
+        expense: '지출결의서',
+        other: '기타',
+      }
+      const docTypeLabel = documentTypeLabels[data.document_type] || data.document_type
+
+      // 2-2. 참조자에게 알림 발송
+      for (const ref of data.reference_steps) {
+        await createNotification({
+          recipient_id: ref.memberId,
+          type: 'document_cc',
+          title: `[참조] ${docTypeLabel} 신청서`,
+          message: `${requesterName}님이 ${docTypeLabel} 신청서를 상신했습니다.`,
+          metadata: {
+            request_type: 'leave',
+            request_id: leaveRequest.id,
+            requester_id: data.employee_id,
+            requester_name: requesterName,
+          },
+          action_url: `/documents`,
+        })
+      }
+
+      // 2-3. 1순위 결재/합의자에게 알림 발송
+      const firstOrderApprovers = data.approval_steps.filter(step => step.order === 1)
+      for (const approver of firstOrderApprovers) {
+        const approverId = approver.isDelegated && approver.delegateId ? approver.delegateId : approver.approverId
+        await createNotification({
+          recipient_id: approverId,
+          type: 'approval_request',
+          title: `[결재요청] ${docTypeLabel} 신청서`,
+          message: `${requesterName}님의 ${docTypeLabel} 신청서가 결재 대기중입니다.`,
+          metadata: {
+            request_type: 'leave',
+            request_id: leaveRequest.id,
+            requester_id: data.employee_id,
+            requester_name: requesterName,
+            step_order: 1,
+          },
+          action_url: `/documents`,
+        })
       }
 
       // 3. PDF 생성 및 Google Drive 업로드

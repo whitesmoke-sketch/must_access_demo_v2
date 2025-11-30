@@ -98,6 +98,18 @@ export default function NotificationDropdown({ notifications: initialNotificatio
           bgColor: 'bg-purple-50',
           borderColor: 'border-purple-200'
         }
+      case 'approval_request':
+        return {
+          icon: '📝',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200'
+        }
+      case 'document_cc':
+        return {
+          icon: '👀',
+          bgColor: 'bg-cyan-50',
+          borderColor: 'border-cyan-200'
+        }
       case 'system':
         return {
           icon: '🔔',

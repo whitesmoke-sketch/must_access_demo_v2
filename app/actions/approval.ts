@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { createNotification } from './notification'
 
 // ================================================
 // Types
@@ -830,6 +831,43 @@ export async function processApproval(
           .from('leave_request')
           .update({ current_step: nextStepOrder })
           .eq('id', step.request_id)
+      }
+
+      // 다음 단계 결재자에게 알림 발송
+      const { data: nextApprovers } = await supabase
+        .from('approval_step')
+        .select('approver_id')
+        .in('id', nextStepIds)
+
+      if (nextApprovers && nextApprovers.length > 0) {
+        // 신청자 정보 조회
+        let requesterName = '알 수 없음'
+        if (step.request_type === 'leave') {
+          const { data: leaveReq } = await supabase
+            .from('leave_request')
+            .select('employee:employee_id(name)')
+            .eq('id', step.request_id)
+            .single()
+          if (leaveReq?.employee) {
+            const emp = Array.isArray(leaveReq.employee) ? leaveReq.employee[0] : leaveReq.employee
+            requesterName = emp?.name || '알 수 없음'
+          }
+        }
+
+        for (const nextApprover of nextApprovers) {
+          await createNotification({
+            recipient_id: nextApprover.approver_id,
+            type: 'approval_request',
+            title: '[결재요청] 신청서',
+            message: `${requesterName}님의 신청서가 결재 대기중입니다.`,
+            metadata: {
+              request_type: step.request_type,
+              request_id: step.request_id,
+              step_order: nextStepOrder,
+            },
+            action_url: `/documents`,
+          })
+        }
       }
     } else {
       // 마지막 단계였으면 요청 승인 완료
