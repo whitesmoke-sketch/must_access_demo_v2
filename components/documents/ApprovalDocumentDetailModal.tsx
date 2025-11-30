@@ -72,35 +72,44 @@ interface ApprovalDocumentDetailModalProps {
 }
 
 const getStatusBadge = (status: LeaveStatus) => {
-  const styles = {
+  const styles: Record<string, { backgroundColor: string; color: string }> = {
     pending: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
     approved: { backgroundColor: 'rgba(76, 212, 113, 0.1)', color: '#4CD471' },
     rejected: { backgroundColor: '#FEE2E2', color: '#EF4444' },
     cancelled: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
+    retrieved: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
   }
 
-  const labels = {
+  const labels: Record<string, string> = {
     pending: '승인 대기',
     approved: '승인',
     rejected: '반려',
     cancelled: '취소',
+    retrieved: '회수',
   }
 
+  const defaultStyle = { backgroundColor: '#F6F8F9', color: '#5B6A72' }
+  const currentStyle = styles[status] || defaultStyle
+  const currentLabel = labels[status] || status || '알 수 없음'
+
   return (
-    <Badge style={{ ...styles[status], fontSize: '12px', lineHeight: 1.33, fontWeight: 600, padding: '2px 8px' }}>
-      {labels[status]}
+    <Badge style={{ ...currentStyle, fontSize: '12px', lineHeight: 1.33, fontWeight: 600, padding: '2px 8px' }}>
+      {currentLabel}
     </Badge>
   )
 }
 
 const getLeaveTypeLabel = (type: LeaveType): string => {
-  const labels = {
+  const labels: Record<string, string> = {
     annual: '연차',
     half_day: '반차',
+    half_day_am: '오전 반차',
+    half_day_pm: '오후 반차',
     quarter_day: '반반차',
+    sick: '병가',
     award: '포상휴가',
   }
-  return labels[type]
+  return labels[type] || type || '기타'
 }
 
 const getHistoryEventInfo = (status: string) => {

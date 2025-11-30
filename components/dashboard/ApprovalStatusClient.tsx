@@ -328,7 +328,7 @@ export function ApprovalStatusClient({
 }
 
 function StatusBadge({ status }: { status: LeaveStatus }) {
-  const configs: Record<LeaveStatus, { label: string; backgroundColor: string; color: string }> = {
+  const configs: Record<string, { label: string; backgroundColor: string; color: string }> = {
     pending: {
       label: '대기',
       backgroundColor: '#FEF3C7',
@@ -343,10 +343,21 @@ function StatusBadge({ status }: { status: LeaveStatus }) {
       label: '반려',
       backgroundColor: '#FEE2E2',
       color: '#991B1B'
+    },
+    cancelled: {
+      label: '취소',
+      backgroundColor: '#F6F8F9',
+      color: '#5B6A72'
+    },
+    retrieved: {
+      label: '회수',
+      backgroundColor: '#F6F8F9',
+      color: '#5B6A72'
     }
   }
 
-  const config = configs[status]
+  const defaultConfig = { label: status || '알 수 없음', backgroundColor: '#F6F8F9', color: '#5B6A72' }
+  const config = configs[status] || defaultConfig
 
   return (
     <Badge
@@ -373,7 +384,7 @@ function getLeaveTypeLabel(type: LeaveType): string {
 }
 
 function LeaveTypeBadge({ type }: { type: LeaveType }) {
-  const configs: Record<LeaveType, { label: string; backgroundColor: string; color: string }> = {
+  const configs: Record<string, { label: string; backgroundColor: string; color: string }> = {
     annual: {
       label: '연차',
       backgroundColor: '#EEF2FF',
@@ -384,6 +395,21 @@ function LeaveTypeBadge({ type }: { type: LeaveType }) {
       backgroundColor: '#EEF2FF',
       color: '#635BFF'
     },
+    half_day_am: {
+      label: '오전 반차',
+      backgroundColor: '#EEF2FF',
+      color: '#635BFF'
+    },
+    half_day_pm: {
+      label: '오후 반차',
+      backgroundColor: '#EEF2FF',
+      color: '#635BFF'
+    },
+    sick: {
+      label: '병가',
+      backgroundColor: '#FEE2E2',
+      color: '#991B1B'
+    },
     reward: {
       label: '포상휴가',
       backgroundColor: '#FDF2F8',
@@ -391,7 +417,8 @@ function LeaveTypeBadge({ type }: { type: LeaveType }) {
     }
   }
 
-  const config = configs[type]
+  const defaultConfig = { label: type || '기타', backgroundColor: '#F6F8F9', color: '#5B6A72' }
+  const config = configs[type] || defaultConfig
 
   return (
     <Badge
