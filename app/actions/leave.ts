@@ -101,6 +101,15 @@ export async function generateLeavePDF(leaveRequestId: number) {
       return { success: false, error: '인증이 필요합니다' }
     }
 
+    // 디버깅: 세션 토큰 상태 로깅
+    console.log('[Leave Action] Session 상태:', {
+      hasProviderToken: !!session.provider_token,
+      providerTokenLength: session.provider_token?.length || 0,
+      hasRefreshToken: !!session.provider_refresh_token,
+      refreshTokenLength: session.provider_refresh_token?.length || 0,
+      provider: session.user?.app_metadata?.provider,
+    })
+
     // Google 토큰 확인 및 갱신
     const tokenResult = await getValidGoogleAccessToken(
       session.provider_token,

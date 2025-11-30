@@ -85,7 +85,7 @@ function LoginForm() {
           scopes: 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar',
           queryParams: {
             access_type: 'offline',
-            prompt: 'select_account',
+            prompt: 'consent', // 'consent'로 변경하여 항상 refresh_token 받기
           },
         }
       })
