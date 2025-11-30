@@ -39,6 +39,9 @@ interface ApprovalLineEditorProps {
   onSaveTemplate?: () => void;
   showTemplateButtons?: boolean;
   currentUser?: CurrentUser;
+  showAddDialogExternal?: boolean; // 외부에서 다이얼로그 표시 제어
+  onAddDialogChange?: (open: boolean) => void; // 외부에서 다이얼로그 상태 변경 알림
+  hideAddButton?: boolean; // 하단 추가 버튼 숨김 (헤더에서 처리 시)
 }
 
 interface DraggableApprovalGroupProps {
@@ -195,8 +198,21 @@ export function ApprovalLineEditor({
   onSaveTemplate,
   showTemplateButtons = true,
   currentUser,
+  showAddDialogExternal,
+  onAddDialogChange,
+  hideAddButton = false,
 }: ApprovalLineEditorProps) {
-  const [showAddDialog, setShowAddDialog] = React.useState(false);
+  const [showAddDialogInternal, setShowAddDialogInternal] = React.useState(false);
+
+  // 외부 제어 또는 내부 상태 사용
+  const showAddDialog = showAddDialogExternal !== undefined ? showAddDialogExternal : showAddDialogInternal;
+  const setShowAddDialog = (open: boolean) => {
+    if (onAddDialogChange) {
+      onAddDialogChange(open);
+    } else {
+      setShowAddDialogInternal(open);
+    }
+  };
   const [showDelegateDialog, setShowDelegateDialog] = React.useState(false);
   const [editingApproverId, setEditingApproverId] = React.useState<string | null>(null);
   const [isDelegating, setIsDelegating] = React.useState(false);
@@ -380,23 +396,27 @@ export function ApprovalLineEditor({
         </DndProvider>
       )}
 
-      {/* 결재자 추가 */}
+      {/* 결재자 추가 및 템플릿 버튼 */}
       <div className="flex items-center justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            // 다이얼로그 열 때 다음 순번으로 기본 설정
-            const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
-            setSelectedOrder(maxOrder + 1);
-            setSelectedApproverRole('approver');
-            setShowAddDialog(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          결재선 추가
-        </Button>
+        {!hideAddButton ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // 다이얼로그 열 때 다음 순번으로 기본 설정
+              const maxOrder = approvers.length > 0 ? Math.max(...approvers.map(a => a.order || 1)) : 0;
+              setSelectedOrder(maxOrder + 1);
+              setSelectedApproverRole('approver');
+              setShowAddDialog(true);
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            결재선 추가
+          </Button>
+        ) : (
+          <div /> // 빈 공간 (헤더에서 버튼 처리)
+        )}
 
         {showTemplateButtons && (
           <div className="flex gap-2">

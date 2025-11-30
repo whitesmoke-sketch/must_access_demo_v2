@@ -18,7 +18,7 @@ import { ApprovalTemplateSaveModal } from '@/components/approval/approval-templa
 import { ReferenceSelector } from './ReferenceSelector'
 import { submitDocumentRequest } from '@/app/actions/document'
 import { generateDefaultApprovers } from '@/app/actions/approval'
-import { Upload, X, AlertCircle } from 'lucide-react'
+import { Upload, X, AlertCircle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 type DocumentType =
@@ -129,6 +129,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [approvalSteps, setApprovalSteps] = useState<EditorApprovalStep[]>([])
   const [showLoadModal, setShowLoadModal] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [showAddApproverDialog, setShowAddApproverDialog] = useState(false)
 
   // Step 4: 참조자
   const [referenceSteps, setReferenceSteps] = useState<ReferenceStep[]>([])
@@ -702,21 +703,27 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
             boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
           }}>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--primary)', color: 'white' }}
-                >
-                  3
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--primary)', color: 'white' }}
+                  >
+                    3
+                  </div>
+                  <h3 style={{
+                    fontSize: '16px',
+                    fontWeight: 500,
+                    color: 'var(--card-foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    결재선 지정
+                  </h3>
                 </div>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: 500,
-                  color: 'var(--card-foreground)',
-                  lineHeight: 1.5
-                }}>
-                  결재선 지정
-                </h3>
+                <Button variant="outline" size="sm" onClick={() => setShowAddApproverDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  결재선 추가
+                </Button>
               </div>
               <ApprovalLineEditor
                 approvers={approvalSteps}
@@ -729,6 +736,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   name: currentUser.name,
                   position: currentUser.position,
                 }}
+                showAddDialogExternal={showAddApproverDialog}
+                onAddDialogChange={setShowAddApproverDialog}
+                hideAddButton={true}
               />
             </CardContent>
           </Card>
