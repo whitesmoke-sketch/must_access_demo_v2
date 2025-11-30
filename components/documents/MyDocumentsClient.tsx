@@ -68,13 +68,19 @@ interface ApprovalStep {
   request_id: number
   step_order: number
   status: string
+  step_type?: string
   approved_at: string | null
   approver: {
     id: string
     name: string
-    department: { name: string } | null
-    role: { name: string } | null
-  }
+    department: { name: string } | { name: string }[] | null
+    role: { name: string } | { name: string }[] | null
+  } | {
+    id: string
+    name: string
+    department: { name: string } | { name: string }[] | null
+    role: { name: string } | { name: string }[] | null
+  }[] | null
 }
 
 interface MyDocumentsClientProps {
@@ -220,11 +226,26 @@ export function MyDocumentsClient({
 
     return steps.map(step => {
       const approverData = step.approver
-      const approverName = approverData
-        ? Array.isArray(approverData)
-          ? approverData[0]?.name || '알 수 없음'
-          : approverData.name
-        : '알 수 없음'
+        ? Array.isArray(step.approver)
+          ? step.approver[0]
+          : step.approver
+        : null
+
+      const approverName = approverData?.name || '알 수 없음'
+
+      // 부서명 추출
+      const departmentName = approverData?.department
+        ? Array.isArray(approverData.department)
+          ? approverData.department[0]?.name
+          : approverData.department.name
+        : undefined
+
+      // 직급명 추출
+      const roleName = approverData?.role
+        ? Array.isArray(approverData.role)
+          ? approverData.role[0]?.name
+          : approverData.role.name
+        : undefined
 
       let approvalStatus: 'completed' | 'pending' | 'waiting'
       if (step.status === 'approved') {
@@ -238,6 +259,9 @@ export function MyDocumentsClient({
       return {
         name: approverName,
         status: approvalStatus,
+        department: departmentName,
+        role: roleName,
+        stepType: step.step_type,
       }
     })
   }

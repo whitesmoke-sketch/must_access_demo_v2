@@ -71,16 +71,23 @@ export default async function DocumentsPage() {
       .select('request_id, status')
       .eq('approver_id', user.id)
       .eq('request_type', 'leave'),
-    // 모든 문서의 approval_step 조회 (결재선 정보)
+    // 모든 문서의 approval_step 조회 (결재선 정보 - 부서/직급 포함)
     adminSupabase
       .from('approval_step')
       .select(`
         request_id,
         step_order,
         status,
+        step_type,
         approver:approver_id (
           id,
-          name
+          name,
+          department:department_id (
+            name
+          ),
+          role:role_id (
+            name
+          )
         )
       `)
       .eq('request_type', 'leave')

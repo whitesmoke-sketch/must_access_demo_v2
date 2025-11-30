@@ -43,6 +43,7 @@ export default async function MyDocumentsPage() {
       request_id,
       step_order,
       status,
+      step_type,
       approved_at,
       approver:approver_id (
         id,
