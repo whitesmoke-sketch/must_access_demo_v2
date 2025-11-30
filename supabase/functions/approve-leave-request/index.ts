@@ -174,6 +174,36 @@ Deno.serve(async (req) => {
         new_status: 'approved'
       })
 
+    // 3.5. 합의(agreement) 로직: 같은 step_order의 모든 결재자가 승인했는지 확인
+    const { data: sameStepApprovers, error: sameStepError } = await supabase
+      .from('approval_step')
+      .select('id, status')
+      .eq('request_type', 'leave')
+      .eq('request_id', leaveRequestId)
+      .eq('step_order', currentStep.step_order)
+
+    if (sameStepError) {
+      throw new Error('합의 확인 중 오류가 발생했습니다')
+    }
+
+    // 같은 단계의 모든 결재자가 승인했는지 확인
+    const allSameStepApproved = sameStepApprovers?.every(
+      step => step.status === 'approved'
+    ) ?? false
+
+    // 같은 단계에 아직 승인하지 않은 결재자가 있으면 대기
+    if (!allSameStepApproved) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: '승인 완료. 동일 단계의 다른 결재자 승인을 기다리고 있습니다.',
+          isFinal: false,
+          waitingForAgreement: true
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // 4. Check if this is the last step
     if (currentStep.is_last_step) {
       // Get leave request info and update status in parallel
@@ -218,33 +248,37 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else {
-      // Find next step
-      const { data: nextStep, error: nextStepError } = await supabase
+      // Find ALL next step approvers (합의 지원)
+      const nextStepOrder = currentStep.step_order + 1
+      const { data: nextStepApprovers, error: nextStepError } = await supabase
         .from('approval_step')
         .select('id')
         .eq('request_type', 'leave')
         .eq('request_id', leaveRequestId)
-        .eq('step_order', currentStep.step_order + 1)
-        .single()
+        .eq('step_order', nextStepOrder)
+        .eq('status', 'waiting')
 
-      if (nextStepError || !nextStep) {
-        throw new Error('다음 승인 단계를 찾을 수 없습니다')
+      if (nextStepError) {
+        throw new Error('다음 승인 단계 조회 실패')
       }
 
-      // Update next step to pending
-      const { error: nextStepUpdateError } = await supabase
-        .from('approval_step')
-        .update({ status: 'pending' })
-        .eq('id', nextStep.id)
+      // Activate ALL next step approvers to pending
+      if (nextStepApprovers && nextStepApprovers.length > 0) {
+        const nextStepIds = nextStepApprovers.map(s => s.id)
+        const { error: nextStepUpdateError } = await supabase
+          .from('approval_step')
+          .update({ status: 'pending' })
+          .in('id', nextStepIds)
 
-      if (nextStepUpdateError) {
-        throw new Error('다음 승인 단계 활성화 실패')
+        if (nextStepUpdateError) {
+          throw new Error('다음 승인 단계 활성화 실패')
+        }
       }
 
       // Update leave request current_step
       const { error: requestUpdateError } = await supabase
         .from('leave_request')
-        .update({ current_step: currentStep.step_order + 1 })
+        .update({ current_step: nextStepOrder })
         .eq('id', leaveRequestId)
 
       if (requestUpdateError) {

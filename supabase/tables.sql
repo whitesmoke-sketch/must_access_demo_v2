@@ -544,7 +544,7 @@ CREATE TABLE leave_request (
   -- Attachment
   attachment_url VARCHAR(500),
 
-  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'retrieved')),
   approver_id UUID REFERENCES employee(id),
   rejection_reason TEXT,
 

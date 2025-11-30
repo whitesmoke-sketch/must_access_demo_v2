@@ -110,6 +110,21 @@ CREATE INDEX idx_email ON employee(email);
 CREATE INDEX idx_status ON employee(status);
 CREATE INDEX idx_employment_date ON employee(employment_date);
 
+-- Leader table (N:N relationship between department and employee)
+-- Supports: 1 department : N leaders, 1 person : N departments as leader
+CREATE TABLE leader (
+  department_id BIGINT NOT NULL REFERENCES department(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  PRIMARY KEY (department_id, employee_id)
+);
+
+CREATE INDEX idx_leader_employee ON leader(employee_id);
+CREATE INDEX idx_leader_department ON leader(department_id);
+
+COMMENT ON TABLE leader IS '부서-리더 다대다 관계 테이블 (1조직:N리더, 1사람:N조직 리더)';
+
 -- Add department columns after employee table exists
 ALTER TABLE department ADD COLUMN manager_id UUID REFERENCES employee(id);
 ALTER TABLE department ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;
@@ -385,7 +400,7 @@ CREATE TABLE leave_request (
   half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
   reason TEXT,
   attachment_url VARCHAR(500),
-  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'retrieved')),
   approver_id UUID REFERENCES employee(id),
   rejection_reason TEXT,
   requested_at TIMESTAMPTZ NOT NULL,

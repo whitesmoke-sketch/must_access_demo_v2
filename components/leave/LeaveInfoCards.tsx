@@ -23,7 +23,7 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
     // 포상휴가 부여 조회
     supabase
       .from('annual_leave_grant')
-      .select('granted_days, expiration_date')
+      .select('granted_days, expiration_date, created_at')
       .eq('employee_id', employeeId)
       .in('grant_type', ['award_overtime', 'award_attendance'])
       .eq('approval_status', 'approved'),
@@ -63,10 +63,16 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
     ? new Date(validGrants[0].expiration_date)
     : new Date(now.getFullYear(), now.getMonth() + 3, 0) // 기본값: 3개월 후
 
+  // 포상휴가 발생일 (가장 최근 부여일)
+  const rewardGrantDate = validGrants && validGrants.length > 0
+    ? new Date(validGrants[0].created_at)
+    : new Date(now.getFullYear(), 0, 1) // 기본값: 올해 1월 1일
+
   const daysUntilExpiry = Math.ceil(
     (rewardExpiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   )
   const isExpiringSoon = daysUntilExpiry <= 30 && daysUntilExpiry > 0 && rewardLeave > 0
+  const isExpired = daysUntilExpiry <= 0
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -75,14 +81,14 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         className="rounded-2xl"
         style={{
           borderRadius: 'var(--radius)',
-          boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
           <CardTitle
             style={{
-              color: '#29363D',
-              fontSize: '16px',
+              color: 'var(--foreground)',
+              fontSize: 'var(--font-size-body)',
               fontWeight: 500,
               lineHeight: 1.5,
             }}
@@ -90,12 +96,12 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
             총 부여 연차
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
           <div
             style={{
               fontSize: '24px',
               fontWeight: 700,
-              color: '#29363D',
+              color: 'var(--foreground)',
               lineHeight: 1.2,
             }}
           >
@@ -103,8 +109,8 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
           </div>
           <p
             style={{
-              fontSize: '12px',
-              color: '#29363D',
+              fontSize: 'var(--font-size-caption)',
+              color: 'var(--foreground)',
               lineHeight: 1.4,
               marginTop: '4px',
               opacity: 0.7,
@@ -120,14 +126,14 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         className="rounded-2xl"
         style={{
           borderRadius: 'var(--radius)',
-          boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
           <CardTitle
             style={{
-              color: '#5B6A72',
-              fontSize: '16px',
+              color: 'var(--foreground)',
+              fontSize: 'var(--font-size-body)',
               fontWeight: 500,
               lineHeight: 1.5,
             }}
@@ -135,12 +141,12 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
             사용 연차
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
           <div
             style={{
               fontSize: '24px',
               fontWeight: 700,
-              color: '#5B6A72',
+              color: 'var(--muted-foreground)',
               lineHeight: 1.2,
             }}
           >
@@ -148,8 +154,8 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
           </div>
           <p
             style={{
-              fontSize: '12px',
-              color: '#5B6A72',
+              fontSize: 'var(--font-size-caption)',
+              color: 'var(--foreground)',
               lineHeight: 1.4,
               marginTop: '4px',
               opacity: 0.7,
@@ -165,15 +171,14 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         className="rounded-2xl"
         style={{
           borderRadius: 'var(--radius)',
-          backgroundColor: 'rgba(99, 91, 255, 0.05)',
-          boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
           <CardTitle
             style={{
-              color: 'var(--primary)',
-              fontSize: '16px',
+              color: 'var(--foreground)',
+              fontSize: 'var(--font-size-body)',
               fontWeight: 500,
               lineHeight: 1.5,
             }}
@@ -181,7 +186,7 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
             잔여 연차
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
           <div
             style={{
               fontSize: '24px',
@@ -194,11 +199,11 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
           </div>
           <p
             style={{
-              fontSize: '12px',
-              color: 'var(--primary)',
+              fontSize: 'var(--font-size-caption)',
+              color: 'var(--foreground)',
               lineHeight: 1.4,
               marginTop: '4px',
-              opacity: 0.8,
+              opacity: 0.7,
             }}
           >
             사용 가능
@@ -211,15 +216,14 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         className="rounded-2xl"
         style={{
           borderRadius: 'var(--radius)',
-          backgroundColor: 'rgba(255, 102, 146, 0.05)',
-          boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
           <CardTitle
             style={{
-              color: '#FF6692',
-              fontSize: '16px',
+              color: 'var(--foreground)',
+              fontSize: 'var(--font-size-body)',
               fontWeight: 500,
               lineHeight: 1.5,
             }}
@@ -227,34 +231,63 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
             포상 휴가
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
           <div
             style={{
               fontSize: '24px',
               fontWeight: 700,
-              color: '#FF6692',
+              color: 'var(--color-chart-5)',
               lineHeight: 1.2,
             }}
           >
             {rewardLeave}일
           </div>
           <div className="mt-1 space-y-0.5">
-            <p style={{ fontSize: '11px', color: '#FF6692', lineHeight: 1.4 }}>
+            <p
+              style={{
+                fontSize: 'var(--font-size-caption)',
+                color: 'var(--foreground)',
+                lineHeight: 1.4,
+                opacity: 0.7,
+              }}
+            >
+              발생: {rewardGrantDate.toLocaleDateString('ko-KR')}
+            </p>
+            <p
+              style={{
+                fontSize: 'var(--font-size-caption)',
+                color: 'var(--foreground)',
+                lineHeight: 1.4,
+                opacity: 0.7,
+              }}
+            >
               유효기간: ~{rewardExpiryDate.toLocaleDateString('ko-KR')}
             </p>
             {isExpiringSoon && (
               <Badge
-                className="mt-1"
+                className="mt-1 !border-0"
                 style={{
-                  backgroundColor: '#FFF0ED',
-                  color: '#FF6B6B',
+                  backgroundColor: 'var(--destructive-bg)',
+                  color: 'var(--destructive)',
                   fontSize: '11px',
                   fontWeight: 600,
-                  border: 'none',
                 }}
               >
                 <AlertCircle className="w-3 h-3 mr-1" />
                 {daysUntilExpiry}일 후 만료
+              </Badge>
+            )}
+            {isExpired && (
+              <Badge
+                className="mt-1 !border-0"
+                style={{
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                만료됨
               </Badge>
             )}
           </div>

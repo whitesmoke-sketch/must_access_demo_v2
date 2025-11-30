@@ -16,7 +16,7 @@ export async function approveLeaveRequest(requestId: number) {
     // 현재 사용자의 pending 상태인 approval_step 찾기
     const { data: myStep, error: stepError } = await supabase
       .from('approval_step')
-      .select('id, step_order, is_last_step')
+      .select('id, step_order, is_last_step, approval_type')
       .eq('request_type', 'leave')
       .eq('request_id', requestId)
       .eq('approver_id', user.id)
@@ -42,15 +42,31 @@ export async function approveLeaveRequest(requestId: number) {
       return { success: false, error: '승인 처리 중 오류가 발생했습니다' }
     }
 
+    // 합의(agreement) 로직: 같은 step_order의 모든 결재자가 승인했는지 확인
+    const { data: sameStepApprovers, error: sameStepError } = await supabase
+      .from('approval_step')
+      .select('id, status')
+      .eq('request_type', 'leave')
+      .eq('request_id', requestId)
+      .eq('step_order', myStep.step_order)
+
+    if (sameStepError) {
+      console.error('Failed to check same step approvers:', sameStepError)
+      return { success: false, error: '합의 확인 중 오류가 발생했습니다' }
+    }
+
+    // 같은 단계의 모든 결재자가 승인했는지 확인
+    const allSameStepApproved = sameStepApprovers?.every(
+      step => step.status === 'approved'
+    ) ?? false
+
+    // 같은 단계에 아직 승인하지 않은 결재자가 있으면 대기
+    if (!allSameStepApproved) {
+      return { success: true, message: '승인 완료. 동일 단계의 다른 결재자 승인을 기다리고 있습니다.' }
+    }
+
     // is_last_step 플래그로 최종 승인자 확인
     const isLastApprover = myStep.is_last_step
-
-    console.log('🔍 Approval check:', {
-      requestId,
-      myStepOrder: myStep.step_order,
-      isLastStep: myStep.is_last_step,
-      isLastApprover
-    })
 
     // leave_request 업데이트
     if (isLastApprover) {
@@ -69,8 +85,6 @@ export async function approveLeaveRequest(requestId: number) {
         return { success: false, error: '연차 신청 상태 업데이트 중 오류가 발생했습니다' }
       }
 
-      console.log('✅ Final approval - Document approved!')
-
       // 연차 잔액 차감 (직접 DB 업데이트)
       try {
         // 2. 연차 정보 조회
@@ -80,33 +94,19 @@ export async function approveLeaveRequest(requestId: number) {
           .eq('id', requestId)
           .single()
 
-        if (leaveError) {
-          console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
-        }
-
         if (leaveRequest) {
-          console.log('[연차 차감] 연차 정보:', leaveRequest)
-
           // 3. 연차 잔액 차감
-          const { data: currentBalance, error: balanceError } = await supabase
+          const { data: currentBalance } = await supabase
             .from('annual_leave_balance')
             .select('used_days, remaining_days')
             .eq('employee_id', leaveRequest.employee_id)
             .single()
 
-          if (balanceError) {
-            console.error('[연차 차감] 잔액 조회 실패:', balanceError)
-          }
-
           if (currentBalance) {
             const newUsedDays = Number(currentBalance.used_days) + Number(leaveRequest.requested_days)
             const newRemainingDays = Number(currentBalance.remaining_days) - Number(leaveRequest.requested_days)
 
-            console.log('[연차 차감] 현재:', currentBalance)
-            console.log('[연차 차감] 신청일수:', leaveRequest.requested_days)
-            console.log('[연차 차감] 새로운 값:', { newUsedDays, newRemainingDays })
-
-            const { error: updateError } = await supabase
+            await supabase
               .from('annual_leave_balance')
               .update({
                 used_days: newUsedDays,
@@ -114,23 +114,48 @@ export async function approveLeaveRequest(requestId: number) {
                 updated_at: new Date().toISOString()
               })
               .eq('employee_id', leaveRequest.employee_id)
-
-            if (updateError) {
-              console.error('[연차 차감] 업데이트 실패:', updateError)
-            } else {
-              console.log('[연차 차감] 성공!')
-            }
           }
         }
-      } catch (error) {
-        console.error('[연차 차감] 처리 오류:', error)
+      } catch {
+        // 연차 차감 실패해도 승인은 완료된 것으로 처리
       }
     } else {
-      // 최종 승인자가 아닌 경우 → current_step만 다음으로 이동
+      // 최종 승인자가 아닌 경우 → 다음 단계의 모든 결재자 활성화
+      const nextStepOrder = myStep.step_order + 1
+
+      // 다음 단계의 모든 결재자를 pending으로 변경 (합의 지원)
+      const { data: nextStepApprovers, error: nextStepError } = await supabase
+        .from('approval_step')
+        .select('id')
+        .eq('request_type', 'leave')
+        .eq('request_id', requestId)
+        .eq('step_order', nextStepOrder)
+        .eq('status', 'waiting')
+
+      if (nextStepError) {
+        console.error('Failed to find next step approvers:', nextStepError)
+        return { success: false, error: '다음 결재 단계 조회 중 오류가 발생했습니다' }
+      }
+
+      // 다음 단계 결재자들을 pending으로 활성화
+      if (nextStepApprovers && nextStepApprovers.length > 0) {
+        const nextStepIds = nextStepApprovers.map(s => s.id)
+        const { error: activateError } = await supabase
+          .from('approval_step')
+          .update({ status: 'pending' })
+          .in('id', nextStepIds)
+
+        if (activateError) {
+          console.error('Failed to activate next step approvers:', activateError)
+          return { success: false, error: '다음 결재 단계 활성화 중 오류가 발생했습니다' }
+        }
+      }
+
+      // current_step 업데이트
       const { error: updateRequestError } = await supabase
         .from('leave_request')
         .update({
-          current_step: myStep.step_order + 1
+          current_step: nextStepOrder
         })
         .eq('id', requestId)
 
@@ -138,8 +163,6 @@ export async function approveLeaveRequest(requestId: number) {
         console.error('Failed to update leave request:', updateRequestError)
         return { success: false, error: '연차 신청 상태 업데이트 중 오류가 발생했습니다' }
       }
-
-      console.log('➡️ Moving to next step:', myStep.step_order + 1)
     }
 
     // 페이지 재검증
@@ -197,8 +220,6 @@ export async function withdrawLeaveRequest(requestId: number, reason?: string) {
       console.error('Failed to withdraw leave request:', updateError)
       return { success: false, error: '회수 처리 중 오류가 발생했습니다' }
     }
-
-    console.log('✅ Leave request withdrawn:', requestId, reason ? `(Reason: ${reason})` : '')
 
     // 페이지 재검증
     revalidatePath('/documents')
