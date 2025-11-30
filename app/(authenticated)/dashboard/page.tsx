@@ -150,7 +150,7 @@ export default async function DashboardPage() {
         <QuickActions />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         <MyReservationsCard employeeId={user.id} />
 
         <ApprovalStatusClient

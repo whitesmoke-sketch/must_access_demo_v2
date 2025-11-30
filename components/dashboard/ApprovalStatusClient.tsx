@@ -109,9 +109,6 @@ export function ApprovalStatusClient({
   return (
     <Card
       className="rounded-2xl md:col-span-2 lg:col-span-2 flex flex-col"
-      style={{
-        height: '353.375px'
-      }}
     >
       <CardHeader style={{ paddingBottom: '12px' }}>
         <CardTitle style={{
@@ -162,7 +159,7 @@ export function ApprovalStatusClient({
         </p>
       </div>
 
-      <CardContent className="flex-1 overflow-y-auto" style={{ paddingTop: '0' }}>
+      <CardContent className="flex-1" style={{ paddingTop: '0' }}>
         {/* 결재 대기 문서 탭 */}
         {approvalTab === 'pending' && (
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
