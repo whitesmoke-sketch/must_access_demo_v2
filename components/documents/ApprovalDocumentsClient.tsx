@@ -310,6 +310,7 @@ export function ApprovalDocumentsClient({
         department: departmentName,
         role: roleName,
         stepType: step.approval_type,
+        stepOrder: step.step_order,
       }
     })
   }

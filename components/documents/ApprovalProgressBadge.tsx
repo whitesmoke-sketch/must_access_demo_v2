@@ -9,7 +9,14 @@ interface ApproverInfo {
   status: 'completed' | 'pending' | 'waiting'
   department?: string
   role?: string
-  stepType?: string // 'approval' | 'agreement' 등
+  stepType?: string // 'single' | 'agreement'
+  stepOrder?: number
+}
+
+interface ApprovalStage {
+  stepOrder: number
+  approvers: ApproverInfo[]
+  reviewers: ApproverInfo[] // 합의자
 }
 
 interface ApprovalProgressBadgeProps {
@@ -74,36 +81,104 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
     setIsHovered(false)
   }
 
-  const getApproverColor = (status: 'completed' | 'pending' | 'waiting') => {
+  // approvers를 단계별로 그룹화 (stages 생성)
+  const stages: ApprovalStage[] = React.useMemo(() => {
+    const stageMap = new Map<number, ApprovalStage>()
+
+    approvers.forEach((approver, index) => {
+      const stepOrder = approver.stepOrder ?? (index + 1)
+
+      if (!stageMap.has(stepOrder)) {
+        stageMap.set(stepOrder, {
+          stepOrder,
+          approvers: [],
+          reviewers: [],
+        })
+      }
+
+      const stage = stageMap.get(stepOrder)!
+
+      // agreement 타입이면 reviewers(합의자)로, 아니면 approvers로
+      if (approver.stepType === 'agreement') {
+        stage.reviewers.push(approver)
+      } else {
+        stage.approvers.push(approver)
+      }
+    })
+
+    // stepOrder 순으로 정렬
+    return Array.from(stageMap.values()).sort((a, b) => a.stepOrder - b.stepOrder)
+  }, [approvers])
+
+  const getStageStatus = (stage: ApprovalStage): 'completed' | 'pending' | 'waiting' => {
+    const allMembers = [...stage.approvers, ...stage.reviewers]
+
+    if (allMembers.every(member => member.status === 'completed')) {
+      return 'completed'
+    }
+
+    if (allMembers.some(member => member.status === 'pending')) {
+      return 'pending'
+    }
+
+    return 'waiting'
+  }
+
+  const getStageColor = (status: 'completed' | 'pending' | 'waiting') => {
     switch (status) {
       case 'completed':
-        return { iconFill: 'var(--info)', textColor: 'var(--info)' }
+        return { iconFill: 'var(--secondary)', textColor: 'var(--secondary)' }
       case 'pending':
-        return { iconFill: 'var(--info)', textColor: 'var(--info)' }
+        return { iconFill: 'var(--secondary)', textColor: 'var(--secondary)' }
       case 'waiting':
-        return { iconFill: 'var(--color-gray-500)', textColor: 'var(--muted-foreground)' }
+        return { iconFill: 'var(--muted-foreground)', textColor: 'var(--muted-foreground)' }
       default:
-        return { iconFill: 'var(--color-gray-500)', textColor: 'var(--muted-foreground)' }
+        return { iconFill: 'var(--muted-foreground)', textColor: 'var(--muted-foreground)' }
     }
   }
 
-  // 합의자 그룹화 (stepType이 'agreement'인 경우)
-  const groupedApprovers = approvers.reduce((acc, approver) => {
-    if (approver.stepType === 'agreement') {
-      const lastGroup = acc[acc.length - 1]
-      if (lastGroup && lastGroup.agreements) {
-        lastGroup.agreements.push(approver)
-      } else if (lastGroup) {
-        lastGroup.agreements = [approver]
-      }
-    } else {
-      acc.push({ ...approver, agreements: [] as ApproverInfo[] })
-    }
-    return acc
-  }, [] as (ApproverInfo & { agreements: ApproverInfo[] })[])
+  const getCheckIconColor = (status: 'completed' | 'pending' | 'waiting') => {
+    return status === 'completed' ? 'var(--secondary)' : 'var(--muted-foreground)'
+  }
 
-  // 승인자만 필터링 (합의자 제외)
-  const mainApprovers = approvers.filter(a => a.stepType !== 'agreement')
+  const renderStageIcon = (status: 'completed' | 'pending' | 'waiting', colors: ReturnType<typeof getStageColor>) => {
+    if (status === 'completed') {
+      return (
+        <div className="size-[12px] relative">
+          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 12 12">
+            <circle cx="6" cy="6" fill={colors.iconFill} r="6" />
+            <path
+              d="M4 6L5.5 7.5L8 5"
+              stroke="white"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
+        </div>
+      )
+    }
+
+    if (status === 'pending') {
+      return (
+        <div className="size-[12px] relative">
+          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 12 12">
+            <circle cx="6" cy="6" fill={colors.iconFill} opacity="0.3" r="6" />
+            <circle cx="6" cy="6" fill={colors.iconFill} r="3" />
+          </svg>
+        </div>
+      )
+    }
+
+    return (
+      <div className="size-[6px] relative">
+        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 6 6">
+          <circle cx="3" cy="3" fill={colors.iconFill} r="3" />
+        </svg>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -117,17 +192,18 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
         className="relative rounded-[6.8px] inline-flex items-center px-2 cursor-pointer"
         style={{
           height: '22px',
-          backgroundColor: 'var(--info-bg)',
+          backgroundColor: 'var(--secondary-bg)',
           transition: 'all 150ms ease-in-out'
         }}
       >
         <div className="flex items-center gap-[8px]">
-          {mainApprovers.map((approver, index) => {
-            const colors = getApproverColor(approver.status)
-            const stepNumber = index + 1
+          {stages.map((stage, stageIndex) => {
+            const stageStatus = getStageStatus(stage)
+            const colors = getStageColor(stageStatus)
+
             return (
-              <React.Fragment key={index}>
-                {index > 0 && (
+              <React.Fragment key={stageIndex}>
+                {stageIndex > 0 && (
                   <div className="w-[8px] h-[1px]">
                     <svg
                       className="block w-full h-full"
@@ -136,8 +212,7 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
                       viewBox="0 0 8 1"
                     >
                       <line
-                        stroke="var(--info)"
-                        strokeOpacity="0.3"
+                        stroke="var(--color-gray-300)"
                         strokeWidth="1"
                         x1="0"
                         x2="8"
@@ -148,67 +223,17 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
                   </div>
                 )}
                 <div className="flex items-center gap-[4px]">
-                  {approver.status === 'completed' && (
-                    <div className="size-[12px] relative">
-                      <svg
-                        className="block size-full"
-                        fill="none"
-                        preserveAspectRatio="none"
-                        viewBox="0 0 12 12"
-                      >
-                        <circle cx="6" cy="6" fill={colors.iconFill} r="6" />
-                        <path
-                          d="M4 6L5.5 7.5L8 5"
-                          stroke="var(--info-bg)"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          fill="none"
-                        />
-                      </svg>
-                    </div>
-                  )}
-                  {approver.status === 'pending' && (
-                    <div className="size-[12px] relative">
-                      <svg
-                        className="block size-full"
-                        fill="none"
-                        preserveAspectRatio="none"
-                        viewBox="0 0 12 12"
-                      >
-                        <circle
-                          cx="6"
-                          cy="6"
-                          fill={colors.iconFill}
-                          opacity="0.3"
-                          r="6"
-                        />
-                        <circle cx="6" cy="6" fill={colors.iconFill} r="3" />
-                      </svg>
-                    </div>
-                  )}
-                  {approver.status === 'waiting' && (
-                    <div className="size-[6px] relative">
-                      <svg
-                        className="block size-full"
-                        fill="none"
-                        preserveAspectRatio="none"
-                        viewBox="0 0 6 6"
-                      >
-                        <circle cx="3" cy="3" fill={colors.iconFill} r="3" />
-                      </svg>
-                    </div>
-                  )}
+                  {renderStageIcon(stageStatus, colors)}
                   <p
                     className="font-['Pretendard',sans-serif] not-italic text-nowrap whitespace-pre"
                     style={{
-                      fontSize: 'var(--font-size-copyright)',
-                      lineHeight: 'var(--line-height-caption)',
+                      fontSize: '12px',
+                      lineHeight: 1.4,
                       color: colors.textColor,
-                      fontWeight: 'var(--font-weight-medium)',
+                      fontWeight: 600,
                     }}
                   >
-                    {stepNumber}
+                    {stage.stepOrder}
                   </p>
                 </div>
               </React.Fragment>
@@ -228,85 +253,102 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
             }}
           >
             <div
-              className="rounded-lg shadow-lg px-4 py-3 min-w-[280px]"
+              className="rounded-lg shadow-lg p-3 min-w-[280px] max-w-[350px]"
               style={{
                 backgroundColor: 'var(--card-foreground)',
                 color: 'var(--card)',
               }}
             >
-              {groupedApprovers.map((approver, index) => (
-                <div key={index}>
-                  {/* 메인 승인자 */}
-                  <div
-                    className="flex items-center gap-2 py-2"
-                    style={{
-                      borderBottom: index < groupedApprovers.length - 1 || approver.agreements.length > 0
-                        ? '1px solid rgba(255,255,255,0.1)'
-                        : 'none'
-                    }}
-                  >
-                    {approver.status === 'completed' ? (
-                      <Check
-                        className="w-4 h-4 flex-shrink-0"
-                        style={{ color: 'var(--secondary)' }}
-                      />
-                    ) : (
-                      <div className="w-4 h-4 flex-shrink-0" />
-                    )}
-                    <span
-                      style={{
-                        fontSize: 'var(--font-size-caption)',
-                        fontWeight: 'var(--font-weight-medium)',
-                      }}
+              {stages.map((stage, stageIndex) => (
+                <div
+                  key={stageIndex}
+                  className="flex flex-col gap-2"
+                  style={{
+                    paddingTop: stageIndex > 0 ? '8px' : 0,
+                    marginTop: stageIndex > 0 ? '8px' : 0,
+                    borderTop: stageIndex > 0 ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                  }}
+                >
+                  {/* 결재자 목록 */}
+                  {stage.approvers.map((approver, idx) => (
+                    <div
+                      key={`approver-${idx}`}
+                      className="flex items-center gap-2"
                     >
-                      {approver.name}
-                      {(approver.role || approver.department) && (
-                        <span style={{ opacity: 0.8, marginLeft: '4px' }}>
-                          | {approver.role || ''}{approver.role && approver.department ? ' | ' : ''}{approver.department || ''}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* 합의자 그룹 */}
-                  {approver.agreements && approver.agreements.length > 0 && (
-                    <div className="py-2" style={{ borderBottom: index < groupedApprovers.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
-                      <p
-                        className="mb-1"
+                      <Check
+                        size={14}
                         style={{
-                          fontSize: 'var(--font-size-copyright)',
-                          color: 'var(--secondary)',
-                          fontWeight: 'var(--font-weight-medium)'
+                          color: getCheckIconColor(approver.status),
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        className="whitespace-nowrap"
+                        style={{
+                          fontSize: '13px',
+                          lineHeight: 1.4,
                         }}
                       >
+                        {approver.name}
+                        {(approver.role || approver.department) && (
+                          <span style={{ opacity: 0.8 }}>
+                            {' | '}{approver.role || ''}{approver.role && approver.department ? ' | ' : ''}{approver.department || ''}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* 합의자 섹션 */}
+                  {stage.reviewers.length > 0 && (
+                    <>
+                      <div
+                        className="mt-1 pt-2 relative"
+                        style={{
+                          fontWeight: 600,
+                          opacity: 0.7,
+                          fontSize: '12px',
+                        }}
+                      >
+                        <div
+                          className="absolute top-0 left-0 right-0"
+                          style={{
+                            height: '1px',
+                            backgroundColor: 'var(--border)',
+                            opacity: 0.3,
+                          }}
+                        />
                         [합의자]
-                      </p>
-                      {approver.agreements.map((agreement, aIndex) => (
-                        <div key={aIndex} className="flex items-center gap-2 py-1">
-                          {agreement.status === 'completed' ? (
-                            <Check
-                              className="w-4 h-4 flex-shrink-0"
-                              style={{ color: 'var(--secondary)' }}
-                            />
-                          ) : (
-                            <div className="w-4 h-4 flex-shrink-0" />
-                          )}
-                          <span
+                      </div>
+                      {stage.reviewers.map((reviewer, idx) => (
+                        <div
+                          key={`reviewer-${idx}`}
+                          className="flex items-center gap-2"
+                        >
+                          <Check
+                            size={14}
                             style={{
-                              fontSize: 'var(--font-size-caption)',
-                              fontWeight: 'var(--font-weight-medium)',
+                              color: getCheckIconColor(reviewer.status),
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span
+                            className="whitespace-nowrap"
+                            style={{
+                              fontSize: '13px',
+                              lineHeight: 1.4,
                             }}
                           >
-                            {agreement.name}
-                            {(agreement.role || agreement.department) && (
-                              <span style={{ opacity: 0.8, marginLeft: '4px' }}>
-                                | {agreement.role || ''}{agreement.role && agreement.department ? ' | ' : ''}{agreement.department || ''}
+                            {reviewer.name}
+                            {(reviewer.role || reviewer.department) && (
+                              <span style={{ opacity: 0.8 }}>
+                                {' | '}{reviewer.role || ''}{reviewer.role && reviewer.department ? ' | ' : ''}{reviewer.department || ''}
                               </span>
                             )}
                           </span>
                         </div>
                       ))}
-                    </div>
+                    </>
                   )}
                 </div>
               ))}
