@@ -12,6 +12,7 @@ import {
   Clock as ClockIcon,
   FilePlus,
   Undo2,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +22,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -97,16 +100,31 @@ export function MyDocumentsClient({
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [withdrawingId, setWithdrawingId] = useState<number | null>(null)
 
-  // 회수 처리
-  const handleWithdraw = async (documentId: number) => {
-    if (withdrawingId) return // 이미 처리 중인 경우
+  // 회수 다이얼로그 상태
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false)
+  const [withdrawReason, setWithdrawReason] = useState('')
+  const [withdrawTargetId, setWithdrawTargetId] = useState<number | null>(null)
 
-    setWithdrawingId(documentId)
+  // 회수 다이얼로그 열기
+  const openWithdrawDialog = (documentId: number) => {
+    setWithdrawTargetId(documentId)
+    setWithdrawReason('')
+    setIsWithdrawDialogOpen(true)
+  }
+
+  // 회수 처리
+  const handleWithdraw = async () => {
+    if (!withdrawTargetId || withdrawingId) return // 대상이 없거나 이미 처리 중인 경우
+
+    setWithdrawingId(withdrawTargetId)
     try {
-      const result = await withdrawLeaveRequest(documentId)
+      const result = await withdrawLeaveRequest(withdrawTargetId, withdrawReason)
 
       if (result.success) {
         toast.success('문서가 회수되었습니다')
+        setIsWithdrawDialogOpen(false)
+        setWithdrawReason('')
+        setWithdrawTargetId(null)
         router.refresh()
       } else {
         toast.error(result.error || '회수 처리 중 오류가 발생했습니다')
@@ -170,17 +188,22 @@ export function MyDocumentsClient({
       retrieved: '회수됨',
     }
 
+    // 알 수 없는 상태에 대한 기본값
+    const defaultStyle = { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }
+    const currentStyle = styles[status] || defaultStyle
+    const currentLabel = labels[status] || status
+
     return (
       <Badge
         style={{
-          ...styles[status],
+          ...currentStyle,
           fontSize: '12px',
           lineHeight: 1.4,
           fontWeight: 600,
           border: 'none',
         }}
       >
-        {labels[status]}
+        {currentLabel}
       </Badge>
     )
   }
@@ -452,13 +475,14 @@ export function MyDocumentsClient({
                             {canWithdraw ? (
                               <Button
                                 size="sm"
-                                onClick={() => handleWithdraw(doc.id)}
+                                onClick={() => openWithdrawDialog(doc.id)}
                                 disabled={withdrawingId === doc.id}
                                 style={{
                                   backgroundColor: 'var(--muted-foreground)',
                                   color: 'var(--background)',
                                 }}
                               >
+                                <RotateCcw className="w-4 h-4 mr-2" />
                                 {withdrawingId === doc.id ? '처리중...' : '회수'}
                               </Button>
                             ) : (
@@ -744,6 +768,63 @@ export function MyDocumentsClient({
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 회수 다이얼로그 */}
+      <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
+        <DialogContent
+          className="sm:max-w-[400px]"
+          style={{ backgroundColor: 'var(--background)' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{
+              color: 'var(--card-foreground)',
+              fontSize: 'var(--font-size-h4)',
+              fontWeight: 'var(--font-weight-h4)',
+              lineHeight: 1.3,
+            }}>
+              문서 회수
+            </DialogTitle>
+            <DialogDescription style={{
+              color: 'var(--muted-foreground)',
+              fontSize: 'var(--font-size-caption)',
+              lineHeight: 1.4,
+            }}>
+              문서를 회수하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={withdrawReason}
+              onChange={(e) => setWithdrawReason(e.target.value)}
+              placeholder="회수 사유를 입력하세요"
+              style={{ height: '80px' }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsWithdrawDialogOpen(false)}
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)',
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleWithdraw}
+              disabled={withdrawingId !== null}
+              style={{
+                backgroundColor: 'var(--muted-foreground)',
+                color: 'var(--background)',
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {withdrawingId !== null ? '처리중...' : '회수'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

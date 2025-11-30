@@ -153,7 +153,7 @@ export async function approveLeaveRequest(requestId: number) {
   }
 }
 
-export async function withdrawLeaveRequest(requestId: number) {
+export async function withdrawLeaveRequest(requestId: number, reason?: string) {
   const supabase = await createClient()
 
   // 인증 확인
@@ -198,7 +198,7 @@ export async function withdrawLeaveRequest(requestId: number) {
       return { success: false, error: '회수 처리 중 오류가 발생했습니다' }
     }
 
-    console.log('✅ Leave request withdrawn:', requestId)
+    console.log('✅ Leave request withdrawn:', requestId, reason ? `(Reason: ${reason})` : '')
 
     // 페이지 재검증
     revalidatePath('/documents')
