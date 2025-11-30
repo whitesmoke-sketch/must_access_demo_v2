@@ -421,16 +421,8 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
                 </div>
               </div>
 
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setIsMeetingModalOpen(false)}
-                  disabled={isCancelling}
-                >
-                  닫기
-                </Button>
-                {selectedMeeting.booked_by === currentUserId && (
+              {selectedMeeting.booked_by === currentUserId && (
+                <div className="flex gap-2 mt-4">
                   <Button
                     className="flex-1"
                     style={{
@@ -442,8 +434,8 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
                   >
                     {isCancelling ? '취소 중...' : '예약 취소'}
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </DialogBody>
           )}
         </DialogContent>
