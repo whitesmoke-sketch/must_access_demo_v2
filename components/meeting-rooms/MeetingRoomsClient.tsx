@@ -620,6 +620,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                 style={{
                   fontSize: 'var(--font-size-caption)',
                   color: '#635BFF',
+                  border: 'none',
                 }}
               >
                 모두 초기화
