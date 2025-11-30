@@ -5,6 +5,7 @@ import { LeaveBalanceCard } from '@/components/dashboard/LeaveBalanceCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { ApprovalStatusClient } from '@/components/dashboard/ApprovalStatusClient'
 import { MyReservationsCard } from '@/components/dashboard/MyReservationsCard'
+import { TodayOnLeaveCard } from '@/components/dashboard/TodayOnLeaveCard'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -13,8 +14,11 @@ export default async function DashboardPage() {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
 
+  // 오늘 날짜
+  const today = new Date().toISOString().split('T')[0]
+
   // Parallel queries for better performance
-  const [employeeResult, myRequestsResult, employeeRoleResult] = await Promise.all([
+  const [employeeResult, myRequestsResult, employeeRoleResult, todayLeaveResult] = await Promise.all([
     // 사용자 정보 조회
     supabase
       .from('employee')
@@ -33,11 +37,44 @@ export default async function DashboardPage() {
       .from('employee')
       .select('role:role_id(code)')
       .eq('id', user.id)
-      .maybeSingle()
+      .maybeSingle(),
+    // 오늘 연차인 멤버 조회 (승인된 연차만)
+    supabase
+      .from('leave_request')
+      .select('id, employee_id, leave_type, employee:employee_id(id, name, department:department_id(name))')
+      .eq('status', 'approved')
+      .lte('start_date', today)
+      .gte('end_date', today)
   ])
 
   const employee = employeeResult.data
   const myRequests = myRequestsResult.data || []
+  const todayLeaveRequests = todayLeaveResult.data || []
+
+  // 오늘 연차인 멤버 데이터 처리
+  const todayOnLeaveMembers = todayLeaveRequests
+    .map((request) => {
+      const emp = request.employee as { id: string; name: string; department?: { name: string } | { name: string }[] | null } | { id: string; name: string }[] | null
+      if (!emp) return null
+      const empData = Array.isArray(emp) ? emp[0] : emp
+      if (!empData) return null
+
+      const dept = 'department' in empData ? empData.department : null
+      const deptName = dept ? (Array.isArray(dept) ? dept[0]?.name : dept?.name) || '' : ''
+
+      return {
+        id: empData.id,
+        name: empData.name,
+        department: deptName,
+        team: '', // team 정보가 없으면 빈 문자열
+        leaveType: request.leave_type,
+      }
+    })
+    .filter((m): m is NonNullable<typeof m> => m !== null)
+    // 중복 제거 (같은 사람이 여러 연차가 있을 수 있음)
+    .filter((member, index, self) =>
+      index === self.findIndex(m => m.id === member.id)
+    )
 
   // Type-safe role check
   const role = employeeRoleResult.data?.role as { code: string } | { code: string }[] | null
@@ -162,6 +199,8 @@ export default async function DashboardPage() {
           userId={user.id}
           approvalStepsMap={approvalStepsMap}
         />
+
+        <TodayOnLeaveCard members={todayOnLeaveMembers} />
       </div>
     </div>
   )
