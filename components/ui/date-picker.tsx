@@ -37,12 +37,17 @@ export function DatePicker({
           disabled={disabled}
           className={cn(
             "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground",
+            !date && "text-[var(--muted-foreground)]",
             className
           )}
+          style={{
+            fontSize: 'var(--font-size-body)',
+            lineHeight: 1.5,
+            height: '42px',
+          }}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP", { locale: ko }) : placeholder}
+          {date ? format(date, "PPP", { locale: ko }) : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

@@ -53,6 +53,7 @@
   --info-bg: rgba(31, 153, 255, 0.1);
   --success-bg: rgba(76, 212, 113, 0.1);
   --primary-bg: rgba(99, 91, 255, 0.1);
+  --primary-hover: #5046e5;
   --secondary-bg: rgba(22, 205, 199, 0.1);
 
   /* Gray Scale */
@@ -216,6 +217,7 @@
   --info-bg: rgba(61, 170, 255, 0.12);
   --success-bg: rgba(92, 226, 131, 0.12);
   --primary-bg: rgba(122, 112, 255, 0.15);
+  --primary-hover: #6860ff;
   --secondary-bg: rgba(25, 214, 206, 0.15);
 
   /* Gray Scale - Dark */
