@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getValidGoogleAccessToken } from '@/lib/google-auth'
 
 export interface CreateLeaveRequestParams {
   employee_id: string
@@ -15,7 +16,8 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
   try {
     const supabase = await createClient()
 
-    const { data: { user, session } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
     if (!user || !session) {
       return { success: false, error: '인증이 필요합니다' }
     }
@@ -82,6 +84,71 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
     return { success: true, data, pdfUrl }
   } catch (error: unknown) {
     console.error('Create leave request error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * 연차 신청서 PDF 생성 및 Google Drive 업로드
+ */
+export async function generateLeavePDF(leaveRequestId: number) {
+  try {
+    const supabase = await createClient()
+
+    // 인증 확인
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return { success: false, error: '인증이 필요합니다' }
+    }
+
+    // Google 토큰 확인 및 갱신
+    const tokenResult = await getValidGoogleAccessToken(
+      session.provider_token,
+      session.provider_refresh_token
+    )
+
+    if (!tokenResult.accessToken) {
+      console.error('[Leave Action] Google 토큰 없음:', tokenResult.error)
+      if (tokenResult.needsReauth) {
+        return { success: false, error: 'Google 재로그인이 필요합니다', needsReauth: true }
+      }
+      return { success: false, error: tokenResult.error || 'Google 인증 실패' }
+    }
+
+    console.log('[Leave Action] PDF 생성 시작, Leave Request ID:', leaveRequestId)
+
+    // Edge Function 호출
+    const { data: pdfResult, error: pdfError } = await supabase.functions.invoke(
+      'generate-leave-pdf',
+      {
+        body: {
+          leaveRequestId,
+          accessToken: tokenResult.accessToken,
+        },
+      }
+    )
+
+    if (pdfError) {
+      console.error('[Leave Action] PDF 생성 실패:', pdfError)
+      return { success: false, error: pdfError.message || 'PDF 생성 실패' }
+    }
+
+    if (!pdfResult?.success) {
+      console.error('[Leave Action] PDF 생성 실패:', pdfResult?.error)
+      return { success: false, error: pdfResult?.error || 'PDF 생성 실패' }
+    }
+
+    console.log('[Leave Action] PDF 생성 성공:', pdfResult.fileUrl)
+
+    revalidatePath('/leave/my-leave')
+
+    return {
+      success: true,
+      driveUrl: pdfResult.fileUrl,
+      fileId: pdfResult.fileId,
+    }
+  } catch (error: unknown) {
+    console.error('[Leave Action] PDF 생성 에러:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

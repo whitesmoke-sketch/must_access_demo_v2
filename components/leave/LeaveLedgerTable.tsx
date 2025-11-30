@@ -35,6 +35,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination'
 import { toast } from 'sonner'
+import { generateLeavePDF } from '@/app/actions/leave'
 
 interface ApprovalStep {
   id: number
@@ -288,44 +289,34 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
     window.open(selectedRequest.drive_file_url, '_blank')
   }
 
-  // PDF 생성 핸들러 (Edge Function 호출)
+  // PDF 생성 핸들러 (Server Action 호출)
   const handleGeneratePDF = async () => {
     if (!selectedRequest) return
 
     try {
       setIsGeneratingPDF(true)
-      const supabase = createClient()
 
-      // 현재 사용자의 access token 가져오기
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        toast.error('인증이 필요합니다. 다시 로그인해주세요.')
+      // Server Action 호출
+      const result = await generateLeavePDF(selectedRequest.id)
+
+      if (!result.success) {
+        if (result.needsReauth) {
+          toast.error('Google 재로그인이 필요합니다. 로그아웃 후 다시 로그인해주세요.')
+        } else {
+          toast.error(result.error || 'PDF 생성에 실패했습니다.')
+        }
         return
       }
 
-      // Edge Function 호출
-      const { data, error } = await supabase.functions.invoke('generate-leave-pdf', {
-        body: { leaveRequestId: selectedRequest.id },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (error) {
-        throw new Error(error.message || 'PDF 생성에 실패했습니다.')
-      }
-
-      if (data?.success && data?.driveUrl) {
+      if (result.driveUrl) {
         // 상태 업데이트
         setSelectedRequest({
           ...selectedRequest,
-          drive_file_url: data.driveUrl,
+          drive_file_url: result.driveUrl,
         })
         toast.success('PDF가 생성되었습니다.')
         // 새 탭에서 Google Drive 링크 열기
-        window.open(data.driveUrl, '_blank')
-      } else {
-        throw new Error(data?.error || 'PDF 생성에 실패했습니다.')
+        window.open(result.driveUrl, '_blank')
       }
     } catch (err) {
       console.error('Failed to generate PDF:', err)
