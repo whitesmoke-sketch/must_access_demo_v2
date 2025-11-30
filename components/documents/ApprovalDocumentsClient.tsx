@@ -100,12 +100,6 @@ export function ApprovalDocumentsClient({
   myApprovalStatusMap,
   approvalStepsMap,
 }: ApprovalDocumentsClientProps) {
-  // 디버깅: 클라이언트에서 받은 데이터 확인
-  console.log('🎯 [Client] approvalStepsMap:', approvalStepsMap)
-  console.log('🎯 [Client] approvalStepsMap keys:', Object.keys(approvalStepsMap))
-  console.log('🎯 [Client] documents count:', documents.length)
-  console.log('🎯 [Client] documents sample:', documents.slice(0, 3).map(d => ({ id: d.id, status: d.status, current_step: d.current_step })))
-
   const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | LeaveStatus>('all')
@@ -266,9 +260,7 @@ export function ApprovalDocumentsClient({
   // 결재선 정보를 ApprovalProgressBadge 형식으로 변환
   const getApprovalProgress = (docId: number, currentStep: number | null) => {
     const steps = approvalStepsMap[docId]
-    console.log(`🔍 [getApprovalProgress] docId=${docId}, currentStep=${currentStep}, steps:`, steps)
     if (!steps || steps.length === 0) {
-      console.log(`⚠️ [getApprovalProgress] No steps found for docId=${docId}`)
       return null
     }
 
@@ -401,6 +393,7 @@ export function ApprovalDocumentsClient({
                   <SelectItem value="pending">승인 대기</SelectItem>
                   <SelectItem value="approved">승인 완료</SelectItem>
                   <SelectItem value="rejected">반려</SelectItem>
+                  <SelectItem value="retrieved">회수</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
@@ -424,13 +417,13 @@ export function ApprovalDocumentsClient({
             <Table>
               <TableHeader>
                 <TableRow style={{ borderBottom: '2px solid var(--border)' }}>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>문서 유형</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청자</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>소속</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청일시</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>상태</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)', width: '60px', minWidth: '60px' }}>상세</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)', width: '160px', minWidth: '160px' }}>작업</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>문서 유형</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청자</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>소속</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청일시</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>상태</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '60px', minWidth: '60px' }}>상세</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '160px', minWidth: '160px' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -490,8 +483,8 @@ export function ApprovalDocumentsClient({
                         </TableCell>
                         <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
                           {(() => {
-                            // 완료된 문서(승인/반려/취소)는 단순 상태 뱃지만 표시
-                            if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled') {
+                            // 완료된 문서(승인/반려/취소/회수)는 단순 상태 뱃지만 표시
+                            if (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled' || doc.status === 'retrieved') {
                               return getStatusBadge(doc)
                             }
                             // 진행 중인 문서만 결재 진행 상태 표시

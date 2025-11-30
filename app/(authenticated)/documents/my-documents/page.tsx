@@ -34,7 +34,6 @@ export default async function MyDocumentsPage() {
 
   // 각 문서의 결재 히스토리 조회 - Admin Client 사용 (RLS 우회)
   const requestIds = myLeaveRequests?.map(req => req.id) || []
-  console.log('📄 My Documents - requestIds:', requestIds)
 
   const adminSupabase = createAdminClient()
   const { data: approvalSteps, error: approvalError } = await adminSupabase
@@ -60,17 +59,12 @@ export default async function MyDocumentsPage() {
     .eq('request_type', 'leave')
     .order('step_order', { ascending: true })
 
-  console.log('📄 My Documents - approvalSteps:', approvalSteps)
-  console.log('📄 My Documents - approvalError:', approvalError)
-
   // 문서별로 결재 히스토리를 매핑
   const approvalHistoryMap = new Map<number, any[]>()
   approvalSteps?.forEach(step => {
     const existing = approvalHistoryMap.get(step.request_id) || []
     approvalHistoryMap.set(step.request_id, [...existing, step])
   })
-
-  console.log('📄 My Documents - approvalHistoryMap:', Object.fromEntries(approvalHistoryMap))
 
   return (
     <div className="space-y-6">
