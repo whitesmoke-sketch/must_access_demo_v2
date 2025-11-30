@@ -389,7 +389,11 @@ export function LeaveRequestForm({ employeeId }: LeaveRequestFormProps) {
         open={showSaveModal}
         onOpenChange={setShowSaveModal}
         requestType="leave"
-        approverIds={approvers.map((a) => a.id)}
+        approvalSteps={approvers.map((a) => ({
+          id: a.id,
+          order: a.order,
+          approverRole: a.approverRole,
+        }))}
       />
     </>
   );

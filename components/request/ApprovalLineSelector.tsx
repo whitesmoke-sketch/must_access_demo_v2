@@ -356,7 +356,11 @@ export function ApprovalLineSelector({
         open={showSaveModal}
         onOpenChange={setShowSaveModal}
         requestType="leave"
-        approverIds={approvalSteps.map(step => step.approverId)}
+        approvalSteps={approvalSteps.map(step => ({
+          id: step.approverId,
+          order: step.order,
+          approvalType: step.approvalType,
+        }))}
       />
     </>
   )

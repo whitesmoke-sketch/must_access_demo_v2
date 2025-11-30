@@ -16,11 +16,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { createApprovalTemplate, ApprovalStepInput } from "@/app/actions/approval";
 import { toast } from "sonner";
 
+interface ApprovalStepData {
+  id: string;
+  order?: number;
+  approverRole?: 'approver' | 'reviewer';
+  approvalType?: 'single' | 'agreement';
+}
+
 interface ApprovalTemplateSaveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   requestType: "leave" | "document";
-  approverIds: string[];
+  approverIds?: string[]; // deprecated, use approvalSteps instead
+  approvalSteps?: ApprovalStepData[];
   onSuccess?: () => void;
 }
 
@@ -29,11 +37,19 @@ export function ApprovalTemplateSaveModal({
   onOpenChange,
   requestType,
   approverIds,
+  approvalSteps,
   onSuccess,
 }: ApprovalTemplateSaveModalProps) {
   const [name, setName] = React.useState("");
   const [isDefault, setIsDefault] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+
+  // approvalSteps가 있으면 사용, 없으면 approverIds fallback
+  const effectiveSteps = approvalSteps || (approverIds || []).map((id, index) => ({
+    id,
+    order: index + 1,
+    approverRole: 'approver' as const,
+  }));
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -41,18 +57,18 @@ export function ApprovalTemplateSaveModal({
       return;
     }
 
-    if (approverIds.length === 0) {
+    if (effectiveSteps.length === 0) {
       toast.error("최소 1명의 승인자가 필요합니다");
       return;
     }
 
     setSaving(true);
 
-    // approverIds를 ApprovalStepInput[] 형식으로 변환
-    const steps: ApprovalStepInput[] = approverIds.map((id, index) => ({
-      approver_id: id,
-      step_order: index + 1,
-      approval_type: 'single' as const
+    // ApprovalStepInput[] 형식으로 변환 (order와 approvalType 유지)
+    const steps: ApprovalStepInput[] = effectiveSteps.map((step) => ({
+      approver_id: step.id,
+      step_order: step.order || 1,
+      approval_type: step.approvalType || (step.approverRole === 'reviewer' ? 'agreement' : 'single'),
     }));
 
     const result = await createApprovalTemplate(

@@ -800,7 +800,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         open={showSaveModal}
         onOpenChange={setShowSaveModal}
         requestType="leave"
-        approverIds={approvalSteps.map(step => step.id)}
+        approvalSteps={approvalSteps.map(step => ({
+          id: step.id,
+          order: step.order,
+          approverRole: step.approverRole,
+        }))}
       />
     </div>
   )
