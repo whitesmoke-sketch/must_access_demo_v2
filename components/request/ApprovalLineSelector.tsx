@@ -185,22 +185,10 @@ export function ApprovalLineSelector({
                 결재선 지정
               </h3>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowLoadModal(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                불러오기
-              </Button>
-              {approvalSteps.length > 0 && (
-                <Button variant="outline" size="sm" onClick={() => setShowSaveModal(true)}>
-                  <Save className="w-4 h-4 mr-2" />
-                  저장하기
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={() => openDialog(null)}>
-                <Plus className="w-4 h-4 mr-2" />
-                결재자 추가
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => openDialog(null)}>
+              <Plus className="w-4 h-4 mr-2" />
+              결재선 추가
+            </Button>
           </div>
 
           {approvalSteps.length === 0 ? (
@@ -308,6 +296,7 @@ export function ApprovalLineSelector({
               ))}
             </div>
           )}
+
         </CardContent>
       </Card>
 
