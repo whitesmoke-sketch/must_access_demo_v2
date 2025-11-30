@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { Toaster } from 'sonner'
+import { ResponsiveToaster } from '@/components/common/ResponsiveToaster'
 
 export const metadata: Metadata = {
   title: 'MUST Access - HR & GA Management System',
@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="antialiased">
         {children}
-        <Toaster position="top-right" richColors />
+        <ResponsiveToaster />
       </body>
     </html>
   )
