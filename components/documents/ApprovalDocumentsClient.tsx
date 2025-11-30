@@ -147,12 +147,12 @@ export function ApprovalDocumentsClient({
   // 상태 뱃지 (사용자별로 다르게 표시)
   const getStatusBadge = (doc: ApprovalDocument) => {
     const styles: Record<string, { backgroundColor: string; color: string }> = {
-      pending: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
-      approved: { backgroundColor: '#D1FAE5', color: '#10B981' },
-      rejected: { backgroundColor: '#FEE2E2', color: '#EF4444' },
-      cancelled: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
-      retrieved: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
-      waiting: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
+      pending: { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' },
+      approved: { backgroundColor: 'var(--success-bg)', color: 'var(--success)' },
+      rejected: { backgroundColor: 'var(--destructive-bg)', color: 'var(--destructive)' },
+      cancelled: { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' },
+      retrieved: { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' },
+      waiting: { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' },
     }
 
     const labels: Record<string, string> = {
@@ -187,12 +187,12 @@ export function ApprovalDocumentsClient({
       displayStatus = doc.status
     }
 
-    const defaultStyle = { backgroundColor: '#F6F8F9', color: '#5B6A72' }
+    const defaultStyle = { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }
     const currentStyle = styles[displayStatus] || defaultStyle
     const currentLabel = labels[displayStatus] || displayStatus || '알 수 없음'
 
     return (
-      <Badge style={{ ...currentStyle, fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-copyright)', lineHeight: 'var(--line-height-caption)', fontWeight: 600 }}>
         {currentLabel}
       </Badge>
     )
@@ -201,13 +201,13 @@ export function ApprovalDocumentsClient({
   // 연차 유형 뱃지
   const getLeaveTypeBadge = (type: LeaveType) => {
     const styles: Record<string, { backgroundColor: string; color: string }> = {
-      annual: { backgroundColor: 'rgba(99,91,255,0.1)', color: '#635BFF' },
-      half_day: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
-      half_day_am: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
-      half_day_pm: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
-      quarter_day: { backgroundColor: '#FFE5F0', color: '#FF6692' },
-      award: { backgroundColor: '#FFD2DF', color: '#FF6692' },
-      sick: { backgroundColor: '#FEE2E2', color: '#EF4444' },
+      annual: { backgroundColor: 'var(--primary-bg)', color: 'var(--primary)' },
+      half_day: { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' },
+      half_day_am: { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' },
+      half_day_pm: { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' },
+      quarter_day: { backgroundColor: 'var(--chart-4-bg)', color: 'var(--chart-4)' },
+      award: { backgroundColor: 'var(--chart-4-bg)', color: 'var(--chart-4)' },
+      sick: { backgroundColor: 'var(--destructive-bg)', color: 'var(--destructive)' },
     }
 
     const labels: Record<string, string> = {
@@ -220,12 +220,12 @@ export function ApprovalDocumentsClient({
       sick: '병가',
     }
 
-    const defaultStyle = { backgroundColor: '#F6F8F9', color: '#5B6A72' }
+    const defaultStyle = { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }
     const currentStyle = styles[type] || defaultStyle
     const currentLabel = labels[type] || type || '기타'
 
     return (
-      <Badge style={{ ...currentStyle, fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-copyright)', lineHeight: 'var(--line-height-caption)', fontWeight: 600 }}>
         {currentLabel}
       </Badge>
     )
@@ -281,16 +281,25 @@ export function ApprovalDocumentsClient({
     <div className="space-y-6">
       {/* 헤더 */}
       <div>
-        <h2 style={{ color: '#29363D', fontSize: '22px', fontWeight: 500, lineHeight: 1.25 }}>
+        <h2 style={{
+          color: 'var(--card-foreground)',
+          fontSize: 'var(--font-size-h1)',
+          fontWeight: 'var(--font-weight-h1)',
+          lineHeight: 'var(--line-height-h1)'
+        }}>
           결재함
         </h2>
-        <p style={{ color: '#5B6A72', fontSize: '16px', lineHeight: 1.5 }} className="mt-1">
+        <p style={{
+          color: 'var(--muted-foreground)',
+          fontSize: 'var(--font-size-body)',
+          lineHeight: 'var(--line-height-body)'
+        }} className="mt-1">
           모든 결재 문서를 조회하고 승인/반려 처리합니다
         </p>
       </div>
 
       {/* 문서 목록 */}
-      <Card style={{ borderRadius: '16px', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
+      <Card style={{ borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}>
         <CardHeader style={{ paddingBottom: '12px' }}>
           {/* 탭 버튼 */}
           <div className="flex gap-2">
@@ -301,12 +310,23 @@ export function ApprovalDocumentsClient({
             ].map((tab) => (
               <button
                 key={tab.value}
-                className="px-4 py-2 rounded-lg transition-all"
+                className="px-4 py-2 rounded-lg"
                 style={{
-                  backgroundColor: activeTab === tab.value ? '#635BFF' : '#F6F8F9',
-                  color: activeTab === tab.value ? '#FFFFFF' : '#5B6A72',
-                  fontSize: '14px',
-                  fontWeight: 500,
+                  backgroundColor: activeTab === tab.value ? 'var(--primary)' : 'var(--muted)',
+                  color: activeTab === tab.value ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 'var(--font-weight-medium)',
+                  transition: 'all 150ms ease-in-out',
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== tab.value) {
+                    e.currentTarget.style.filter = 'brightness(0.97)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== tab.value) {
+                    e.currentTarget.style.filter = 'brightness(1)';
+                  }
                 }}
                 onClick={() => {
                   setActiveTab(tab.value as typeof activeTab)
@@ -323,7 +343,7 @@ export function ApprovalDocumentsClient({
           <div className="mb-4 flex flex-col lg:flex-row gap-4">
             {/* 검색 인풋 */}
             <div className="relative w-full lg:flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#5B6A72' }} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
               <Input
                 placeholder="이름, 팀명으로 검색..."
                 value={searchQuery}
@@ -359,26 +379,26 @@ export function ApprovalDocumentsClient({
           </div>
 
           {/* 테이블 */}
-          <div className="mb-3" style={{ fontSize: '12px', color: '#5B6A72' }}>
+          <div className="mb-3" style={{ fontSize: 'var(--font-size-copyright)', color: 'var(--muted-foreground)' }}>
             전체 {filteredDocuments.length}건
           </div>
           <div>
             <Table>
               <TableHeader>
-                <TableRow style={{ borderBottom: '2px solid #E5E8EB' }}>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>문서 유형</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청자</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>소속</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72' }}>신청일시</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '140px', minWidth: '140px' }}>상태</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '60px', minWidth: '60px' }}>상세</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: '12px', fontWeight: 600, color: '#5B6A72', width: '160px', minWidth: '160px' }}>작업</TableHead>
+                <TableRow style={{ borderBottom: '2px solid var(--border)' }}>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>문서 유형</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청자</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>소속</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청일시</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>상태</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)', width: '60px', minWidth: '60px' }}>상세</TableHead>
+                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-copyright)', fontWeight: 600, color: 'var(--muted-foreground)', width: '160px', minWidth: '160px' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: '#5B6A72', fontSize: '14px' }}>
+                    <TableCell colSpan={7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
                       결재 문서가 없습니다
                     </TableCell>
                   </TableRow>
@@ -392,30 +412,36 @@ export function ApprovalDocumentsClient({
                     return (
                       <TableRow
                         key={doc.id}
-                        className="transition-colors hover:bg-muted/50"
+                        style={{ transition: 'background-color 150ms ease-in-out' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--muted)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
                       >
                         <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
                         <TableCell className="p-3">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
-                              <AvatarFallback style={{ backgroundColor: '#635BFF', color: 'white', fontSize: '12px', fontWeight: 500 }}>
+                              <AvatarFallback style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', fontSize: 'var(--font-size-copyright)', fontWeight: 'var(--font-weight-medium)' }}>
                                 {employee?.name.charAt(0) || '?'}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
+                              <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
                                 {employee?.name || '알 수 없음'}
                               </p>
-                              <p style={{ fontSize: '12px', color: '#5B6A72' }}>
+                              <p style={{ fontSize: 'var(--font-size-copyright)', color: 'var(--muted-foreground)' }}>
                                 {getRoleName(employee?.role)}
                               </p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="p-3" style={{ fontSize: '14px', color: '#29363D' }}>
+                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
                           {getDepartmentName(employee?.department)}
                         </TableCell>
-                        <TableCell className="p-3" style={{ fontSize: '14px', color: '#29363D' }}>
+                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
                           {new Date(doc.requested_at).toLocaleString('ko-KR', {
                             year: 'numeric',
                             month: '2-digit',
@@ -443,7 +469,7 @@ export function ApprovalDocumentsClient({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewDetail(doc)}
-                            style={{ color: '#29363D', padding: '4px 8px' }}
+                            style={{ color: 'var(--card-foreground)', padding: '4px 8px', transition: 'all 150ms ease-in-out' }}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
@@ -455,7 +481,7 @@ export function ApprovalDocumentsClient({
                                 <Button
                                   size="sm"
                                   onClick={() => handleViewDetail(doc)}
-                                  style={{ backgroundColor: '#10B981', color: 'white' }}
+                                  style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)', transition: 'all 150ms ease-in-out' }}
                                 >
                                   <Check className="w-4 h-4 mr-1" />
                                   승인
@@ -463,7 +489,7 @@ export function ApprovalDocumentsClient({
                                 <Button
                                   size="sm"
                                   onClick={() => handleViewDetail(doc)}
-                                  style={{ backgroundColor: '#EF4444', color: 'white' }}
+                                  style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)', transition: 'all 150ms ease-in-out' }}
                                 >
                                   <X className="w-4 h-4 mr-1" />
                                   반려
