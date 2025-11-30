@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Check } from 'lucide-react'
 
 interface ApproverInfo {
@@ -15,8 +16,63 @@ interface ApprovalProgressBadgeProps {
   approvers: ApproverInfo[]
 }
 
+// 툴팁 컴포넌트 - Portal로 렌더링
+function TooltipPortal({
+  children,
+  position
+}: {
+  children: React.ReactNode
+  position: { top: number; left: number }
+}) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted || typeof window === 'undefined') {
+    return null
+  }
+
+  return createPortal(
+    <div
+      className="fixed z-[9999] pointer-events-auto"
+      style={{
+        top: position.top,
+        left: position.left,
+        transform: 'translate(-50%, -100%)',
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  )
+}
+
 export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 })
+  const badgeRef = useRef<HTMLDivElement>(null)
+
+  const updateTooltipPosition = () => {
+    if (badgeRef.current) {
+      const rect = badgeRef.current.getBoundingClientRect()
+      setTooltipPosition({
+        top: rect.top - 8,
+        left: rect.left + rect.width / 2,
+      })
+    }
+  }
+
+  const handleMouseEnter = () => {
+    updateTooltipPosition()
+    setIsHovered(true)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+  }
 
   const getApproverColor = (status: 'completed' | 'pending' | 'waiting') => {
     switch (status) {
@@ -32,9 +88,8 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
   }
 
   // 합의자 그룹화 (stepType이 'agreement'인 경우)
-  const groupedApprovers = approvers.reduce((acc, approver, index) => {
+  const groupedApprovers = approvers.reduce((acc, approver) => {
     if (approver.stepType === 'agreement') {
-      // 합의자는 이전 승인자와 그룹화
       const lastGroup = acc[acc.length - 1]
       if (lastGroup && lastGroup.agreements) {
         lastGroup.agreements.push(approver)
@@ -42,16 +97,20 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
         lastGroup.agreements = [approver]
       }
     } else {
-      acc.push({ ...approver, index, agreements: [] as ApproverInfo[] })
+      acc.push({ ...approver, agreements: [] as ApproverInfo[] })
     }
     return acc
-  }, [] as (ApproverInfo & { index: number; agreements: ApproverInfo[] })[])
+  }, [] as (ApproverInfo & { agreements: ApproverInfo[] })[])
+
+  // 승인자만 필터링 (합의자 제외)
+  const mainApprovers = approvers.filter(a => a.stepType !== 'agreement')
 
   return (
     <div
+      ref={badgeRef}
       className="relative inline-block"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* 진행 상태 뱃지 (숫자만 표시) */}
       <div
@@ -63,7 +122,7 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
         }}
       >
         <div className="flex items-center gap-[8px]">
-          {approvers.filter(a => a.stepType !== 'agreement').map((approver, index) => {
+          {mainApprovers.map((approver, index) => {
             const colors = getApproverColor(approver.status)
             const stepNumber = index + 1
             return (
@@ -160,118 +219,121 @@ export function ApprovalProgressBadge({ approvers }: ApprovalProgressBadgeProps)
 
       {/* 호버 시 나타나는 툴팁 */}
       {isHovered && (
-        <div
-          className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2"
-          style={{
-            animation: 'fadeIn 150ms ease-in-out',
-          }}
-        >
+        <TooltipPortal position={tooltipPosition}>
           <div
-            className="rounded-lg shadow-lg px-4 py-3 min-w-[280px]"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             style={{
-              backgroundColor: 'var(--card-foreground)',
-              color: 'var(--card)',
+              animation: 'tooltipFadeIn 150ms ease-in-out',
             }}
           >
-            {groupedApprovers.map((approver, index) => (
-              <div key={index}>
-                {/* 메인 승인자 */}
-                <div
-                  className="flex items-center gap-2 py-2"
-                  style={{
-                    borderBottom: index < groupedApprovers.length - 1 || approver.agreements.length > 0
-                      ? '1px solid rgba(255,255,255,0.1)'
-                      : 'none'
-                  }}
-                >
-                  {approver.status === 'completed' ? (
-                    <Check
-                      className="w-4 h-4 flex-shrink-0"
-                      style={{ color: 'var(--secondary)' }}
-                    />
-                  ) : (
-                    <div className="w-4 h-4 flex-shrink-0" />
-                  )}
-                  <span
+            <div
+              className="rounded-lg shadow-lg px-4 py-3 min-w-[280px]"
+              style={{
+                backgroundColor: 'var(--card-foreground)',
+                color: 'var(--card)',
+              }}
+            >
+              {groupedApprovers.map((approver, index) => (
+                <div key={index}>
+                  {/* 메인 승인자 */}
+                  <div
+                    className="flex items-center gap-2 py-2"
                     style={{
-                      fontSize: 'var(--font-size-caption)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      borderBottom: index < groupedApprovers.length - 1 || approver.agreements.length > 0
+                        ? '1px solid rgba(255,255,255,0.1)'
+                        : 'none'
                     }}
                   >
-                    {approver.name}
-                    {(approver.role || approver.department) && (
-                      <span style={{ opacity: 0.8, marginLeft: '4px' }}>
-                        | {approver.role || ''}{approver.role && approver.department ? ' | ' : ''}{approver.department || ''}
-                      </span>
+                    {approver.status === 'completed' ? (
+                      <Check
+                        className="w-4 h-4 flex-shrink-0"
+                        style={{ color: 'var(--secondary)' }}
+                      />
+                    ) : (
+                      <div className="w-4 h-4 flex-shrink-0" />
                     )}
-                  </span>
-                </div>
-
-                {/* 합의자 그룹 */}
-                {approver.agreements && approver.agreements.length > 0 && (
-                  <div className="py-2" style={{ borderBottom: index < groupedApprovers.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
-                    <p
-                      className="mb-1"
+                    <span
                       style={{
-                        fontSize: 'var(--font-size-copyright)',
-                        color: 'var(--secondary)',
-                        fontWeight: 'var(--font-weight-medium)'
+                        fontSize: 'var(--font-size-caption)',
+                        fontWeight: 'var(--font-weight-medium)',
                       }}
                     >
-                      [합의자]
-                    </p>
-                    {approver.agreements.map((agreement, aIndex) => (
-                      <div key={aIndex} className="flex items-center gap-2 py-1">
-                        {agreement.status === 'completed' ? (
-                          <Check
-                            className="w-4 h-4 flex-shrink-0"
-                            style={{ color: 'var(--secondary)' }}
-                          />
-                        ) : (
-                          <div className="w-4 h-4 flex-shrink-0" />
-                        )}
-                        <span
-                          style={{
-                            fontSize: 'var(--font-size-caption)',
-                            fontWeight: 'var(--font-weight-medium)',
-                          }}
-                        >
-                          {agreement.name}
-                          {(agreement.role || agreement.department) && (
-                            <span style={{ opacity: 0.8, marginLeft: '4px' }}>
-                              | {agreement.role || ''}{agreement.role && agreement.department ? ' | ' : ''}{agreement.department || ''}
-                            </span>
-                          )}
+                      {approver.name}
+                      {(approver.role || approver.department) && (
+                        <span style={{ opacity: 0.8, marginLeft: '4px' }}>
+                          | {approver.role || ''}{approver.role && approver.department ? ' | ' : ''}{approver.department || ''}
                         </span>
-                      </div>
-                    ))}
+                      )}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* 합의자 그룹 */}
+                  {approver.agreements && approver.agreements.length > 0 && (
+                    <div className="py-2" style={{ borderBottom: index < groupedApprovers.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
+                      <p
+                        className="mb-1"
+                        style={{
+                          fontSize: 'var(--font-size-copyright)',
+                          color: 'var(--secondary)',
+                          fontWeight: 'var(--font-weight-medium)'
+                        }}
+                      >
+                        [합의자]
+                      </p>
+                      {approver.agreements.map((agreement, aIndex) => (
+                        <div key={aIndex} className="flex items-center gap-2 py-1">
+                          {agreement.status === 'completed' ? (
+                            <Check
+                              className="w-4 h-4 flex-shrink-0"
+                              style={{ color: 'var(--secondary)' }}
+                            />
+                          ) : (
+                            <div className="w-4 h-4 flex-shrink-0" />
+                          )}
+                          <span
+                            style={{
+                              fontSize: 'var(--font-size-caption)',
+                              fontWeight: 'var(--font-weight-medium)',
+                            }}
+                          >
+                            {agreement.name}
+                            {(agreement.role || agreement.department) && (
+                              <span style={{ opacity: 0.8, marginLeft: '4px' }}>
+                                | {agreement.role || ''}{agreement.role && agreement.department ? ' | ' : ''}{agreement.department || ''}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* 툴팁 화살표 */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0"
+              style={{
+                borderLeft: '8px solid transparent',
+                borderRight: '8px solid transparent',
+                borderTop: '8px solid var(--card-foreground)',
+              }}
+            />
           </div>
-          {/* 툴팁 화살표 */}
-          <div
-            className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0"
-            style={{
-              borderLeft: '8px solid transparent',
-              borderRight: '8px solid transparent',
-              borderTop: '8px solid var(--card-foreground)',
-            }}
-          />
-        </div>
+        </TooltipPortal>
       )}
 
-      {/* CSS 애니메이션 */}
-      <style jsx>{`
-        @keyframes fadeIn {
+      {/* 전역 CSS 애니메이션 */}
+      <style jsx global>{`
+        @keyframes tooltipFadeIn {
           from {
             opacity: 0;
-            transform: translateX(-50%) translateY(4px);
+            transform: translateY(4px);
           }
           to {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            transform: translateY(0);
           }
         }
       `}</style>

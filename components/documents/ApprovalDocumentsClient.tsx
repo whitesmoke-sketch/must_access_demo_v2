@@ -485,7 +485,7 @@ export function ApprovalDocumentsClient({
                             }
                             // 진행 중인 문서만 결재 진행 상태 표시
                             const approvalProgress = getApprovalProgress(doc.id, doc.current_step)
-                            if (approvalProgress && approvalProgress.length > 1) {
+                            if (approvalProgress && approvalProgress.length >= 1) {
                               return <ApprovalProgressBadge approvers={approvalProgress} />
                             }
                             return getStatusBadge(doc)
