@@ -298,23 +298,26 @@ export function ApprovalStatusClient({
         )}
       </CardContent>
 
-      {/* 전체보기 버튼 - 하단 고정 */}
-      <div className="px-6 pb-4">
-        <Link
-          href={approvalTab === 'pending' ? '/documents' : '/documents/my-documents'}
-          className="w-full py-3 transition-all block text-center hover:brightness-95"
-          style={{
-            backgroundColor: '#F6F8F9',
-            color: '#5B6A72',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 500,
-          }}
-        >
-          전체보기
-        </Link>
-      </div>
+      {/* 전체보기 버튼 - 하단 고정 (문서가 있을 때만 표시) */}
+      {((approvalTab === 'pending' && pendingRequests.length > 0) ||
+        (approvalTab === 'requested' && myRequests.length > 0)) && (
+        <div className="px-6 pb-4">
+          <Link
+            href={approvalTab === 'pending' ? '/documents' : '/documents/my-documents'}
+            className="w-full py-3 transition-all block text-center hover:brightness-95"
+            style={{
+              backgroundColor: '#F6F8F9',
+              color: '#5B6A72',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+          >
+            전체보기
+          </Link>
+        </div>
+      )}
 
       <ApprovalDocumentDetailModal
         document={selectedDocument}
