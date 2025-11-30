@@ -9,8 +9,8 @@ import { ApprovalDocumentDetailModal } from '@/components/documents/ApprovalDocu
 import { approveLeaveRequest, rejectLeaveRequest } from '@/app/(authenticated)/documents/actions'
 import { useRouter } from 'next/navigation'
 
-type LeaveStatus = 'pending' | 'approved' | 'rejected'
-type LeaveType = 'annual' | 'half_day' | 'reward'
+type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retrieved'
+type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'reward' | 'sick'
 
 interface LeaveRequest {
   id: number
@@ -375,12 +375,15 @@ function StatusBadge({ status }: { status: LeaveStatus }) {
 }
 
 function getLeaveTypeLabel(type: LeaveType): string {
-  const labels: Record<LeaveType, string> = {
+  const labels: Record<string, string> = {
     annual: '연차 신청서',
     half_day: '반차 신청서',
-    reward: '포상휴가 신청서'
+    half_day_am: '오전 반차 신청서',
+    half_day_pm: '오후 반차 신청서',
+    reward: '포상휴가 신청서',
+    sick: '병가 신청서'
   }
-  return labels[type]
+  return labels[type] || `${type} 신청서`
 }
 
 function LeaveTypeBadge({ type }: { type: LeaveType }) {

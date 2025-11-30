@@ -40,8 +40,8 @@ import {
 import { ApprovalDocumentDetailModal } from './ApprovalDocumentDetailModal'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
 
-type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
-type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'quarter_day' | 'award' | 'sick'
+type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retrieved'
 
 interface EmployeeInfo {
   id: string
@@ -124,7 +124,7 @@ export function ApprovalDocumentsClient({
       const matchesTab = activeTab === 'in-progress'
         ? doc.status === 'pending'
         : activeTab === 'completed'
-        ? (doc.status === 'approved' || doc.status === 'rejected')
+        ? (doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'cancelled' || doc.status === 'retrieved')
         : true
 
       return matchesSearch && matchesStatus && matchesType && matchesTab
@@ -146,29 +146,31 @@ export function ApprovalDocumentsClient({
 
   // 상태 뱃지 (사용자별로 다르게 표시)
   const getStatusBadge = (doc: ApprovalDocument) => {
-    const styles = {
+    const styles: Record<string, { backgroundColor: string; color: string }> = {
       pending: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
       approved: { backgroundColor: '#D1FAE5', color: '#10B981' },
       rejected: { backgroundColor: '#FEE2E2', color: '#EF4444' },
       cancelled: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
+      retrieved: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
       waiting: { backgroundColor: '#F6F8F9', color: '#5B6A72' },
     }
 
-    const labels = {
+    const labels: Record<string, string> = {
       pending: '승인 대기',
       approved: '승인',
       rejected: '반려',
       cancelled: '취소',
+      retrieved: '회수',
       waiting: '대기중',
     }
 
     // 상태 표시 로직:
-    // 1. 문서가 최종 완료 상태(approved, rejected, cancelled)이면 → 문서 상태 우선 표시
+    // 1. 문서가 최종 완료 상태(approved, rejected, cancelled, retrieved)이면 → 문서 상태 우선 표시
     // 2. 문서가 진행 중(pending)이면 → 내 승인 상태에 따라 표시
     const myStatus = myApprovalStatusMap[doc.id]
-    let displayStatus: keyof typeof styles
+    let displayStatus: string
 
-    if (doc.status === 'rejected' || doc.status === 'approved' || doc.status === 'cancelled') {
+    if (doc.status === 'rejected' || doc.status === 'approved' || doc.status === 'cancelled' || doc.status === 'retrieved') {
       // 문서가 최종 완료되었으면 모든 사람에게 동일한 최종 상태 표시
       displayStatus = doc.status
     } else if (doc.status === 'pending' && myStatus) {
@@ -185,32 +187,46 @@ export function ApprovalDocumentsClient({
       displayStatus = doc.status
     }
 
+    const defaultStyle = { backgroundColor: '#F6F8F9', color: '#5B6A72' }
+    const currentStyle = styles[displayStatus] || defaultStyle
+    const currentLabel = labels[displayStatus] || displayStatus || '알 수 없음'
+
     return (
-      <Badge style={{ ...styles[displayStatus], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
-        {labels[displayStatus]}
+      <Badge style={{ ...currentStyle, fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+        {currentLabel}
       </Badge>
     )
   }
 
   // 연차 유형 뱃지
   const getLeaveTypeBadge = (type: LeaveType) => {
-    const styles = {
+    const styles: Record<string, { backgroundColor: string; color: string }> = {
       annual: { backgroundColor: 'rgba(99,91,255,0.1)', color: '#635BFF' },
       half_day: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
+      half_day_am: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
+      half_day_pm: { backgroundColor: '#FFF8E5', color: '#FFAE1F' },
       quarter_day: { backgroundColor: '#FFE5F0', color: '#FF6692' },
       award: { backgroundColor: '#FFD2DF', color: '#FF6692' },
+      sick: { backgroundColor: '#FEE2E2', color: '#EF4444' },
     }
 
-    const labels = {
+    const labels: Record<string, string> = {
       annual: '연차',
       half_day: '반차',
+      half_day_am: '오전 반차',
+      half_day_pm: '오후 반차',
       quarter_day: '반반차',
       award: '포상휴가',
+      sick: '병가',
     }
 
+    const defaultStyle = { backgroundColor: '#F6F8F9', color: '#5B6A72' }
+    const currentStyle = styles[type] || defaultStyle
+    const currentLabel = labels[type] || type || '기타'
+
     return (
-      <Badge style={{ ...styles[type], fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
-        {labels[type]}
+      <Badge style={{ ...currentStyle, fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+        {currentLabel}
       </Badge>
     )
   }
