@@ -69,7 +69,7 @@ interface ApprovalStep {
   request_id: number
   step_order: number
   status: string
-  step_type?: string
+  approval_type?: string
   approver: {
     id: string
     name: string
@@ -100,6 +100,12 @@ export function ApprovalDocumentsClient({
   myApprovalStatusMap,
   approvalStepsMap,
 }: ApprovalDocumentsClientProps) {
+  // 디버깅: 클라이언트에서 받은 데이터 확인
+  console.log('🎯 [Client] approvalStepsMap:', approvalStepsMap)
+  console.log('🎯 [Client] approvalStepsMap keys:', Object.keys(approvalStepsMap))
+  console.log('🎯 [Client] documents count:', documents.length)
+  console.log('🎯 [Client] documents sample:', documents.slice(0, 3).map(d => ({ id: d.id, status: d.status, current_step: d.current_step })))
+
   const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | LeaveStatus>('all')
@@ -260,7 +266,11 @@ export function ApprovalDocumentsClient({
   // 결재선 정보를 ApprovalProgressBadge 형식으로 변환
   const getApprovalProgress = (docId: number, currentStep: number | null) => {
     const steps = approvalStepsMap[docId]
-    if (!steps || steps.length === 0) return null
+    console.log(`🔍 [getApprovalProgress] docId=${docId}, currentStep=${currentStep}, steps:`, steps)
+    if (!steps || steps.length === 0) {
+      console.log(`⚠️ [getApprovalProgress] No steps found for docId=${docId}`)
+      return null
+    }
 
     return steps.map(step => {
       const approverData = step.approver
@@ -299,7 +309,7 @@ export function ApprovalDocumentsClient({
         status,
         department: departmentName,
         role: roleName,
-        stepType: step.step_type,
+        stepType: step.approval_type,
       }
     })
   }

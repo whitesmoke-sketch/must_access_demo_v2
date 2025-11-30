@@ -78,7 +78,7 @@ export default async function DocumentsPage() {
         request_id,
         step_order,
         status,
-        step_type,
+        approval_type,
         approver:approver_id (
           id,
           name,
@@ -126,6 +126,11 @@ export default async function DocumentsPage() {
   )
 
   const allApprovalSteps = allApprovalStepsResult.data
+
+  // 디버깅: approval_step 쿼리 결과 확인
+  console.log('📋 allApprovalStepsResult error:', allApprovalStepsResult.error)
+  console.log('📋 allApprovalSteps count:', allApprovalSteps?.length)
+  console.log('📋 allApprovalSteps sample:', allApprovalSteps?.slice(0, 3))
 
   // 문서별로 결재선 정보를 매핑 (request_id -> approval_steps[])
   const approvalStepsMap = new Map<number, any[]>()

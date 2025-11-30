@@ -68,7 +68,7 @@ interface ApprovalStep {
   request_id: number
   step_order: number
   status: string
-  step_type?: string
+  approval_type?: string
   approved_at: string | null
   approver: {
     id: string
@@ -261,7 +261,7 @@ export function MyDocumentsClient({
         status: approvalStatus,
         department: departmentName,
         role: roleName,
-        stepType: step.step_type,
+        stepType: step.approval_type,
       }
     })
   }
@@ -478,7 +478,7 @@ export function MyDocumentsClient({
                         <TableCell className="p-3">
                           {(() => {
                             const approvalProgress = getApprovalProgress(doc.id, doc.current_step, doc.status)
-                            if (approvalProgress && approvalProgress.length > 1) {
+                            if (approvalProgress && approvalProgress.length >= 1) {
                               return <ApprovalProgressBadge approvers={approvalProgress} />
                             }
                             return getStatusBadge(doc.status)
