@@ -155,7 +155,7 @@ export function ApprovalStatusClient({
           color: '#5B6A72',
           fontWeight: 500
         }}>
-          전체 {approvalTab === 'pending' ? totalPendingCount : totalRequestedCount}건
+          최근 {Math.min(approvalTab === 'pending' ? totalPendingCount : totalRequestedCount, 3)}건
         </p>
       </div>
 
