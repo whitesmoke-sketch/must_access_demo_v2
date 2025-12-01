@@ -7,8 +7,6 @@ import {
   Clock,
   DoorOpen,
   FileText,
-  Package,
-  X,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -102,36 +100,7 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
             {/* 현재 좌석 */}
             <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center gap-2">
-                <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
-                  <path
-                    d="M13.3333 4H2.66667C2.29848 4 2 4.29848 2 4.66667V8.66667C2 9.03486 2.29848 9.33333 2.66667 9.33333H13.3333C13.7015 9.33333 14 9.03486 14 8.66667V4.66667C14 4.29848 13.7015 4 13.3333 4Z"
-                    stroke="#635BFF"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.33333"
-                  />
-                  <path
-                    d="M8 9.33333V12"
-                    stroke="#635BFF"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.33333"
-                  />
-                  <path
-                    d="M3.33333 12V13.3333"
-                    stroke="#635BFF"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.33333"
-                  />
-                  <path
-                    d="M12.6667 12V13.3333"
-                    stroke="#635BFF"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.33333"
-                  />
-                </svg>
+                <span style={{ fontSize: '16px' }}>🪑</span>
                 <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#5B6A72' }}>
                   현재 좌석
                 </p>
@@ -144,7 +113,7 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
             {/* 현재 사물함 */}
             <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center gap-2">
-                <Package className="w-4 h-4" style={{ color: '#635BFF' }} />
+                <span style={{ fontSize: '16px' }}>📦</span>
                 <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#5B6A72' }}>
                   현재 사물함
                 </p>
@@ -158,43 +127,7 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
           {/* 회의실 예약 */}
           <div className="space-y-2 pt-3" style={{ borderTop: '1px solid #E5E8EB' }}>
             <div className="flex items-center gap-2">
-              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
-                <path
-                  d="M7.33333 13.3333H1.33333"
-                  stroke="#16CDC7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.33333"
-                />
-                <path
-                  d="M12 2.66667H14C14.1768 2.66667 14.3464 2.73691 14.4714 2.86193C14.5964 2.98695 14.6667 3.15653 14.6667 3.33333V13.3333C14.6667 13.5101 14.5964 13.6797 14.4714 13.8047C14.3464 13.9298 14.1768 14 14 14H12"
-                  stroke="#16CDC7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.33333"
-                />
-                <path
-                  d="M10 5.33333H12"
-                  stroke="#16CDC7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.33333"
-                />
-                <path
-                  d="M9.33333 8H9.34"
-                  stroke="#16CDC7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.33333"
-                />
-                <path
-                  d="M14.6667 13.3333H12.6667"
-                  stroke="#16CDC7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.33333"
-                />
-              </svg>
+              <span style={{ fontSize: '16px' }}>🚪</span>
               <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#5B6A72' }}>
                 회의실 예약
               </p>
