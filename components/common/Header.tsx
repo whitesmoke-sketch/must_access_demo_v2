@@ -323,7 +323,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem className="cursor-pointer">내 계정</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => router.push('/account')}>내 계정</DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
                 로그아웃
               </DropdownMenuItem>
