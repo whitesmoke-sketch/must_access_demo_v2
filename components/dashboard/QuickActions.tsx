@@ -2,23 +2,24 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
+import { DoorOpen, Armchair, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 
 const actions = [
   {
-    emoji: '🗓️',
+    icon: DoorOpen,
     label: '회의실 예약',
     href: '/meeting-rooms',
     implemented: true
   },
   {
-    emoji: '🪑',
+    icon: Armchair,
     label: '좌석 등록',
     href: '/resources/seats',
     implemented: false
   },
   {
-    emoji: '📋',
+    icon: FileText,
     label: '결재 문서',
     href: '/documents',
     implemented: true
@@ -54,6 +55,7 @@ export function QuickActions() {
       </CardHeader>
       <CardContent className="flex gap-4">
         {actions.map((action) => {
+          const Icon = action.icon
           return (
             <Link
               key={action.href}
@@ -68,9 +70,7 @@ export function QuickActions() {
                 opacity: action.implemented ? 1 : 0.7
               }}
             >
-              <span style={{ fontSize: '24px' }}>
-                {action.emoji}
-              </span>
+              <Icon className="w-6 h-6" style={{ color: '#5B6A72' }} />
               <span style={{
                 fontSize: '14px',
                 fontWeight: 500,
