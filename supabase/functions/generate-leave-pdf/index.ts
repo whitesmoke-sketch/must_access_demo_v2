@@ -174,7 +174,7 @@ function generatePdfHtml(leaveRequest: any, approvalFlow: any[]): string {
     `)
     .join('')
 
-  // 결재선 서명 셀 (서명 이미지 + 상태)
+  // 결재선 서명 셀 (서명 이미지 + 상태) - 모든 결재자에게 도장 표시
   const approverSignatures = approvalFlow
     .map((flow) => {
       const isApproved = flow.status === 'approved'
@@ -183,25 +183,23 @@ function generatePdfHtml(leaveRequest: any, approvalFlow: any[]): string {
 
       let statusText = ''
       let statusClass = ''
-      let showSignature = false
 
       if (isApproved) {
         statusText = '승인'
         statusClass = 'status-approved'
-        showSignature = true
       } else if (isRejected) {
         statusText = '반려'
         statusClass = 'status-rejected'
-        showSignature = false
       } else if (isPending) {
         statusText = '대기'
         statusClass = 'status-pending'
-        showSignature = false
       } else {
         statusText = '-'
         statusClass = ''
-        showSignature = false
       }
+
+      // 모든 결재자에게 도장 표시 (반려 제외)
+      const showSignature = !isRejected
 
       return `
         <td class="signature-cell">
