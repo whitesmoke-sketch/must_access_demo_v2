@@ -9,7 +9,7 @@ export default async function AccountPage() {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
 
-  // 사용자 정보 조회
+  // 사용자 정보 조회 (실제 테이블 구조에 맞게)
   const { data: employee } = await supabase
     .from('employee')
     .select(`
@@ -17,13 +17,9 @@ export default async function AccountPage() {
       name,
       email,
       phone,
-      birth_date,
-      gender,
-      emergency_contact,
-      profile_image,
-      position,
-      hire_date,
-      employment_type,
+      location,
+      employment_date,
+      status,
       department:department_id(id, name),
       role:role_id(id, name, code)
     `)
@@ -43,15 +39,12 @@ export default async function AccountPage() {
     name: employee.name,
     email: employee.email,
     phone: employee.phone || '',
-    birthDate: employee.birth_date || '',
-    gender: employee.gender || '',
-    emergencyContact: employee.emergency_contact || '',
-    profileImage: employee.profile_image || '',
-    position: employee.position || '',
-    hireDate: employee.hire_date || '',
-    employmentType: employee.employment_type || '정규직',
+    location: employee.location || '',
+    employmentDate: employee.employment_date || '',
+    status: employee.status || 'active',
     departmentName: department?.name || '',
     roleName: role?.name || '',
+    roleCode: role?.code || '',
   }
 
   return <MyAccountClient user={userData} />

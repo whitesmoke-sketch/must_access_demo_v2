@@ -14,15 +14,12 @@ interface UserData {
   name: string
   email: string
   phone: string
-  birthDate: string
-  gender: string
-  emergencyContact: string
-  profileImage: string
-  position: string
-  hireDate: string
-  employmentType: string
+  location: string
+  employmentDate: string
+  status: string
   departmentName: string
   roleName: string
+  roleCode: string
 }
 
 interface MyAccountClientProps {
@@ -34,23 +31,28 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
 
   // 편집 가능한 필드들의 state
   const [phone, setPhone] = useState(user.phone)
-  const [birthDate, setBirthDate] = useState(user.birthDate)
-  const [emergencyContact, setEmergencyContact] = useState(user.emergencyContact)
-  const [gender, setGender] = useState<string>(user.gender || '남성')
-  const [profileImage, setProfileImage] = useState<string | null>(user.profileImage || null)
+  const [profileImage, setProfileImage] = useState<string | null>(null)
   const [isHoveringProfile, setIsHoveringProfile] = useState(false)
 
   // 변경사항 감지
   const hasChanges =
     phone !== user.phone ||
-    birthDate !== user.birthDate ||
-    emergencyContact !== user.emergencyContact ||
-    gender !== (user.gender || '남성') ||
-    (profileImage !== null && profileImage !== user.profileImage)
+    profileImage !== null
 
   // 조직 정보
   const companyName = 'MUST Access'
-  const officeLocation = '서울특별시 강남구'
+
+  // 역할 표시
+  const getRoleLabel = (code: string) => {
+    switch (code) {
+      case 'super_admin':
+        return '최고관리자'
+      case 'admin':
+        return '관리자'
+      default:
+        return '구성원'
+    }
+  }
 
   const handleSave = () => {
     // TODO: API 호출하여 저장
@@ -59,10 +61,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
 
   const handleCancel = () => {
     setPhone(user.phone)
-    setBirthDate(user.birthDate)
-    setEmergencyContact(user.emergencyContact)
-    setGender(user.gender || '남성')
-    setProfileImage(user.profileImage || null)
+    setProfileImage(null)
   }
 
   const handleImageClick = () => {
@@ -223,7 +222,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                       lineHeight: 1.4,
                     }}
                   >
-                    직책
+                    역할
                   </p>
                   <p
                     style={{
@@ -234,7 +233,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                       marginTop: '2px',
                     }}
                   >
-                    {user.position || '-'}
+                    {getRoleLabel(user.roleCode)}
                   </p>
                 </div>
                 <div>
@@ -278,8 +277,8 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                       marginTop: '2px',
                     }}
                   >
-                    {user.hireDate
-                      ? new Date(user.hireDate).toLocaleDateString('ko-KR')
+                    {user.employmentDate
+                      ? new Date(user.employmentDate).toLocaleDateString('ko-KR')
                       : '-'}
                   </p>
                 </div>
@@ -411,91 +410,32 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 생년월일 (수정 가능) */}
+            {/* 근무지 (수정 불가) */}
             <div>
               <Label
-                htmlFor="birthDate"
+                htmlFor="location"
                 style={{
                   fontSize: '12px',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                생년월일
+                근무지
               </Label>
               <Input
-                id="birthDate"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
+                id="location"
+                value={user.location || '-'}
+                disabled
                 className="mt-1"
                 style={{
                   fontSize: '16px',
                   lineHeight: 1.5,
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)',
+                  cursor: 'not-allowed',
                   height: '42px',
                 }}
               />
-            </div>
-
-            {/* 비상 연락망 (옵션) */}
-            <div>
-              <Label
-                htmlFor="emergencyContact"
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--foreground)',
-                  lineHeight: 1.4,
-                }}
-              >
-                비상 연락망{' '}
-                <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
-              </Label>
-              <Input
-                id="emergencyContact"
-                type="tel"
-                value={emergencyContact}
-                onChange={(e) => setEmergencyContact(e.target.value)}
-                placeholder="비상 연락처"
-                className="mt-1"
-                style={{
-                  fontSize: '16px',
-                  lineHeight: 1.5,
-                  height: '42px',
-                }}
-              />
-            </div>
-
-            {/* 성별 (옵션) */}
-            <div>
-              <Label
-                htmlFor="gender"
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--foreground)',
-                  lineHeight: 1.4,
-                }}
-              >
-                성별{' '}
-                <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
-              </Label>
-              <select
-                id="gender"
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                className="mt-1 w-full rounded-md border px-3 py-2"
-                style={{
-                  fontSize: '16px',
-                  lineHeight: 1.5,
-                  borderColor: 'var(--border)',
-                  backgroundColor: 'var(--background)',
-                  color: 'var(--foreground)',
-                  height: '42px',
-                }}
-              >
-                <option value="남성">남성</option>
-                <option value="여성">여성</option>
-                <option value="기타">기타</option>
-              </select>
             </div>
           </div>
         </CardContent>
@@ -579,21 +519,21 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 직책 */}
+            {/* 역할 */}
             <div>
               <Label
-                htmlFor="position"
+                htmlFor="role"
                 style={{
                   fontSize: '12px',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                직책
+                역할
               </Label>
               <Input
-                id="position"
-                value={user.position || '-'}
+                id="role"
+                value={getRoleLabel(user.roleCode)}
                 disabled
                 className="mt-1"
                 style={{
@@ -607,21 +547,21 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 고용 형태 */}
+            {/* 상태 */}
             <div>
               <Label
-                htmlFor="employmentType"
+                htmlFor="status"
                 style={{
                   fontSize: '12px',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                고용 형태
+                상태
               </Label>
               <Input
-                id="employmentType"
-                value={user.employmentType}
+                id="status"
+                value={user.status === 'active' ? '재직중' : user.status}
                 disabled
                 className="mt-1"
                 style={{
@@ -635,21 +575,21 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 근무지 */}
+            {/* 입사일 */}
             <div className="md:col-span-2">
               <Label
-                htmlFor="officeLocation"
+                htmlFor="employmentDate"
                 style={{
                   fontSize: '12px',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                근무지(오피스 위치)
+                입사일
               </Label>
               <Input
-                id="officeLocation"
-                value={officeLocation}
+                id="employmentDate"
+                value={user.employmentDate ? new Date(user.employmentDate).toLocaleDateString('ko-KR') : '-'}
                 disabled
                 className="mt-1"
                 style={{
