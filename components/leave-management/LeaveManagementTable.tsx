@@ -91,8 +91,8 @@ export function LeaveManagementTable({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-lg border" style={{ borderColor: 'var(--border)' }}>
-          <Table>
+        <div className="rounded-lg border overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.4 }}>구성원</TableHead>

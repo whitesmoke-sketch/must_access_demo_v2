@@ -137,7 +137,7 @@ export function EmployeeTable() {
 
         {/* 테이블 */}
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="min-w-[1100px]">
             <TableHeader>
               <TableRow>
                 <TableHead>이름</TableHead>

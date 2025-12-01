@@ -509,7 +509,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+            <table className="w-full min-w-[700px]" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   <th

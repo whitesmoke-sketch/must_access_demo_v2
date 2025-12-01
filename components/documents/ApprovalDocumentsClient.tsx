@@ -413,8 +413,8 @@ export function ApprovalDocumentsClient({
           <div className="mb-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
             전체 {filteredDocuments.length}건
           </div>
-          <div>
-            <Table>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1000px]">
               <TableHeader>
                 <TableRow style={{ borderBottom: '2px solid var(--border)' }}>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>문서 유형</TableHead>
