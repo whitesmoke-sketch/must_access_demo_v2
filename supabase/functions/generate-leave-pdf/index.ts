@@ -72,17 +72,22 @@ serve(async (req) => {
       )
     }
 
-    // 결재선 조회
+    // 결재선 조회 (approval_step 테이블 사용)
     const { data: approvalFlow } = await supabase
-      .from('approval_flow')
+      .from('approval_step')
       .select(`
-        step,
-        approver:approver_id (name, email)
+        step_order,
+        status,
+        approved_at,
+        comment,
+        approval_type,
+        approver:approver_id (id, name, email)
       `)
+      .eq('request_type', 'leave')
       .eq('request_id', leaveRequestId)
-      .order('step')
+      .order('step_order')
 
-    const approverEmails = approvalFlow?.map((flow: any) => flow.approver.email).filter(Boolean) || []
+    const approverEmails = approvalFlow?.map((flow: any) => flow.approver?.email).filter(Boolean) || []
 
     // PDF HTML 생성
     const pdfHtml = generatePdfHtml(leaveRequest, approvalFlow || [])
@@ -164,7 +169,7 @@ function generatePdfHtml(leaveRequest: any, approvalFlow: any[]): string {
     .map((flow, idx) => `
       <th class="approval-header">
         <div class="approval-title">결재자 ${idx + 1}</div>
-        <div class="approver-name">${flow.approver.name}</div>
+        <div class="approver-name">${flow.approver?.name || '미지정'}</div>
       </th>
     `)
     .join('')
