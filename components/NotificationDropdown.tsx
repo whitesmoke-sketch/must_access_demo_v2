@@ -71,54 +71,46 @@ export default function NotificationDropdown({ notifications: initialNotificatio
   // 읽지 않은 알림 개수
   const unreadCount = notifications.filter(n => !n.is_read).length
 
-  // 알림 타입별 아이콘 및 스타일
+  // 알림 타입별 스타일
   function getNotificationStyle(type: string) {
     switch (type) {
       case 'meeting_invitation':
         return {
-          icon: '📅',
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200'
         }
       case 'leave_approval':
         return {
-          icon: '✅',
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200'
         }
       case 'leave_rejection':
         return {
-          icon: '❌',
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200'
         }
       case 'document_approval':
         return {
-          icon: '📄',
           bgColor: 'bg-purple-50',
           borderColor: 'border-purple-200'
         }
       case 'approval_request':
         return {
-          icon: '📝',
           bgColor: 'bg-orange-50',
           borderColor: 'border-orange-200'
         }
       case 'document_cc':
         return {
-          icon: '👀',
           bgColor: 'bg-cyan-50',
           borderColor: 'border-cyan-200'
         }
       case 'system':
         return {
-          icon: '🔔',
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200'
         }
       default:
         return {
-          icon: '📬',
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200'
         }
@@ -246,9 +238,6 @@ export default function NotificationDropdown({ notifications: initialNotificatio
                           }}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="text-2xl flex-shrink-0">
-                              {style.icon}
-                            </div>
                             <div className="flex-1 min-w-0">
                               <p
                                 className="font-medium mb-1"
