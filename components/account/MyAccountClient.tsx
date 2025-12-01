@@ -29,28 +29,42 @@ interface MyAccountClientProps {
 export function MyAccountClient({ user }: MyAccountClientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 초기값 설정 (피그마 디자인대로)
+  const initialPhone = user.phone || '010-1234-5678'
+  const initialBirthDate = '1990-05-15'
+  const initialEmergencyContact = '010-1111-2222'
+  const initialGender: '남성' | '여성' | '기타' = '남성'
+
   // 편집 가능한 필드들의 state
-  const [phone, setPhone] = useState(user.phone)
+  const [phone, setPhone] = useState(initialPhone)
+  const [birthDate, setBirthDate] = useState(initialBirthDate)
+  const [emergencyContact, setEmergencyContact] = useState(initialEmergencyContact)
+  const [gender, setGender] = useState<'남성' | '여성' | '기타'>(initialGender)
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const [isHoveringProfile, setIsHoveringProfile] = useState(false)
 
   // 변경사항 감지
   const hasChanges =
-    phone !== user.phone ||
+    phone !== initialPhone ||
+    birthDate !== initialBirthDate ||
+    emergencyContact !== initialEmergencyContact ||
+    gender !== initialGender ||
     profileImage !== null
 
-  // 조직 정보
+  // 조직 정보 (피그마 디자인대로)
   const companyName = 'MUST Access'
+  const employmentType = '정규직'
+  const officeLocation = user.location || '서울특별시 강남구'
 
   // 역할 표시
-  const getRoleLabel = (code: string) => {
+  const getPositionLabel = (code: string) => {
     switch (code) {
       case 'super_admin':
         return '최고관리자'
       case 'admin':
         return '관리자'
       default:
-        return '구성원'
+        return '사원'
     }
   }
 
@@ -60,7 +74,10 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
   }
 
   const handleCancel = () => {
-    setPhone(user.phone)
+    setPhone(initialPhone)
+    setBirthDate(initialBirthDate)
+    setEmergencyContact(initialEmergencyContact)
+    setGender(initialGender)
     setProfileImage(null)
   }
 
@@ -99,8 +116,8 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
         <h2
           style={{
             color: 'var(--foreground)',
-            fontSize: '22px',
-            fontWeight: 500,
+            fontSize: 'var(--font-size-h1)',
+            fontWeight: 'var(--font-weight-h1)',
             lineHeight: 1.25,
           }}
         >
@@ -109,7 +126,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
         <p
           style={{
             color: 'var(--muted-foreground)',
-            fontSize: '16px',
+            fontSize: 'var(--font-size-body)',
             lineHeight: 1.5,
           }}
           className="mt-1"
@@ -122,7 +139,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
       <Card
         className="rounded-2xl"
         style={{
-          borderRadius: '16px',
+          borderRadius: 'var(--radius)',
           boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
         }}
       >
@@ -164,11 +181,11 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               >
                 {isHoveringProfile && (
                   <div className="flex flex-col items-center gap-1">
-                    <Camera className="w-6 h-6" style={{ color: 'white' }} />
+                    <Camera className="w-6 h-6" style={{ color: 'var(--background)' }} />
                     <span
                       style={{
-                        fontSize: '12px',
-                        color: 'white',
+                        fontSize: 'var(--font-size-caption)',
+                        color: 'var(--background)',
                         fontWeight: 600,
                       }}
                     >
@@ -193,8 +210,8 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               <div>
                 <h3
                   style={{
-                    fontSize: '20px',
-                    fontWeight: 600,
+                    fontSize: 'var(--font-size-h2)',
+                    fontWeight: 'var(--font-weight-h2)',
                     lineHeight: 1.3,
                     color: 'var(--foreground)',
                   }}
@@ -203,7 +220,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 </h3>
                 <p
                   style={{
-                    fontSize: '16px',
+                    fontSize: 'var(--font-size-body)',
                     color: 'var(--muted-foreground)',
                     lineHeight: 1.5,
                     marginTop: '4px',
@@ -217,29 +234,29 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 <div>
                   <p
                     style={{
-                      fontSize: '12px',
+                      fontSize: 'var(--font-size-caption)',
                       color: 'var(--muted-foreground)',
                       lineHeight: 1.4,
                     }}
                   >
-                    역할
+                    직책
                   </p>
                   <p
                     style={{
-                      fontSize: '16px',
+                      fontSize: 'var(--font-size-body)',
                       color: 'var(--foreground)',
                       fontWeight: 500,
                       lineHeight: 1.5,
                       marginTop: '2px',
                     }}
                   >
-                    {getRoleLabel(user.roleCode)}
+                    {getPositionLabel(user.roleCode)}
                   </p>
                 </div>
                 <div>
                   <p
                     style={{
-                      fontSize: '12px',
+                      fontSize: 'var(--font-size-caption)',
                       color: 'var(--muted-foreground)',
                       lineHeight: 1.4,
                     }}
@@ -248,7 +265,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                   </p>
                   <p
                     style={{
-                      fontSize: '16px',
+                      fontSize: 'var(--font-size-body)',
                       color: 'var(--foreground)',
                       fontWeight: 500,
                       lineHeight: 1.5,
@@ -261,7 +278,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 <div>
                   <p
                     style={{
-                      fontSize: '12px',
+                      fontSize: 'var(--font-size-caption)',
                       color: 'var(--muted-foreground)',
                       lineHeight: 1.4,
                     }}
@@ -270,7 +287,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                   </p>
                   <p
                     style={{
-                      fontSize: '16px',
+                      fontSize: 'var(--font-size-body)',
                       color: 'var(--foreground)',
                       fontWeight: 500,
                       lineHeight: 1.5,
@@ -292,7 +309,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
       <Card
         className="rounded-2xl"
         style={{
-          borderRadius: '16px',
+          borderRadius: 'var(--radius)',
           boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
         }}
       >
@@ -300,7 +317,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
           <CardTitle
             style={{
               color: 'var(--foreground)',
-              fontSize: '16px',
+              fontSize: 'var(--font-size-body)',
               fontWeight: 500,
               lineHeight: 1.5,
             }}
@@ -315,7 +332,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               <Label
                 htmlFor="name"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
@@ -328,7 +345,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 disabled
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   backgroundColor: 'var(--muted)',
                   color: 'var(--muted-foreground)',
@@ -343,7 +360,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               <Label
                 htmlFor="email"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
@@ -357,7 +374,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                   disabled
                   className="flex-1"
                   style={{
-                    fontSize: '16px',
+                    fontSize: 'var(--font-size-body)',
                     lineHeight: 1.5,
                     backgroundColor: 'var(--muted)',
                     color: 'var(--muted-foreground)',
@@ -370,7 +387,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                   style={{
                     backgroundColor: 'var(--background)',
                     color: 'var(--muted-foreground)',
-                    fontSize: '12px',
+                    fontSize: 'var(--font-size-caption)',
                     fontWeight: 600,
                     border: '1px solid var(--border)',
                     height: 'fit-content',
@@ -388,7 +405,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               <Label
                 htmlFor="phone"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
@@ -400,42 +417,98 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="010-0000-0000"
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   height: '42px',
                 }}
               />
             </div>
 
-            {/* 근무지 (수정 불가) */}
+            {/* 생년월일 (수정 가능) */}
             <div>
               <Label
-                htmlFor="location"
+                htmlFor="birthDate"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                근무지
+                생년월일
               </Label>
               <Input
-                id="location"
-                value={user.location || '-'}
-                disabled
+                id="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
-                  backgroundColor: 'var(--muted)',
-                  color: 'var(--muted-foreground)',
-                  cursor: 'not-allowed',
                   height: '42px',
                 }}
               />
+            </div>
+
+            {/* 비상 연락망 (옵션) */}
+            <div>
+              <Label
+                htmlFor="emergencyContact"
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  color: 'var(--foreground)',
+                  lineHeight: 1.4,
+                }}
+              >
+                비상 연락망 <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
+              </Label>
+              <Input
+                id="emergencyContact"
+                type="tel"
+                value={emergencyContact}
+                onChange={(e) => setEmergencyContact(e.target.value)}
+                placeholder="비상 연락처"
+                className="mt-1"
+                style={{
+                  fontSize: 'var(--font-size-body)',
+                  lineHeight: 1.5,
+                  height: '42px',
+                }}
+              />
+            </div>
+
+            {/* 성별 (옵션) */}
+            <div>
+              <Label
+                htmlFor="gender"
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  color: 'var(--foreground)',
+                  lineHeight: 1.4,
+                }}
+              >
+                성별 <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
+              </Label>
+              <select
+                id="gender"
+                value={gender}
+                onChange={(e) => setGender(e.target.value as '남성' | '여성' | '기타')}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+                style={{
+                  fontSize: 'var(--font-size-body)',
+                  lineHeight: 1.5,
+                  borderColor: 'var(--border)',
+                  backgroundColor: 'var(--background)',
+                  color: 'var(--foreground)',
+                  height: '42px',
+                }}
+              >
+                <option value="남성">남성</option>
+                <option value="여성">여성</option>
+                <option value="기타">기타</option>
+              </select>
             </div>
           </div>
         </CardContent>
@@ -445,7 +518,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
       <Card
         className="rounded-2xl"
         style={{
-          borderRadius: '16px',
+          borderRadius: 'var(--radius)',
           boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
         }}
       >
@@ -453,7 +526,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
           <CardTitle
             style={{
               color: 'var(--foreground)',
-              fontSize: '16px',
+              fontSize: 'var(--font-size-body)',
               fontWeight: 500,
               lineHeight: 1.5,
             }}
@@ -468,7 +541,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               <Label
                 htmlFor="companyName"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
@@ -481,7 +554,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 disabled
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   backgroundColor: 'var(--muted)',
                   color: 'var(--muted-foreground)',
@@ -496,7 +569,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               <Label
                 htmlFor="department"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
@@ -509,7 +582,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
                 disabled
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   backgroundColor: 'var(--muted)',
                   color: 'var(--muted-foreground)',
@@ -519,25 +592,25 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 역할 */}
+            {/* 직책 */}
             <div>
               <Label
-                htmlFor="role"
+                htmlFor="position"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                역할
+                직책
               </Label>
               <Input
-                id="role"
-                value={getRoleLabel(user.roleCode)}
+                id="position"
+                value={getPositionLabel(user.roleCode)}
                 disabled
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   backgroundColor: 'var(--muted)',
                   color: 'var(--muted-foreground)',
@@ -547,25 +620,25 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 상태 */}
+            {/* 고용 형태 */}
             <div>
               <Label
-                htmlFor="status"
+                htmlFor="employmentType"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                상태
+                고용 형태
               </Label>
               <Input
-                id="status"
-                value={user.status === 'active' ? '재직중' : user.status}
+                id="employmentType"
+                value={employmentType}
                 disabled
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   backgroundColor: 'var(--muted)',
                   color: 'var(--muted-foreground)',
@@ -575,25 +648,25 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
 
-            {/* 입사일 */}
+            {/* 근무지 */}
             <div className="md:col-span-2">
               <Label
-                htmlFor="employmentDate"
+                htmlFor="officeLocation"
                 style={{
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-caption)',
                   color: 'var(--foreground)',
                   lineHeight: 1.4,
                 }}
               >
-                입사일
+                근무지(오피스 위치)
               </Label>
               <Input
-                id="employmentDate"
-                value={user.employmentDate ? new Date(user.employmentDate).toLocaleDateString('ko-KR') : '-'}
+                id="officeLocation"
+                value={officeLocation}
                 disabled
                 className="mt-1"
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: 1.5,
                   backgroundColor: 'var(--muted)',
                   color: 'var(--muted-foreground)',
@@ -621,7 +694,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               onClick={handleCancel}
               className="flex-1"
               style={{
-                fontSize: '16px',
+                fontSize: 'var(--font-size-body)',
                 fontWeight: 500,
                 lineHeight: 1.5,
                 height: '42px',
@@ -635,7 +708,7 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               style={{
                 backgroundColor: 'var(--primary)',
                 color: 'var(--primary-foreground)',
-                fontSize: '16px',
+                fontSize: 'var(--font-size-body)',
                 fontWeight: 500,
                 lineHeight: 1.5,
                 height: '42px',
