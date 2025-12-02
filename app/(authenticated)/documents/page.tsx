@@ -81,6 +81,8 @@ export default async function DocumentsPage() {
         step_order,
         status,
         approval_type,
+        approved_at,
+        comment,
         approver:approver_id (
           id,
           name,
