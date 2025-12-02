@@ -753,6 +753,25 @@ export function MyDocumentsClient({
               </div>
             </div>
           )}
+
+          {/* 회수 버튼 */}
+          {selectedDocument && selectedDocument.status === 'pending' && (
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  setIsDetailDialogOpen(false)
+                  openWithdrawDialog(selectedDocument.id)
+                }}
+                style={{
+                  backgroundColor: 'var(--muted-foreground)',
+                  color: 'var(--background)',
+                }}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                회수
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
