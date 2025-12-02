@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { LeaveRequest } from '@/lib/leave-management/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface MonthlyLeaveCalendarProps {
   leaveRequests: LeaveRequest[]
@@ -13,103 +14,221 @@ interface MonthlyLeaveCalendarProps {
 
 export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
-  // 월의 첫날과 마지막날
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
+  // 달력 생성 로직
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startDayOfWeek = firstDay.getDay() // 0: 일요일
 
-  // 첫주 시작 인덱스 (일요일 = 0)
-  const startDayOfWeek = firstDay.getDay()
-  const daysInMonth = lastDay.getDate()
+    const days: Array<{ date: number | null; fullDate: string | null }> = []
 
-  // 이전 달 마지막 날
-  const prevMonthLastDay = new Date(year, month, 0).getDate()
+    // 이전 달 빈 칸
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push({ date: null, fullDate: null })
+    }
 
-  // 캘린더 그리드 생성 (6주 * 7일 = 42칸)
-  const calendarDays: (Date | null)[] = []
+    // 현재 달 날짜
+    for (let date = 1; date <= daysInMonth; date++) {
+      const fullDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+      days.push({ date, fullDate })
+    }
 
-  // 이전 달의 날짜들
-  for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    calendarDays.push(new Date(year, month - 1, prevMonthLastDay - i))
+    return days
+  }, [year, month])
+
+  // 날짜별 연차 사용자 매핑
+  const getLeaveUsersForDate = (dateStr: string): string[] => {
+    if (!dateStr) return []
+
+    const users: string[] = []
+    const targetDate = new Date(dateStr)
+
+    leaveRequests
+      .filter(r => r.status === 'approved')
+      .forEach(request => {
+        const startDate = new Date(request.startDate)
+        const endDate = new Date(request.endDate)
+
+        // 날짜 범위에 포함되는지 확인
+        if (targetDate >= startDate && targetDate <= endDate) {
+          users.push(request.memberName)
+        }
+      })
+
+    return users
   }
 
-  // 현재 달의 날짜들
-  for (let i = 1; i <= daysInMonth; i++) {
-    calendarDays.push(new Date(year, month, i))
+  // 날짜별 연차 요청 상세 정보 가져오기
+  const getLeaveDetailsForDate = (dateStr: string): LeaveRequest[] => {
+    if (!dateStr) return []
+
+    const details: LeaveRequest[] = []
+    const targetDate = new Date(dateStr)
+
+    leaveRequests
+      .filter(r => r.status === 'approved')
+      .forEach(request => {
+        const startDate = new Date(request.startDate)
+        const endDate = new Date(request.endDate)
+
+        // 날짜 범위에 포함되는지 확인
+        if (targetDate >= startDate && targetDate <= endDate) {
+          details.push(request)
+        }
+      })
+
+    return details
   }
 
-  // 다음 달의 날짜들 (6주를 채우기 위해)
-  const remainingDays = 42 - calendarDays.length
-  for (let i = 1; i <= remainingDays; i++) {
-    calendarDays.push(new Date(year, month + 1, i))
+  // 휴가 타입 한글 변환
+  const getLeaveTypeLabel = (leaveType: string): string => {
+    const labels: Record<string, string> = {
+      annual: '연차',
+      half_day_am: '반차(오전)',
+      half_day_pm: '반차(오후)',
+      award: '포상휴가',
+      sick: '병가',
+      special: '특별휴가',
+    }
+    return labels[leaveType] || leaveType
   }
 
-  // 날짜에 해당하는 승인된 연차 요청 찾기
-  const getLeaveRequestsForDate = (date: Date): LeaveRequest[] => {
-    return leaveRequests.filter(req => {
-      if (req.status !== 'approved') return false
-      const startDate = new Date(req.startDate)
-      const endDate = new Date(req.endDate)
-      startDate.setHours(0, 0, 0, 0)
-      endDate.setHours(0, 0, 0, 0)
-      const checkDate = new Date(date)
-      checkDate.setHours(0, 0, 0, 0)
-      return checkDate >= startDate && checkDate <= endDate
-    })
+  // 휴가 타입별 색상
+  const getLeaveTypeColor = (leaveType: string): { bg: string; text: string; border: string } => {
+    const colors: Record<string, { bg: string; text: string; border: string }> = {
+      annual: { bg: 'var(--primary-bg)', text: 'var(--primary)', border: 'var(--primary)' },
+      half_day_am: { bg: 'var(--warning-bg)', text: 'var(--warning)', border: 'var(--warning)' },
+      half_day_pm: { bg: 'var(--warning-bg)', text: 'var(--warning)', border: 'var(--warning)' },
+      award: { bg: 'var(--secondary-bg)', text: 'var(--secondary)', border: 'var(--secondary)' },
+      sick: { bg: 'var(--destructive-bg)', text: 'var(--destructive)', border: 'var(--destructive)' },
+      special: { bg: 'var(--info-bg)', text: 'var(--info)', border: 'var(--info)' },
+    }
+    return colors[leaveType] || colors.annual
   }
 
-  // 이전/다음 달로 이동
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1))
+  // 날짜 클릭 핸들러
+  const handleDateClick = (fullDate: string | null) => {
+    if (!fullDate) return
+    const details = getLeaveDetailsForDate(fullDate)
+    if (details.length === 0) return
+
+    setSelectedDate(fullDate)
+    setIsModalOpen(true)
   }
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1))
-  }
+  // 사용자 수 표시 로직 (N명) - Figma Design
+  const renderUserCount = (count: number) => {
+    if (count === 0) return null
 
-  const goToToday = () => {
-    setCurrentDate(new Date())
-  }
-
-  const isToday = (date: Date) => {
-    const today = new Date()
     return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
+      <div className="mt-1 flex justify-center">
+        <div
+          className="px-2 py-1 rounded"
+          style={{
+            fontSize: 'var(--font-size-caption)',
+            lineHeight: 1.2,
+            backgroundColor: 'var(--primary-bg)',
+            color: 'var(--primary)',
+            fontWeight: 600,
+          }}
+        >
+          {count}명
+        </div>
+      </div>
     )
   }
 
-  const isCurrentMonth = (date: Date) => {
-    return date.getMonth() === month
+  // 월 변경
+  const handlePreviousMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1))
   }
 
-  const weekDays = ['일', '월', '화', '수', '목', '금', '토']
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1))
+  }
+
+  const handleToday = () => {
+    setCurrentDate(new Date())
+  }
+
+  // 오늘 날짜 확인
+  const isToday = (date: number | null, fullDate: string | null) => {
+    if (!date || !fullDate) return false
+    const today = new Date()
+    return (
+      today.getFullYear() === year &&
+      today.getMonth() === month &&
+      today.getDate() === date
+    )
+  }
+
+  const handleMouseEnter = (e: React.MouseEvent, fullDate: string) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setHoveredDate(fullDate)
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    })
+  }
 
   return (
-    <Card
-      className="rounded-2xl"
-      style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}
-    >
+    <Card className="rounded-2xl" style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle style={{ color: 'var(--card-foreground)', fontSize: '16px', fontWeight: 500, lineHeight: 1.5 }}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <CardTitle
+            style={{
+              color: 'var(--foreground)',
+              fontSize: 'var(--font-size-body)',
+              fontWeight: 500,
+              lineHeight: 1.5
+            }}
+          >
             월간 연차 캘린더
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={goToToday}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToday}
+              style={{
+                fontSize: 'var(--font-size-caption)',
+                fontWeight: 500,
+              }}
+            >
               오늘
             </Button>
-            <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviousMonth}
+            >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <div style={{ fontSize: 'var(--font-size-body)', fontWeight: 500, minWidth: '120px', textAlign: 'center' }}>
+            <span
+              style={{
+                fontSize: 'var(--font-size-body)',
+                fontWeight: 500,
+                color: 'var(--foreground)',
+                minWidth: '120px',
+                textAlign: 'center'
+              }}
+            >
               {year}년 {month + 1}월
-            </div>
-            <Button variant="outline" size="icon" onClick={goToNextMonth}>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextMonth}
+            >
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -118,14 +237,14 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
       <CardContent>
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {weekDays.map((day, index) => (
+          {['일', '월', '화', '수', '목', '금', '토'].map((day, idx) => (
             <div
               key={day}
               className="text-center py-2"
               style={{
                 fontSize: 'var(--font-size-caption)',
                 fontWeight: 500,
-                color: index === 0 ? '#FF6B6B' : index === 6 ? '#4A90E2' : 'var(--muted-foreground)',
+                color: idx === 0 ? 'var(--destructive)' : idx === 6 ? 'var(--info)' : 'var(--muted-foreground)',
               }}
             >
               {day}
@@ -133,92 +252,101 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
           ))}
         </div>
 
-        {/* 날짜 그리드 */}
+        {/* 날짜 그리드 - Figma Design */}
         <div className="grid grid-cols-7 gap-1">
-          {calendarDays.map((date, index) => {
-            if (!date) return <div key={index} />
-
-            const dayLeaves = getLeaveRequestsForDate(date)
-            const isTodayDate = isToday(date)
-            const isCurrentMonthDate = isCurrentMonth(date)
-            const dayOfWeek = date.getDay()
+          {calendarDays.map((day, idx) => {
+            const users = day.fullDate ? getLeaveUsersForDate(day.fullDate) : []
+            const isTodayDate = isToday(day.date, day.fullDate)
 
             return (
               <div
-                key={index}
-                className="relative p-2 min-h-[80px] border rounded-lg transition-colors"
+                key={idx}
+                className="relative min-h-[80px] p-2 rounded-lg border transition-all"
                 style={{
                   borderColor: isTodayDate ? 'var(--primary)' : 'var(--border)',
+                  backgroundColor: day.date ? 'var(--background)' : 'var(--muted)',
                   borderWidth: isTodayDate ? '2px' : '1px',
-                  backgroundColor: isTodayDate ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
-                  opacity: isCurrentMonthDate ? 1 : 0.4,
+                  cursor: users.length > 0 ? 'pointer' : 'default',
                 }}
-                onMouseEnter={e => {
-                  if (dayLeaves.length > 0) {
-                    e.currentTarget.style.backgroundColor = '#F6F8F9'
-                  }
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.backgroundColor = isTodayDate ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent'
-                }}
+                onClick={() => handleDateClick(day.fullDate)}
+                onMouseEnter={(e) => day.fullDate && handleMouseEnter(e, day.fullDate)}
+                onMouseLeave={() => setHoveredDate(null)}
               >
-                {/* 날짜 */}
-                <div
-                  className="text-sm mb-1"
-                  style={{
-                    fontWeight: isTodayDate ? 700 : 500,
-                    color:
-                      dayOfWeek === 0
-                        ? '#FF6B6B'
-                        : dayOfWeek === 6
-                        ? '#4A90E2'
-                        : isCurrentMonthDate
-                        ? 'var(--card-foreground)'
-                        : 'var(--muted-foreground)',
-                  }}
-                >
-                  {date.getDate()}
-                </div>
+                {day.date && (
+                  <>
+                    <div
+                      className="mb-1"
+                      style={{
+                        fontSize: 'var(--font-size-caption)',
+                        fontWeight: isTodayDate ? 600 : 400,
+                        color: isTodayDate ? 'var(--primary)' : idx % 7 === 0 ? 'var(--destructive)' : idx % 7 === 6 ? 'var(--info)' : 'var(--foreground)',
+                      }}
+                    >
+                      {day.date}
+                    </div>
+                    {renderUserCount(users.length)}
+                  </>
+                )}
 
-                {/* 연차 요청 표시 */}
-                {dayLeaves.length > 0 && (
-                  <div className="space-y-1">
-                    {dayLeaves.slice(0, 2).map(leave => (
-                      <div
-                        key={leave.id}
-                        className="text-xs px-1 py-0.5 rounded truncate"
+                {/* Tooltip - Figma Design */}
+                {hoveredDate === day.fullDate && users.length > 0 && (
+                  <div
+                    className="fixed z-50 pointer-events-none"
+                    style={{
+                      left: `${tooltipPosition.x}px`,
+                      top: `${tooltipPosition.y}px`,
+                      transform: 'translate(-50%, -100%)',
+                      maxWidth: '280px',
+                    }}
+                  >
+                    <div
+                      className="rounded-lg shadow-lg border p-3"
+                      style={{
+                        backgroundColor: 'var(--background)',
+                        borderColor: 'var(--border)',
+                        maxHeight: '240px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <p
+                        className="mb-2"
                         style={{
-                          backgroundColor:
-                            leave.leaveType === 'annual'
-                              ? '#E8F8F5'
-                              : leave.leaveType === 'reward'
-                              ? '#FFE5EC'
-                              : '#FFF8E5',
-                          color:
-                            leave.leaveType === 'annual'
-                              ? '#4CD471'
-                              : leave.leaveType === 'reward'
-                              ? '#FF6692'
-                              : '#F8C653',
-                          fontSize: '10px',
-                          lineHeight: 1.2,
+                          fontSize: 'var(--font-size-caption)',
+                          fontWeight: 600,
+                          color: 'var(--foreground)',
+                          borderBottom: '1px solid var(--border)',
+                          paddingBottom: '8px',
                         }}
-                        title={`${leave.memberName} - ${leave.leaveType === 'annual' ? '연차' : '포상휴가'}`}
                       >
-                        {leave.memberName}
+                        {month + 1}월 {day.date}일 연차 사용자
+                      </p>
+                      <div className="space-y-1">
+                        {users.map((name, idx) => (
+                          <div
+                            key={idx}
+                            className="px-2 py-1 rounded"
+                            style={{
+                              fontSize: 'var(--font-size-caption)',
+                              lineHeight: 1.4,
+                              color: 'var(--foreground)',
+                              backgroundColor: 'var(--muted)',
+                            }}
+                          >
+                            {name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {dayLeaves.length > 2 && (
-                      <div
-                        className="text-xs px-1"
+                      <p
+                        className="mt-2 pt-2"
                         style={{
+                          fontSize: 'var(--font-size-caption)',
                           color: 'var(--muted-foreground)',
-                          fontSize: '10px',
+                          borderTop: '1px solid var(--border)',
                         }}
                       >
-                        +{dayLeaves.length - 2}
-                      </div>
-                    )}
+                        총 {users.length}명
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -226,22 +354,140 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
           })}
         </div>
 
-        {/* 범례 */}
-        <div className="flex items-center gap-4 mt-4 pt-4 border-t">
+        {/* 범례 - Figma Design */}
+        <div className="mt-4 flex items-center gap-4 justify-center">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#E8F8F5' }}></div>
-            <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>연차</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#FFE5EC' }}></div>
-            <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>포상휴가</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded border-2" style={{ borderColor: 'var(--primary)' }}></div>
-            <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>오늘</span>
+            <Calendar className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+            <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+              승인된 연차만 표시됩니다
+            </span>
           </div>
         </div>
       </CardContent>
+
+      {/* 날짜 상세 모달 - Figma Design */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent
+          aria-describedby={undefined}
+          style={{
+            backgroundColor: 'var(--background)',
+            maxWidth: '600px',
+            borderRadius: '16px',
+            boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+          }}
+        >
+          <DialogHeader>
+            <div className="flex items-center justify-between mb-4">
+              <DialogTitle
+                style={{
+                  fontSize: 'var(--font-size-h4)',
+                  fontWeight: 'var(--font-weight-h4)',
+                  lineHeight: 'var(--line-height-h1)',
+                  color: 'var(--foreground)'
+                }}
+              >
+                {selectedDate && new Date(selectedDate).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })} 휴가 현황
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {selectedDate && getLeaveDetailsForDate(selectedDate).map((request, idx) => {
+              const colors = getLeaveTypeColor(request.leaveType)
+              return (
+                <div
+                  key={idx}
+                  className="p-4 rounded-lg border"
+                  style={{
+                    backgroundColor: 'var(--background)',
+                    borderColor: 'var(--border)',
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4
+                          style={{
+                            fontSize: 'var(--font-size-body)',
+                            fontWeight: 500,
+                            lineHeight: 1.5,
+                            color: 'var(--foreground)',
+                          }}
+                        >
+                          {request.memberName}
+                        </h4>
+                        <Badge
+                          style={{
+                            backgroundColor: colors.bg,
+                            color: colors.text,
+                            border: `1px solid ${colors.border}`,
+                            fontSize: 'var(--font-size-caption)',
+                            padding: '2px 8px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {getLeaveTypeLabel(request.leaveType)}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p
+                          style={{
+                            fontSize: 'var(--font-size-caption)',
+                            color: 'var(--muted-foreground)',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          기간: {request.startDate} ~ {request.endDate}
+                        </p>
+                        {request.days && request.days > 0 && (
+                          <p
+                            style={{
+                              fontSize: 'var(--font-size-caption)',
+                              color: 'var(--muted-foreground)',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            일수: {request.days}일
+                          </p>
+                        )}
+                        {request.reason && (
+                          <p
+                            style={{
+                              fontSize: 'var(--font-size-caption)',
+                              color: 'var(--muted-foreground)',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            사유: {request.reason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+            <p
+              style={{
+                fontSize: 'var(--font-size-caption)',
+                color: 'var(--muted-foreground)',
+                lineHeight: 1.4,
+                textAlign: 'center',
+              }}
+            >
+              총 {selectedDate ? getLeaveDetailsForDate(selectedDate).length : 0}명
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
