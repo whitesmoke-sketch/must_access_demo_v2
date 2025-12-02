@@ -40,6 +40,8 @@ interface ApprovalDocument {
   status: LeaveStatus
   requested_at: string
   approved_at: string | null
+  rejected_at: string | null
+  retrieved_at: string | null
   current_step: number | null
   employee: EmployeeInfo | EmployeeInfo[] | null
 }
@@ -399,6 +401,50 @@ export function ApprovalDocumentDetailModal({
                 {getStatusBadge(document.status)}
               </div>
             </div>
+
+            {/* 승인/반려/회수 시간 */}
+            {document.approved_at && (
+              <div className="space-y-1">
+                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>승인 시간</p>
+                <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
+                  {new Date(document.approved_at).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            )}
+            {document.rejected_at && (
+              <div className="space-y-1">
+                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>반려 시간</p>
+                <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
+                  {new Date(document.rejected_at).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            )}
+            {document.retrieved_at && (
+              <div className="space-y-1">
+                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>회수 시간</p>
+                <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
+                  {new Date(document.retrieved_at).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            )}
 
             {/* 결재 상태 로그 */}
             {approvalSteps.length > 0 && (

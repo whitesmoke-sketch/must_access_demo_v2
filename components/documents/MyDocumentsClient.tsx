@@ -61,6 +61,8 @@ interface MyDocument {
   status: DocumentStatus
   requested_at: string
   approved_at: string | null
+  rejected_at: string | null
+  retrieved_at: string | null
   current_step: number | null
 }
 
@@ -634,6 +636,38 @@ export function MyDocumentsClient({
                 </p>
                 {getStatusBadge(selectedDocument.status)}
               </div>
+
+              {/* 승인/반려/회수 시간 */}
+              {selectedDocument.approved_at && (
+                <div>
+                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                    승인 시간
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                    {new Date(selectedDocument.approved_at).toLocaleString('ko-KR')}
+                  </p>
+                </div>
+              )}
+              {selectedDocument.rejected_at && (
+                <div>
+                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                    반려 시간
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                    {new Date(selectedDocument.rejected_at).toLocaleString('ko-KR')}
+                  </p>
+                </div>
+              )}
+              {selectedDocument.retrieved_at && (
+                <div>
+                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                    회수 시간
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                    {new Date(selectedDocument.retrieved_at).toLocaleString('ko-KR')}
+                  </p>
+                </div>
+              )}
 
               {/* 결재 상태 로그 */}
               <div className="space-y-3 mt-5 pt-5" style={{ borderTop: '1px solid var(--border)' }}>

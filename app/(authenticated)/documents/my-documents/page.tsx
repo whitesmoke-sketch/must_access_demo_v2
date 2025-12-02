@@ -23,6 +23,8 @@ export default async function MyDocumentsPage() {
       status,
       requested_at,
       approved_at,
+      rejected_at,
+      retrieved_at,
       current_step
     `)
     .eq('employee_id', user.id)

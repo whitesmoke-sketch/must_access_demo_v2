@@ -224,7 +224,8 @@ export async function withdrawLeaveRequest(requestId: number, reason?: string) {
       .from('leave_request')
       .update({
         status: 'retrieved',
-        current_step: null
+        current_step: null,
+        retrieved_at: new Date().toISOString()
       })
       .eq('id', requestId)
 

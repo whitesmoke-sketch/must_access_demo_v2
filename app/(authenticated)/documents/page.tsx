@@ -38,6 +38,8 @@ export default async function DocumentsPage() {
         status,
         requested_at,
         approved_at,
+        rejected_at,
+        retrieved_at,
         current_step,
         employee:employee_id (
           id,
