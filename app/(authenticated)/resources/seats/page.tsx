@@ -396,7 +396,24 @@ export default function SeatsPage() {
         ))}
       </Tabs>
 
-      {/* Mobile List View */}
+      {/* QR Scan Screen - Card Format */}
+      {showQRView && qrSeat && (
+        <Card style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}>
+          <CardContent className="p-6">
+            <QRSeatReservation
+              seat={qrSeat}
+              currentUserName="관리자"
+              onClose={() => setShowQRView(false)}
+              onStartUsing={() => {
+                handleStartUsing(qrSeat.id)
+                setShowQRView(false)
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Mobile List View - 최하단 */}
       <Card style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}>
         <CardContent className="p-6">
           <p style={{
@@ -416,23 +433,6 @@ export default function SeatsPage() {
           />
         </CardContent>
       </Card>
-
-      {/* QR Scan Screen - Card Format */}
-      {showQRView && qrSeat && (
-        <Card style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}>
-          <CardContent className="p-6">
-            <QRSeatReservation
-              seat={qrSeat}
-              currentUserName="관리자"
-              onClose={() => setShowQRView(false)}
-              onStartUsing={() => {
-                handleStartUsing(qrSeat.id)
-                setShowQRView(false)
-              }}
-            />
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
