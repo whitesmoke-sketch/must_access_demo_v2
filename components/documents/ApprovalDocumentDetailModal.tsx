@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -301,7 +302,7 @@ export function ApprovalDocumentDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: '#29363D' }}>
               연차 신청 상세
@@ -311,7 +312,8 @@ export function ApprovalDocumentDetailModal({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pr-4">
+          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="space-y-4 p-6">
             {/* 신청자 / 연차 유형 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -523,7 +525,8 @@ export function ApprovalDocumentDetailModal({
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </Card>
 
           <DialogFooter>
             {canApprove && (

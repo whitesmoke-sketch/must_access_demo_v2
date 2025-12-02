@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 interface LeaveManagementDialogsProps {
   // Reward Grant Dialog
@@ -271,7 +272,7 @@ export function LeaveManagementDialogs({
 
       {/* 상세 연차 내역 모달 */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: '#29363D' }}>
               연차 상세 내역
@@ -281,7 +282,8 @@ export function LeaveManagementDialogs({
             </DialogDescription>
           </DialogHeader>
 
-          <div>
+          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="p-6">
             {selectedMember && (
               <div className="space-y-4">
                 {/* 사용자 정보 */}
@@ -394,7 +396,8 @@ export function LeaveManagementDialogs({
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </Card>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
@@ -406,7 +409,7 @@ export function LeaveManagementDialogs({
 
       {/* 정책 설정 모달 */}
       <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle
               style={{ fontSize: 'var(--font-size-h1)', fontWeight: 'var(--font-weight-h1)', lineHeight: 1.25 }}
@@ -417,13 +420,17 @@ export function LeaveManagementDialogs({
               회사의 휴가 정책과 부재유형을 설정합니다
             </DialogDescription>
           </DialogHeader>
-          <LeavePolicySettings onBack={() => setIsPolicyDialogOpen(false)} />
+          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="p-6">
+              <LeavePolicySettings onBack={() => setIsPolicyDialogOpen(false)} />
+            </div>
+          </Card>
         </DialogContent>
       </Dialog>
 
       {/* 연차 수동 관리 모달 */}
       <Dialog open={isManualDialogOpen} onOpenChange={setIsManualDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle
               style={{ fontSize: 'var(--font-size-h1)', fontWeight: 'var(--font-weight-h1)', lineHeight: 1.25 }}
@@ -434,7 +441,11 @@ export function LeaveManagementDialogs({
               구성원의 연차를 검색하고 수동으로 조정합니다
             </DialogDescription>
           </DialogHeader>
-          <LeaveManualAdjustment onBack={() => setIsManualDialogOpen(false)} members={members} />
+          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="p-6">
+              <LeaveManualAdjustment onBack={() => setIsManualDialogOpen(false)} members={members} />
+            </div>
+          </Card>
         </DialogContent>
       </Dialog>
     </>

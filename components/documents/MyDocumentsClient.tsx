@@ -543,7 +543,7 @@ export function MyDocumentsClient({
       {/* 상세보기 다이얼로그 */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent
-          className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto"
+          className="sm:max-w-[600px] max-h-[80vh]"
           style={{ backgroundColor: 'var(--background)' }}
         >
           <DialogHeader>
@@ -565,7 +565,8 @@ export function MyDocumentsClient({
           </DialogHeader>
 
           {selectedDocument && (
-            <div className="space-y-4">
+            <Card className="overflow-y-auto max-h-[calc(80vh-180px)]">
+              <div className="space-y-4 p-6">
               <div>
                 <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
                   신청 유형
@@ -785,7 +786,8 @@ export function MyDocumentsClient({
                   })}
                 </div>
               </div>
-            </div>
+              </div>
+            </Card>
           )}
 
           {/* 회수 버튼 */}

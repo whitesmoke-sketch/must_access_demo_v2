@@ -24,6 +24,7 @@ import { toast } from 'sonner'
 import { createEmployee, updateEmployee } from '@/app/actions/employee'
 import { DepartmentCombobox } from './DepartmentCombobox'
 import { createClient } from '@/lib/supabase/client'
+import { Card } from '@/components/ui/card'
 
 interface Role {
   id: number
@@ -138,7 +139,7 @@ export function EmployeeModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>
             {mode === 'create' ? '구성원 추가' : '구성원 수정'}
@@ -150,8 +151,10 @@ export function EmployeeModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
             {/* 이름 */}
             <div className="space-y-2">
               <Label htmlFor="name">이름 *</Label>
@@ -269,29 +272,31 @@ export function EmployeeModal({
                 </div>
               </div>
             )}
-          </div>
+              </div>
 
-          {/* 버튼 */}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              취소
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading
-                ? mode === 'create'
-                  ? '추가 중...'
-                  : '수정 중...'
-                : mode === 'create'
-                ? '추가'
-                : '수정'}
-            </Button>
-          </DialogFooter>
-        </form>
+              {/* 버튼 */}
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                  disabled={loading}
+                >
+                  취소
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading
+                    ? mode === 'create'
+                      ? '추가 중...'
+                      : '수정 중...'
+                    : mode === 'create'
+                    ? '추가'
+                    : '수정'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </div>
+        </Card>
       </DialogContent>
     </Dialog>
   )

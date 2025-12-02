@@ -757,7 +757,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
       {/* 상세보기 다이얼로그 */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle
               style={{
@@ -780,8 +780,10 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedRequest && (
-            <div className="space-y-4 py-4">
+          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="p-6">
+              {selectedRequest && (
+                <div className="space-y-4 py-4">
               {/* 신청자 정보 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1025,8 +1027,10 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                   </div>
                 </div>
               )}
+                </div>
+              )}
             </div>
-          )}
+          </Card>
 
           <DialogFooter className="gap-2">
             {/* Google Drive 문서 링크가 있으면 문서 보기, 없으면 PDF 생성 버튼 */}
