@@ -167,23 +167,6 @@ export function SeatListView({
               )}
             </div>
 
-            {!isPinned && isSelected && canStartUsing && (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleStartClick(seat)
-                  setSelectedSeatId(null)
-                }}
-                style={{
-                  backgroundColor: 'var(--primary)',
-                  color: 'var(--primary-foreground)',
-                  width: '100%',
-                  height: '40px',
-                }}
-              >
-                사용 시작
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
