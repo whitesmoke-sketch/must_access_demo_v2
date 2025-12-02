@@ -2,11 +2,13 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
     aria-label="pagination"
+    data-slot="pagination"
     className={cn("mx-auto flex w-full justify-center", className)}
     {...props}
   />
@@ -19,6 +21,7 @@ const PaginationContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ul
     ref={ref}
+    data-slot="pagination-content"
     className={cn("flex flex-row items-center gap-1", className)}
     {...props}
   />
@@ -29,14 +32,14 @@ const PaginationItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
 >(({ className, ...props }, ref) => (
-  <li ref={ref} className={cn("", className)} {...props} />
+  <li ref={ref} data-slot="pagination-item" {...props} />
 ))
 PaginationItem.displayName = "PaginationItem"
 
 type PaginationLinkProps = {
   isActive?: boolean
-  size?: "default" | "sm" | "lg" | "icon"
-} & React.ComponentProps<"a">
+} & Pick<Parameters<typeof buttonVariants>[0], "size"> &
+  React.ComponentProps<"a">
 
 const PaginationLink = ({
   className,
@@ -44,22 +47,16 @@ const PaginationLink = ({
   size = "icon",
   ...props
 }: PaginationLinkProps) => {
-  const sizeClasses = {
-    default: "h-10 px-4 py-2",
-    sm: "h-8 px-3",
-    lg: "h-12 px-8",
-    icon: "h-9 w-9",
-  }
-
   return (
     <a
       aria-current={isActive ? "page" : undefined}
+      data-slot="pagination-link"
+      data-active={isActive}
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        isActive
-          ? "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
-          : "hover:bg-accent hover:text-accent-foreground",
-        sizeClasses[size],
+        buttonVariants({
+          variant: isActive ? "outline" : "ghost",
+          size,
+        }),
         className
       )}
       {...props}
@@ -75,11 +72,11 @@ const PaginationPrevious = ({
   <PaginationLink
     aria-label="Go to previous page"
     size="default"
-    className={cn("gap-1 pl-2.5", className)}
+    className={cn("gap-1 px-2.5 sm:pl-2.5", className)}
     {...props}
   >
     <ChevronLeft className="h-4 w-4" />
-    <span>Previous</span>
+    <span className="hidden sm:block">Previous</span>
   </PaginationLink>
 )
 PaginationPrevious.displayName = "PaginationPrevious"
@@ -91,10 +88,10 @@ const PaginationNext = ({
   <PaginationLink
     aria-label="Go to next page"
     size="default"
-    className={cn("gap-1 pr-2.5", className)}
+    className={cn("gap-1 px-2.5 sm:pr-2.5", className)}
     {...props}
   >
-    <span>Next</span>
+    <span className="hidden sm:block">Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
 )
@@ -106,6 +103,7 @@ const PaginationEllipsis = ({
 }: React.ComponentProps<"span">) => (
   <span
     aria-hidden
+    data-slot="pagination-ellipsis"
     className={cn("flex h-9 w-9 items-center justify-center", className)}
     {...props}
   >
