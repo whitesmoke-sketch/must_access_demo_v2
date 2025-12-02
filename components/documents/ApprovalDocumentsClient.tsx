@@ -435,9 +435,27 @@ export function ApprovalDocumentsClient({
                   </TableRow>
                 ) : (
                   paginatedDocuments.map((doc) => {
-                    // 내가 승인해야 할 차례인지 확인
-                    const isMyTurn = myApprovalRequestIds.includes(doc.id)
-                    const canApprove = doc.status === 'pending' && isMyTurn
+                    // 내가 승인해야 할 차례인지 확인 (모달과 동일한 로직)
+                    const docApprovalSteps = approvalStepsMap[doc.id] || []
+                    const canApprove = doc.status === 'pending' && docApprovalSteps.some(
+                      step => {
+                        // approver_id 추출 (Edge Function 형식 또는 페이지 형식)
+                        let approverId: string | null = null
+                        if (step.approver_id) {
+                          approverId = step.approver_id
+                        } else if (step.approver) {
+                          const approverData = Array.isArray(step.approver) ? step.approver[0] : step.approver
+                          approverId = approverData?.id || null
+                        }
+
+                        // 내가 승인자이고, pending 상태이고, 현재 단계와 일치하는지 확인
+                        const isPending = step.status === 'pending'
+                        const isCurrentStep = doc.current_step !== null &&
+                          Number(step.step_order) === Number(doc.current_step)
+
+                        return approverId === userId && isPending && isCurrentStep
+                      }
+                    )
                     const employee = getEmployee(doc.employee)
 
                     return (

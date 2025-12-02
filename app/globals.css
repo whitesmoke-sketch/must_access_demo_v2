@@ -479,95 +479,114 @@ input[type="checkbox"]:disabled {
 
 /* Toast Styles - Figma Design System */
 @layer components {
-  /* Sonner Toast Container Override */
+  /* Sonner Toast Container - Figma Style */
   [data-sonner-toast] {
     background-color: var(--card) !important;
     border: none !important;
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-lg) !important;
-    padding: 12px 16px !important;
+    padding: 14px 16px !important;
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
     min-width: 350px !important;
     max-width: 450px !important;
+    height: auto !important;
   }
 
   [data-sonner-toast][data-styled="true"] {
-    padding: 12px 16px !important;
+    padding: 14px 16px !important;
+    border: none !important;
+    background-color: var(--card) !important;
   }
 
-  /* Toast Icon Container */
+  /* Toast Icon Container - 40px Circular Background */
   [data-sonner-toast] [data-icon] {
     width: 40px !important;
     height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
     border-radius: 50% !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     flex-shrink: 0 !important;
+    margin: 0 !important;
   }
 
-  /* Success Toast */
+  [data-sonner-toast] [data-icon] svg {
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+  }
+
+  /* Success Toast - Green */
   [data-sonner-toast][data-type="success"] [data-icon] {
     background-color: var(--success) !important;
     color: white !important;
   }
 
-  /* Error Toast */
+  /* Error Toast - Red */
   [data-sonner-toast][data-type="error"] [data-icon] {
     background-color: var(--error) !important;
     color: white !important;
   }
 
-  /* Warning Toast */
+  /* Warning Toast - Yellow */
   [data-sonner-toast][data-type="warning"] [data-icon] {
     background-color: var(--warning) !important;
     color: white !important;
   }
 
-  /* Info Toast */
+  /* Info Toast - Blue */
   [data-sonner-toast][data-type="info"] [data-icon] {
     background-color: var(--primary) !important;
     color: white !important;
   }
 
-  /* Toast Content */
+  /* Toast Content Area */
   [data-sonner-toast] [data-content] {
     flex: 1 !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 2px !important;
+    min-width: 0 !important;
   }
 
   [data-sonner-toast] [data-title] {
     font-size: var(--font-size-body) !important;
-    font-weight: var(--font-weight-medium) !important;
+    font-weight: var(--font-weight-normal) !important;
     color: var(--foreground) !important;
     line-height: var(--line-height-body) !important;
+    margin: 0 !important;
   }
 
   [data-sonner-toast] [data-description] {
     font-size: var(--font-size-caption) !important;
     color: var(--muted-foreground) !important;
     line-height: var(--line-height-caption) !important;
+    margin: 0 !important;
   }
 
-  /* Toast Action Button */
+  /* Toast Action Button - Figma Style (Uppercase + Colored) */
   [data-sonner-toast] [data-button] {
     background: transparent !important;
     border: none !important;
-    padding: 0 !important;
-    font-size: var(--font-size-caption) !important;
-    font-weight: 600 !important;
+    padding: 0 8px !important;
+    height: auto !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
+    letter-spacing: 0.8px !important;
     cursor: pointer !important;
     transition: opacity 150ms ease-in-out !important;
+    flex-shrink: 0 !important;
+    margin-left: 8px !important;
   }
 
   [data-sonner-toast] [data-button]:hover {
     opacity: 0.8 !important;
+    background: transparent !important;
   }
 
   [data-sonner-toast][data-type="success"] [data-button] {
@@ -586,10 +605,11 @@ input[type="checkbox"]:disabled {
     color: var(--primary) !important;
   }
 
-  /* Toast Close Button */
+  /* Toast Close Button - X Icon */
   [data-sonner-toast] [data-close-button] {
-    width: 20px !important;
-    height: 20px !important;
+    position: relative !important;
+    width: 24px !important;
+    height: 24px !important;
     border-radius: 4px !important;
     background: transparent !important;
     border: none !important;
@@ -600,6 +620,11 @@ input[type="checkbox"]:disabled {
     justify-content: center !important;
     flex-shrink: 0 !important;
     transition: all 150ms ease-in-out !important;
+    margin-left: 8px !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
   }
 
   [data-sonner-toast] [data-close-button]:hover {
@@ -612,51 +637,39 @@ input[type="checkbox"]:disabled {
     height: 16px !important;
   }
 
+  /* Override Rich Colors Mode */
+  [data-sonner-toast][data-rich-colors="true"] {
+    background-color: var(--card) !important;
+  }
+
+  [data-sonner-toast][data-rich-colors="true"] [data-close-button] {
+    background: transparent !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  [data-sonner-toast][data-rich-colors="true"] [data-close-button]:hover {
+    background-color: var(--muted) !important;
+    color: var(--foreground) !important;
+  }
+
   /* Toast Container Position */
   [data-sonner-toaster] {
     font-family: var(--font-family) !important;
+    --width: 420px;
+    --border-radius: var(--radius-lg);
   }
 
-  [data-sonner-toaster][data-theme="light"] {
-    --normal-bg: var(--card) !important;
-    --normal-border: var(--border) !important;
-    --normal-text: var(--foreground) !important;
-  }
-
+  [data-sonner-toaster][data-theme="light"],
   [data-sonner-toaster][data-theme="dark"] {
-    --normal-bg: var(--card) !important;
-    --normal-border: var(--border) !important;
-    --normal-text: var(--foreground) !important;
+    --normal-bg: var(--card);
+    --normal-border: transparent;
+    --normal-text: var(--foreground);
+    --border-radius: var(--radius-lg);
   }
 
-  /* Toast Animation */
-  [data-sonner-toast][data-mounted="true"] {
-    animation: slideIn 200ms ease-out !important;
-  }
-
-  [data-sonner-toast][data-removed="true"] {
-    animation: slideOut 150ms ease-in forwards !important;
-  }
-
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(-16px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes slideOut {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-16px);
-    }
+  /* Dark Mode Override */
+  .dark [data-sonner-toast] {
+    background-color: var(--card) !important;
+    color: var(--foreground) !important;
   }
 }
