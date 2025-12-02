@@ -269,8 +269,6 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
                   cursor: users.length > 0 ? 'pointer' : 'default',
                 }}
                 onClick={() => handleDateClick(day.fullDate)}
-                onMouseEnter={(e) => day.fullDate && handleMouseEnter(e, day.fullDate)}
-                onMouseLeave={() => setHoveredDate(null)}
               >
                 {day.date && (
                   <>
@@ -286,68 +284,6 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
                     </div>
                     {renderUserCount(users.length)}
                   </>
-                )}
-
-                {/* Tooltip - Figma Design */}
-                {hoveredDate === day.fullDate && users.length > 0 && (
-                  <div
-                    className="fixed z-50 pointer-events-none"
-                    style={{
-                      left: `${tooltipPosition.x}px`,
-                      top: `${tooltipPosition.y}px`,
-                      transform: 'translate(-50%, -100%)',
-                      maxWidth: '280px',
-                    }}
-                  >
-                    <div
-                      className="rounded-lg shadow-lg border p-3"
-                      style={{
-                        backgroundColor: 'var(--background)',
-                        borderColor: 'var(--border)',
-                        maxHeight: '240px',
-                        overflowY: 'auto',
-                      }}
-                    >
-                      <p
-                        className="mb-2"
-                        style={{
-                          fontSize: 'var(--font-size-caption)',
-                          fontWeight: 600,
-                          color: 'var(--foreground)',
-                          borderBottom: '1px solid var(--border)',
-                          paddingBottom: '8px',
-                        }}
-                      >
-                        {month + 1}월 {day.date}일 연차 사용자
-                      </p>
-                      <div className="space-y-1">
-                        {users.map((name, idx) => (
-                          <div
-                            key={idx}
-                            className="px-2 py-1 rounded"
-                            style={{
-                              fontSize: 'var(--font-size-caption)',
-                              lineHeight: 1.4,
-                              color: 'var(--foreground)',
-                              backgroundColor: 'var(--muted)',
-                            }}
-                          >
-                            {name}
-                          </div>
-                        ))}
-                      </div>
-                      <p
-                        className="mt-2 pt-2"
-                        style={{
-                          fontSize: 'var(--font-size-caption)',
-                          color: 'var(--muted-foreground)',
-                          borderTop: '1px solid var(--border)',
-                        }}
-                      >
-                        총 {users.length}명
-                      </p>
-                    </div>
-                  </div>
                 )}
               </div>
             )
