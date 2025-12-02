@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { QRSeatReservation } from '@/components/seats/QRSeatReservation'
 
 export default function SeatsPage() {
-  const [selectedFloor, setSelectedFloor] = useState('1')
+  const [selectedFloor, setSelectedFloor] = useState('2')
   const [seats, setSeats] = useState(demoSeats)
   const [selectedSeat, setSelectedSeat] = useState<typeof demoSeats[0] | null>(null)
   const [showQRView, setShowQRView] = useState(false)
@@ -167,7 +167,7 @@ export default function SeatsPage() {
       )}
 
       {/* Floor Selector Tabs */}
-      <Tabs defaultValue="1" value={selectedFloor} onValueChange={setSelectedFloor} className="w-full">
+      <Tabs defaultValue="2" value={selectedFloor} onValueChange={setSelectedFloor} className="w-full">
         <TabsList
           className="w-full"
           style={{
@@ -176,7 +176,7 @@ export default function SeatsPage() {
             boxShadow: 'var(--shadow-md)',
           }}
         >
-          {['1', '2', '3'].map((floor) => (
+          {['2', '3', '4', '5'].map((floor) => (
             <TabsTrigger
               key={floor}
               value={floor}
@@ -187,7 +187,7 @@ export default function SeatsPage() {
           ))}
         </TabsList>
 
-        {['1', '2', '3'].map((floor) => (
+        {['2', '3', '4', '5'].map((floor) => (
           <TabsContent key={floor} value={floor} className="mt-6 space-y-6">
             {/* Legend */}
             <Card style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}>
