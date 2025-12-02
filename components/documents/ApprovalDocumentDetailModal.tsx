@@ -263,11 +263,21 @@ export function ApprovalDocumentDetailModal({
   const canApprove = document?.status === 'pending' && approvalSteps.some(
     step => {
       // approver_id (Edge Function 형식) 또는 approver.id (페이지 형식) 체크
-      const approverId = step.approver_id ||
-        (step.approver ? (Array.isArray(step.approver) ? step.approver[0]?.id : step.approver.id) : null)
-      return approverId === userId
-        && step.status === 'pending'
-        && step.step_order === document.current_step
+      let approverId: string | null = null
+      if (step.approver_id) {
+        approverId = step.approver_id
+      } else if (step.approver) {
+        const approverData = Array.isArray(step.approver) ? step.approver[0] : step.approver
+        approverId = approverData?.id || null
+      }
+
+      // status가 'pending'인 step만 결재 가능 (현재 차례)
+      const isPending = step.status === 'pending'
+      // step_order와 current_step 비교 (둘 다 숫자여야 함)
+      const isCurrentStep = document.current_step !== null &&
+        Number(step.step_order) === Number(document.current_step)
+
+      return approverId === userId && isPending && isCurrentStep
     }
   )
 
