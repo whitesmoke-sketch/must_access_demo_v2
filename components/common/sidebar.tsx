@@ -281,7 +281,7 @@ export function Sidebar({
                       variant="secondary"
                       className="border-none shadow-md"
                       style={{
-                        fontWeight: 500,
+                        fontWeight: 600,
                       }}
                     >
                       <p>{item.label}</p>
@@ -346,7 +346,7 @@ export function Sidebar({
                     variant="secondary"
                     className="border-none shadow-md"
                     style={{
-                      fontWeight: 500,
+                      fontWeight: 600,
                     }}
                   >
                     <p>관리자 모드</p>
