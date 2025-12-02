@@ -211,7 +211,7 @@ export function SeatListView({
           </>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 items-start">
           {otherSeats.map(seat => renderSeatRow(seat, false))}
         </div>
 
