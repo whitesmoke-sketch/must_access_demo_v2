@@ -377,11 +377,11 @@ export function LeaveManagementClient({
         return (
           <Badge
             style={{
-              backgroundColor: '#E8F8F5',
-              color: '#4CD471',
+              backgroundColor: 'var(--success-bg)',
+              color: 'var(--success)',
               fontSize: 'var(--font-size-caption)',
               lineHeight: 1.4,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             승인
@@ -391,25 +391,25 @@ export function LeaveManagementClient({
         return (
           <Badge
             style={{
-              backgroundColor: '#FFF8E5',
-              color: '#F8C653',
+              backgroundColor: 'var(--warning-bg)',
+              color: 'var(--warning)',
               fontSize: 'var(--font-size-caption)',
               lineHeight: 1.4,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
-            대기
+            승인 대기
           </Badge>
         )
       case 'rejected':
         return (
           <Badge
             style={{
-              backgroundColor: '#FFF0ED',
-              color: '#FF6B6B',
+              backgroundColor: 'var(--destructive-bg)',
+              color: 'var(--destructive)',
               fontSize: 'var(--font-size-caption)',
               lineHeight: 1.4,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             반려
