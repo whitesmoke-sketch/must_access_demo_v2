@@ -419,21 +419,17 @@ export function MyDocumentsClient({
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>작성일</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>상태</TableHead>
                   <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>상세</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
+                    <TableCell colSpan={5} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
                       작성한 문서가 없습니다
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedDocuments.map((doc) => {
-                    const canWithdraw = doc.status === 'pending'
-                    const canCancelRequest = doc.status === 'approved'
-
                     return (
                       <TableRow
                         key={doc.id}
@@ -494,42 +490,6 @@ export function MyDocumentsClient({
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                        </TableCell>
-                        <TableCell className="text-center p-3">
-                          <div className="flex items-center justify-center gap-2">
-                            {canWithdraw ? (
-                              <Button
-                                size="sm"
-                                onClick={() => openWithdrawDialog(doc.id)}
-                                disabled={withdrawingId === doc.id}
-                                style={{
-                                  backgroundColor: 'var(--muted-foreground)',
-                                  color: 'var(--background)',
-                                }}
-                              >
-                                <RotateCcw className="w-4 h-4 mr-2" />
-                                {withdrawingId === doc.id ? '처리중...' : '회수'}
-                              </Button>
-                            ) : (
-                              /* 취소 요청 버튼 - 추후 구현 예정
-                              canCancelRequest ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleViewDetail(doc)}
-                                style={{
-                                  backgroundColor: 'var(--destructive)',
-                                  color: 'var(--destructive-foreground)',
-                                  fontSize: 'var(--font-size-body)',
-                                  fontWeight: 500,
-                                  lineHeight: 1.5,
-                                }}
-                              >
-                                취소 요청
-                              </Button>
-                            ) : */
-                              <span>&nbsp;</span>
-                            )}
-                          </div>
                         </TableCell>
                       </TableRow>
                     )
