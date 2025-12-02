@@ -10,6 +10,7 @@ import { demoSeats } from '@/lib/demo-data/seats'
 import { SeatListView } from '@/components/seats/SeatListView'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { QRSeatReservation } from '@/components/seats/QRSeatReservation'
 
 export default function SeatsPage() {
   const [selectedFloor, setSelectedFloor] = useState('1')
@@ -17,6 +18,8 @@ export default function SeatsPage() {
   const [selectedSeat, setSelectedSeat] = useState<typeof demoSeats[0] | null>(null)
   const [testModalOpen, setTestModalOpen] = useState(false)
   const [testSeat, setTestSeat] = useState<typeof demoSeats[0] | null>(null)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [qrSeat, setQrSeat] = useState<typeof demoSeats[0] | null>(null)
   const currentUserId = 'current-user-id' // TODO: Get from auth
 
   // Get current user's seat
@@ -446,8 +449,9 @@ export default function SeatsPage() {
                   <Button
                     className="w-full"
                     onClick={() => {
-                      toast.info('QR 스캔 화면은 준비 중입니다')
+                      setQrSeat(testSeat)
                       setTestModalOpen(false)
+                      setQrModalOpen(true)
                     }}
                     style={{
                       backgroundColor: 'var(--secondary)',
@@ -471,6 +475,23 @@ export default function SeatsPage() {
                 </div>
               </div>
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Scan Screen Modal */}
+      <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
+        <DialogContent className="max-w-md p-0" style={{ backgroundColor: 'var(--background)' }}>
+          {qrSeat && (
+            <QRSeatReservation
+              seat={qrSeat}
+              currentUserName="관리자"
+              onClose={() => setQrModalOpen(false)}
+              onStartUsing={() => {
+                handleStartUsing(qrSeat.id)
+                setQrModalOpen(false)
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>
