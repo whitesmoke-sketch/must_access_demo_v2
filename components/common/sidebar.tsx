@@ -258,7 +258,7 @@ export function Sidebar({
                   <Icon
                     className="w-5 h-5 transition-colors duration-150"
                     style={{
-                      color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#A0ACB3',
+                      color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#5B6A72',
                     }}
                   />
                   {!collapsed && (
@@ -423,7 +423,7 @@ export function Sidebar({
                 >
                   <Icon
                     className="w-5 h-5"
-                    style={{ color: isActive ? '#ffffff' : '#A0ACB3' }}
+                    style={{ color: isActive ? '#ffffff' : '#5B6A72' }}
                   />
                   <span className="flex-1">{item.label}</span>
                   {!item.implemented && (
