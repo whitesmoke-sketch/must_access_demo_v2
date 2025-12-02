@@ -16,8 +16,6 @@ export default function SeatsPage() {
   const [selectedFloor, setSelectedFloor] = useState('1')
   const [seats, setSeats] = useState(demoSeats)
   const [selectedSeat, setSelectedSeat] = useState<typeof demoSeats[0] | null>(null)
-  const [testModalOpen, setTestModalOpen] = useState(false)
-  const [testSeat, setTestSeat] = useState<typeof demoSeats[0] | null>(null)
   const [showQRView, setShowQRView] = useState(false)
   const [qrSeat, setQrSeat] = useState<typeof demoSeats[0] | null>(null)
   const currentUserId = 'current-user-id' // TODO: Get from auth
@@ -244,15 +242,14 @@ export default function SeatsPage() {
                         <Button
                           onClick={() => {
                             const availableSeat = seats.find(s => s.status === 'available')
-                            setTestSeat(availableSeat || null)
-                            setTestModalOpen(true)
+                            setSelectedSeat(availableSeat || null)
                           }}
                           style={{
                             backgroundColor: 'var(--primary)',
                             color: 'var(--primary-foreground)',
                           }}
                         >
-                          좌석 상세 모달 테스트
+                          좌석 선택 테스트
                         </Button>
                       </div>
                     </div>
@@ -337,6 +334,31 @@ export default function SeatsPage() {
                             >
                               사용 시작
                             </Button>
+                            <Button
+                              className="w-full"
+                              onClick={() => {
+                                setQrSeat(selectedSeat)
+                                setShowQRView(true)
+                              }}
+                              style={{
+                                backgroundColor: 'var(--secondary)',
+                                color: 'var(--secondary-foreground)',
+                              }}
+                            >
+                              <QrCode className="w-4 h-4 mr-2" />
+                              QR 스캔 화면 테스트
+                            </Button>
+                            <div
+                              className="p-3 rounded-lg"
+                              style={{
+                                backgroundColor: 'var(--muted)',
+                                border: '1px solid var(--border)'
+                              }}
+                            >
+                              <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--muted-foreground)' }}>
+                                자유석 사용 시 Hubstaff에 자동으로 기록됩니다.
+                              </p>
+                            </div>
                           </div>
                         )}
 
@@ -411,90 +433,6 @@ export default function SeatsPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Test Seat Detail Modal */}
-      <Dialog open={testModalOpen} onOpenChange={setTestModalOpen}>
-        <DialogContent className="max-w-md">
-          {testSeat && (
-            <>
-              <DialogHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: 'var(--foreground)' }}>
-                      {testSeat.name}
-                    </DialogTitle>
-                    <p style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--muted-foreground)', marginTop: '4px' }}>
-                      {testSeat.location}
-                    </p>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="space-y-4 pt-4">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-                  <span style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--foreground)' }}>
-                    위치: {testSeat.location}
-                  </span>
-                </div>
-
-                <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
-                  <div className="flex items-center justify-between">
-                    <span style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--muted-foreground)' }}>
-                      상태
-                    </span>
-                    <Badge className="!border-0" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)' }}>
-                      사용 가능
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="pt-4 space-y-3">
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      handleStartUsing(testSeat.id)
-                      setTestModalOpen(false)
-                    }}
-                    style={{
-                      backgroundColor: 'var(--primary)',
-                      color: 'var(--primary-foreground)',
-                    }}
-                  >
-                    사용 시작
-                  </Button>
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      setQrSeat(testSeat)
-                      setTestModalOpen(false)
-                      setShowQRView(true)
-                    }}
-                    style={{
-                      backgroundColor: 'var(--secondary)',
-                      color: 'var(--secondary-foreground)',
-                    }}
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    QR 스캔 화면 테스트
-                  </Button>
-                  <div
-                    className="p-3 rounded-lg"
-                    style={{
-                      backgroundColor: 'var(--muted)',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--muted-foreground)' }}>
-                      자유석 사용 시 Hubstaff에 자동으로 기록됩니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
