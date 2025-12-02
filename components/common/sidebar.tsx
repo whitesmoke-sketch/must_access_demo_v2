@@ -66,7 +66,7 @@ export function Sidebar({
       label: '자유석',
       icon: Armchair,
       href: '/resources/seats',
-      implemented: false,
+      implemented: true,
     },
     {
       id: 'lockers',
