@@ -200,7 +200,7 @@ export function ApprovalDocumentsClient({
     const currentLabel = labels[displayStatus] || displayStatus || '알 수 없음'
 
     return (
-      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-copyright)', lineHeight: 'var(--line-height-caption)', fontWeight: 600 }}>
+      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
         {currentLabel}
       </Badge>
     )
@@ -233,7 +233,7 @@ export function ApprovalDocumentsClient({
     const currentLabel = labels[type] || type || '기타'
 
     return (
-      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-copyright)', lineHeight: 'var(--line-height-caption)', fontWeight: 600 }}>
+      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
         {currentLabel}
       </Badge>
     )
@@ -459,7 +459,7 @@ export function ApprovalDocumentsClient({
                               <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
                                 {employee?.name || '알 수 없음'}
                               </p>
-                              <p style={{ fontSize: 'var(--font-size-copyright)', color: 'var(--muted-foreground)' }}>
+                              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)' }}>
                                 {getRoleName(employee?.role)}
                               </p>
                             </div>
