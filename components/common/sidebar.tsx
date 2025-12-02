@@ -187,7 +187,7 @@ export function Sidebar({
   return (
     <>
       {/* Desktop Sidebar */}
-      <TooltipProvider>
+      <TooltipProvider delayDuration={0}>
         <aside
           className={`hidden md:flex flex-col bg-white border-r fixed left-0 top-0 h-full transition-all duration-300 z-30 ${
             collapsed ? 'w-20' : 'w-[270px]'
@@ -278,10 +278,9 @@ export function Sidebar({
                     <TooltipTrigger asChild>{menuButton}</TooltipTrigger>
                     <TooltipContent
                       side="right"
+                      variant="secondary"
                       className="border-none shadow-md"
                       style={{
-                        backgroundColor: '#16CDC7',
-                        color: '#FFFFFF',
                         fontWeight: 500,
                       }}
                     >
@@ -344,10 +343,9 @@ export function Sidebar({
                 {collapsed && (
                   <TooltipContent
                     side="right"
+                    variant="secondary"
                     className="border-none shadow-md"
                     style={{
-                      backgroundColor: '#16CDC7',
-                      color: '#FFFFFF',
                       fontWeight: 500,
                     }}
                   >
