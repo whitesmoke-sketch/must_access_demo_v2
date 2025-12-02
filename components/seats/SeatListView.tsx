@@ -187,14 +187,8 @@ export function SeatListView({
       </h3>
 
       <div className="space-y-3" style={{ paddingBottom: '10px' }}>
-        {mySeats.length > 0 && (
-          <>
-            {mySeats.map(seat => renderSeatRow(seat, true))}
-            <div style={{ height: '16px' }} />
-          </>
-        )}
-
         <div className="grid grid-cols-2 gap-3 items-start">
+          {mySeats.map(seat => renderSeatRow(seat, true))}
           {otherSeats.map(seat => renderSeatRow(seat, false))}
         </div>
 
