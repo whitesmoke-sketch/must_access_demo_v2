@@ -200,7 +200,7 @@ export function ApprovalDocumentsClient({
     const currentLabel = labels[displayStatus] || displayStatus || '알 수 없음'
 
     return (
-      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
+      <Badge className="!border-0" style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
         {currentLabel}
       </Badge>
     )
@@ -233,7 +233,7 @@ export function ApprovalDocumentsClient({
     const currentLabel = labels[type] || type || '기타'
 
     return (
-      <Badge style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
+      <Badge className="!border-0" style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
         {currentLabel}
       </Badge>
     )

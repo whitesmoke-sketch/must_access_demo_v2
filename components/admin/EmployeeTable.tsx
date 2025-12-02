@@ -273,5 +273,5 @@ function RoleBadge({ roleCode, roleName }: { roleCode?: string; roleName?: strin
     className: 'bg-gray-100 text-gray-700',
   }
 
-  return <Badge className={config.className}>{config.label}</Badge>
+  return <Badge className={`${config.className} !border-0`}>{config.label}</Badge>
 }
