@@ -18,7 +18,7 @@ export default function SeatsPage() {
   const [selectedSeat, setSelectedSeat] = useState<typeof demoSeats[0] | null>(null)
   const [testModalOpen, setTestModalOpen] = useState(false)
   const [testSeat, setTestSeat] = useState<typeof demoSeats[0] | null>(null)
-  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [showQRView, setShowQRView] = useState(false)
   const [qrSeat, setQrSeat] = useState<typeof demoSeats[0] | null>(null)
   const currentUserId = 'current-user-id' // TODO: Get from auth
 
@@ -395,6 +395,23 @@ export default function SeatsPage() {
         </CardContent>
       </Card>
 
+      {/* QR Scan Screen - Card Format */}
+      {showQRView && qrSeat && (
+        <Card style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}>
+          <CardContent className="p-6">
+            <QRSeatReservation
+              seat={qrSeat}
+              currentUserName="관리자"
+              onClose={() => setShowQRView(false)}
+              onStartUsing={() => {
+                handleStartUsing(qrSeat.id)
+                setShowQRView(false)
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Test Seat Detail Modal */}
       <Dialog open={testModalOpen} onOpenChange={setTestModalOpen}>
         <DialogContent className="max-w-md">
@@ -451,7 +468,7 @@ export default function SeatsPage() {
                     onClick={() => {
                       setQrSeat(testSeat)
                       setTestModalOpen(false)
-                      setQrModalOpen(true)
+                      setShowQRView(true)
                     }}
                     style={{
                       backgroundColor: 'var(--secondary)',
@@ -475,23 +492,6 @@ export default function SeatsPage() {
                 </div>
               </div>
             </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* QR Scan Screen Modal */}
-      <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
-        <DialogContent className="max-w-md p-0" style={{ backgroundColor: 'var(--background)' }}>
-          {qrSeat && (
-            <QRSeatReservation
-              seat={qrSeat}
-              currentUserName="관리자"
-              onClose={() => setQrModalOpen(false)}
-              onStartUsing={() => {
-                handleStartUsing(qrSeat.id)
-                setQrModalOpen(false)
-              }}
-            />
           )}
         </DialogContent>
       </Dialog>
