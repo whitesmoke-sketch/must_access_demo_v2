@@ -205,6 +205,7 @@ export function LeaveManagementTable({
                         <TableCell className="text-center">
                           {leaveStatus.hasRequest && leaveStatus.status === 'pending' ? (
                             <Badge
+                              className="!border-0"
                               style={{
                                 backgroundColor: '#FFF8E5',
                                 color: '#F8C653',
