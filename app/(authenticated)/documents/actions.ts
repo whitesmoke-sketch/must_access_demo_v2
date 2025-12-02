@@ -1,10 +1,11 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function approveLeaveRequest(requestId: number) {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
   // 인증 확인
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -43,9 +44,10 @@ export async function approveLeaveRequest(requestId: number) {
     }
 
     // 합의(agreement) 로직: 같은 step_order의 모든 결재자가 승인했는지 확인
-    const { data: sameStepApprovers, error: sameStepError } = await supabase
+    // RLS 우회를 위해 adminSupabase 사용
+    const { data: sameStepApprovers, error: sameStepError } = await adminSupabase
       .from('approval_step')
-      .select('id, status')
+      .select('id, status, is_last_step')
       .eq('request_type', 'leave')
       .eq('request_id', requestId)
       .eq('step_order', myStep.step_order)
@@ -60,16 +62,26 @@ export async function approveLeaveRequest(requestId: number) {
       step => step.status === 'approved'
     ) ?? false
 
+    console.log('[합의 체크]', {
+      requestId,
+      stepOrder: myStep.step_order,
+      approvers: sameStepApprovers,
+      allApproved: allSameStepApproved
+    })
+
     // 같은 단계에 아직 승인하지 않은 결재자가 있으면 대기
     if (!allSameStepApproved) {
+      console.log('[합의 대기] 다른 결재자 승인 대기 중')
       return { success: true, message: '승인 완료. 동일 단계의 다른 결재자 승인을 기다리고 있습니다.' }
     }
 
-    // is_last_step 플래그로 최종 승인자 확인
-    const isLastApprover = myStep.is_last_step
+    // 모든 결재자가 승인함 - is_last_step 플래그로 최종 단계 확인
+    // 같은 단계의 결재자 중 하나라도 is_last_step이면 최종 단계
+    const isLastStep = sameStepApprovers?.some(step => step.is_last_step) ?? false
+    console.log('[최종 단계 확인]', { isLastStep })
 
     // leave_request 업데이트
-    if (isLastApprover) {
+    if (isLastStep) {
       // 최종 승인자인 경우 → 문서 전체를 approved로
       const { error: updateRequestError } = await supabase
         .from('leave_request')

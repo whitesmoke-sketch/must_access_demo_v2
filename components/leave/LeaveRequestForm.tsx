@@ -154,9 +154,9 @@ export function LeaveRequestForm({ employeeId }: LeaveRequestFormProps) {
       const requestId = leaveResult.data.id;
 
       // 2. 승인 단계 생성
-      const steps: ApprovalStepInput[] = approvers.map((a, index) => ({
+      const steps: ApprovalStepInput[] = approvers.map((a) => ({
         approver_id: a.id,
-        step_order: index + 1,
+        step_order: a.order || 1,  // approver의 order 사용 (같은 단계 = 병렬)
         approval_type: 'single' as const
       }));
 
