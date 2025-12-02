@@ -1,8 +1,14 @@
 'use client'
 
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/sonner'
 import { useEffect, useState } from 'react'
 
+/**
+ * Figma 디자인 시스템에 맞춘 반응형 토스터
+ * - 모바일: 하단 중앙
+ * - 데스크톱: 우측 상단
+ * - Figma 스타일: 원형 아이콘 + 타입별 컬러 + 액션 버튼
+ */
 export function ResponsiveToaster() {
   const [isMobile, setIsMobile] = useState(false)
 
@@ -21,15 +27,7 @@ export function ResponsiveToaster() {
 
   return (
     <Toaster
-      position={isMobile ? 'bottom-center' : 'top-center'}
-      richColors
-      toastOptions={{
-        style: {
-          background: 'var(--card)',
-          border: '1px solid var(--border)',
-          color: 'var(--foreground)',
-        },
-      }}
+      position={isMobile ? 'bottom-center' : 'top-right'}
     />
   )
 }
