@@ -46,8 +46,8 @@ export default function MeetingInvitationModal({
     if (result.success) {
       toast.success(
         status === 'accepted'
-          ? '✅ 회의 참석으로 응답했습니다. 캘린더에 추가되었습니다.'
-          : '❌ 회의 불참으로 응답했습니다.'
+          ? '회의 참석으로 응답했습니다. 캘린더에 추가되었습니다.'
+          : '회의 불참으로 응답했습니다.'
       )
       onUpdate?.()
       onClose()
@@ -181,14 +181,15 @@ export default function MeetingInvitationModal({
               disabled={loading}
               className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              {loading ? '처리중...' : '✅ 참석'}
+              {loading ? '처리중...' : '참석'}
             </button>
             <button
               onClick={() => handleResponse('declined')}
               disabled={loading}
               className="flex-1 px-6 py-3 border border-border rounded-lg font-semibold hover:bg-muted disabled:opacity-50 transition-colors"
+              style={{ color: '#FF6B6B' }}
             >
-              {loading ? '처리중...' : '❌ 불참'}
+              {loading ? '처리중...' : '불참'}
             </button>
           </div>
         )}
@@ -196,7 +197,7 @@ export default function MeetingInvitationModal({
         {meeting.response_status === 'accepted' && (
           <div className="p-6 border-t bg-green-50">
             <p className="text-center text-green-800 font-medium">
-              ✅ 이미 참석으로 응답하셨습니다
+              이미 참석으로 응답하셨습니다
             </p>
           </div>
         )}
@@ -204,7 +205,7 @@ export default function MeetingInvitationModal({
         {meeting.response_status === 'declined' && (
           <div className="p-6 border-t bg-red-50">
             <p className="text-center text-red-800 font-medium">
-              ❌ 불참으로 응답하셨습니다
+              불참으로 응답하셨습니다
             </p>
           </div>
         )}
