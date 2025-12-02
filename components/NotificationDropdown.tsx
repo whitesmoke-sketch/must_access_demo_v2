@@ -8,6 +8,14 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Notification } from '@/app/actions/notification'
 import MeetingInvitationModal from './MeetingInvitationModal'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface NotificationDropdownProps {
   notifications: Notification[]
@@ -15,7 +23,6 @@ interface NotificationDropdownProps {
 }
 
 export default function NotificationDropdown({ notifications: initialNotifications, userId }: NotificationDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState(initialNotifications)
   const [selectedMeetingNotification, setSelectedMeetingNotification] = useState<Notification | null>(null)
   const router = useRouter()
@@ -71,57 +78,24 @@ export default function NotificationDropdown({ notifications: initialNotificatio
   // 읽지 않은 알림 개수
   const unreadCount = notifications.filter(n => !n.is_read).length
 
-  // 알림 타입별 스타일
-  function getNotificationStyle(type: string) {
-    switch (type) {
-      case 'meeting_invitation':
-        return {
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200'
-        }
-      case 'leave_approval':
-        return {
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200'
-        }
-      case 'leave_rejection':
-        return {
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200'
-        }
-      case 'document_approval':
-        return {
-          bgColor: 'bg-purple-50',
-          borderColor: 'border-purple-200'
-        }
-      case 'approval_request':
-        return {
-          bgColor: 'bg-orange-50',
-          borderColor: 'border-orange-200'
-        }
-      case 'document_cc':
-        return {
-          bgColor: 'bg-cyan-50',
-          borderColor: 'border-cyan-200'
-        }
-      case 'system':
-        return {
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200'
-        }
-      default:
-        return {
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200'
-        }
+  // 모두 읽음 처리
+  async function handleMarkAllAsRead() {
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
+
+    if (unreadIds.length === 0) return
+
+    // 모든 읽지 않은 알림을 읽음 처리
+    for (const id of unreadIds) {
+      await markAsRead(id)
     }
+
+    router.refresh()
   }
 
   async function handleNotificationClick(notification: Notification) {
     // 회의 초대인 경우 모달 표시
     if (notification.type === 'meeting_invitation') {
       setSelectedMeetingNotification(notification)
-      setIsOpen(false)
       return
     }
 
@@ -135,7 +109,6 @@ export default function NotificationDropdown({ notifications: initialNotificatio
       router.push(notification.action_url)
     }
 
-    setIsOpen(false)
     router.refresh()
   }
 
@@ -144,137 +117,87 @@ export default function NotificationDropdown({ notifications: initialNotificatio
     router.refresh()
   }
 
-  // 날짜 포맷팅
-  function formatDate(dateString: string) {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(minutes / 60)
-    const days = Math.floor(hours / 24)
-
-    if (minutes < 1) return '방금 전'
-    if (minutes < 60) return `${minutes}분 전`
-    if (hours < 24) return `${hours}시간 전`
-    if (days < 7) return `${days}일 전`
-
-    return date.toLocaleDateString('ko-KR', {
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
   return (
     <>
-      {/* 알림 아이콘 */}
-      <div className="relative">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="relative p-2 rounded-lg transition-all"
-          aria-label="알림"
-          style={{
-            backgroundColor: 'var(--muted)',
-            transitionDuration: '150ms',
-            transitionTimingFunction: 'ease-in-out',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.filter = 'brightness(0.97)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.filter = 'brightness(1)'
-          }}
+      {/* Figma Design - Notification Dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="relative p-2 rounded-lg transition-all"
+            style={{
+              backgroundColor: 'var(--muted)',
+              transitionDuration: '150ms',
+              transitionTimingFunction: 'ease-in-out',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.filter = 'brightness(0.97)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.filter = 'brightness(1)'
+            }}
+          >
+            <Bell className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+            {unreadCount > 0 && (
+              <Badge
+                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 rounded-full"
+                style={{ backgroundColor: 'var(--primary)', fontSize: '10px' }}
+              >
+                {unreadCount}
+              </Badge>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-80"
         >
-          <Bell className="w-5 h-5" style={{ color: '#5B6A72' }} />
-          {unreadCount > 0 && (
-            <span
-              className="absolute -top-1 -right-1 rounded-full w-5 h-5 text-xs flex items-center justify-center font-medium text-white"
-              style={{ backgroundColor: '#F04438' }}
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </button>
+          {/* 헤더 - Figma Design */}
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <span style={{ color: 'var(--foreground)' }}>알림</span>
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMarkAllAsRead}
+                style={{ color: 'var(--primary)' }}
+              >
+                모두 읽음
+              </Button>
+            )}
+          </div>
 
-        {/* 드롭다운 */}
-        {isOpen && (
-          <>
-            {/* 오버레이 */}
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setIsOpen(false)}
-            />
-
-            {/* 드롭다운 메뉴 */}
-            <div
-              className="absolute right-0 mt-2 w-96 bg-white shadow-lg rounded-lg border z-20 max-h-[500px] overflow-y-auto"
-              style={{ borderColor: '#E5E8EB' }}
-            >
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold" style={{ color: '#29363D' }}>알림</h3>
-                  {unreadCount > 0 && (
-                    <span className="text-xs" style={{ color: '#635BFF' }}>
-                      {unreadCount}개의 새 알림
-                    </span>
-                  )}
-                </div>
-
-                {notifications.length === 0 ? (
-                  <p className="text-center py-8" style={{ color: '#A0ACB3' }}>
-                    새로운 알림이 없습니다
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {notifications.map((notification) => {
-                      const style = getNotificationStyle(notification.type)
-
-                      return (
-                        <div
-                          key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
-                          className={`p-3 rounded-lg cursor-pointer border transition-colors ${style.bgColor} ${style.borderColor} hover:opacity-80`}
-                          style={{
-                            opacity: notification.is_read ? 0.6 : 1
-                          }}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className="font-medium mb-1"
-                                style={{ color: '#29363D' }}
-                              >
-                                {notification.title}
-                              </p>
-                              <p
-                                className="text-sm mb-2"
-                                style={{ color: '#5B6A72' }}
-                              >
-                                {notification.message}
-                              </p>
-                              <p
-                                className="text-xs"
-                                style={{ color: '#A0ACB3' }}
-                              >
-                                {formatDate(notification.created_at)}
-                              </p>
-                            </div>
-                            {!notification.is_read && (
-                              <div
-                                className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
-                                style={{ backgroundColor: '#635BFF' }}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+          {/* 알림 목록 - Figma Design */}
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center" style={{ color: 'var(--muted-foreground)' }}>
+                알림이 없습니다
               </div>
-            </div>
-          </>
-        )}
-      </div>
+            ) : (
+              notifications
+                .slice(0, 10)
+                .map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className="px-4 py-3 cursor-pointer"
+                    style={{
+                      backgroundColor: !notification.is_read ? 'var(--accent)' : 'transparent'
+                    }}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm" style={{ color: 'var(--foreground)' }}>
+                        {notification.message}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                        {new Date(notification.created_at).toLocaleString("ko-KR")}
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                ))
+            )}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* 회의 초대 모달 */}
       {selectedMeetingNotification && selectedMeetingNotification.type === 'meeting_invitation' && selectedMeetingNotification.metadata?.meeting_data && (
