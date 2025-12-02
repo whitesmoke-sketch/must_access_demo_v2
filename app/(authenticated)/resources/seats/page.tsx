@@ -5,15 +5,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { X, MapPin, Clock, Armchair, Wrench } from 'lucide-react'
+import { X, MapPin, Clock, Armchair, Wrench, QrCode } from 'lucide-react'
 import { demoSeats } from '@/lib/demo-data/seats'
 import { SeatListView } from '@/components/seats/SeatListView'
 import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export default function SeatsPage() {
   const [selectedFloor, setSelectedFloor] = useState('1')
   const [seats, setSeats] = useState(demoSeats)
   const [selectedSeat, setSelectedSeat] = useState<typeof demoSeats[0] | null>(null)
+  const [testModalOpen, setTestModalOpen] = useState(false)
+  const [testSeat, setTestSeat] = useState<typeof demoSeats[0] | null>(null)
   const currentUserId = 'current-user-id' // TODO: Get from auth
 
   // Get current user's seat
@@ -232,9 +235,22 @@ export default function SeatsPage() {
                         <p style={{ fontSize: 'var(--font-size-h2)', fontWeight: 500, color: 'var(--muted-foreground)', marginBottom: '8px' }}>
                           평면도 구현 예정
                         </p>
-                        <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+                        <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
                           좌석 배치도 기능이 곧 제공될 예정입니다
                         </p>
+                        <Button
+                          onClick={() => {
+                            const availableSeat = seats.find(s => s.status === 'available')
+                            setTestSeat(availableSeat || null)
+                            setTestModalOpen(true)
+                          }}
+                          style={{
+                            backgroundColor: 'var(--primary)',
+                            color: 'var(--primary-foreground)',
+                          }}
+                        >
+                          좌석 상세 모달 테스트
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -375,6 +391,89 @@ export default function SeatsPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Test Seat Detail Modal */}
+      <Dialog open={testModalOpen} onOpenChange={setTestModalOpen}>
+        <DialogContent className="max-w-md">
+          {testSeat && (
+            <>
+              <DialogHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: 'var(--foreground)' }}>
+                      {testSeat.name}
+                    </DialogTitle>
+                    <p style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--muted-foreground)', marginTop: '4px' }}>
+                      {testSeat.location}
+                    </p>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+                  <span style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--foreground)' }}>
+                    위치: {testSeat.location}
+                  </span>
+                </div>
+
+                <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between">
+                    <span style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--muted-foreground)' }}>
+                      상태
+                    </span>
+                    <Badge className="!border-0" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)' }}>
+                      사용 가능
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="pt-4 space-y-3">
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      handleStartUsing(testSeat.id)
+                      setTestModalOpen(false)
+                    }}
+                    style={{
+                      backgroundColor: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                    }}
+                  >
+                    사용 시작
+                  </Button>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      toast.info('QR 스캔 화면은 준비 중입니다')
+                      setTestModalOpen(false)
+                    }}
+                    style={{
+                      backgroundColor: 'var(--secondary)',
+                      color: 'var(--secondary-foreground)',
+                    }}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    QR 스캔 화면 테스트
+                  </Button>
+                  <div
+                    className="p-3 rounded-lg"
+                    style={{
+                      backgroundColor: 'var(--muted)',
+                      border: '1px solid var(--border)'
+                    }}
+                  >
+                    <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--muted-foreground)' }}>
+                      자유석 사용 시 Hubstaff에 자동으로 기록됩니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
