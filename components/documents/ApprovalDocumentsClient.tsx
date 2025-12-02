@@ -423,39 +423,17 @@ export function ApprovalDocumentsClient({
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청일시</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>상태</TableHead>
                   <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '60px', minWidth: '60px' }}>상세</TableHead>
-                  <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '160px', minWidth: '160px' }}>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
+                    <TableCell colSpan={6} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
                       결재 문서가 없습니다
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedDocuments.map((doc) => {
-                    // 내가 승인해야 할 차례인지 확인 (모달과 동일한 로직)
-                    const docApprovalSteps = approvalStepsMap[doc.id] || []
-                    const canApprove = doc.status === 'pending' && docApprovalSteps.some(
-                      step => {
-                        // approver_id 추출 (Edge Function 형식 또는 페이지 형식)
-                        let approverId: string | null = null
-                        if (step.approver_id) {
-                          approverId = step.approver_id
-                        } else if (step.approver) {
-                          const approverData = Array.isArray(step.approver) ? step.approver[0] : step.approver
-                          approverId = approverData?.id || null
-                        }
-
-                        // 내가 승인자이고, pending 상태이고, 현재 단계와 일치하는지 확인
-                        const isPending = step.status === 'pending'
-                        const isCurrentStep = doc.current_step !== null &&
-                          Number(step.step_order) === Number(doc.current_step)
-
-                        return approverId === userId && isPending && isCurrentStep
-                      }
-                    )
                     const employee = getEmployee(doc.employee)
 
                     return (
@@ -522,32 +500,6 @@ export function ApprovalDocumentsClient({
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                        </TableCell>
-                        <TableCell className="text-center p-3" style={{ width: '160px', minWidth: '160px' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            {canApprove ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleViewDetail(doc)}
-                                  style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)', transition: 'all 150ms ease-in-out' }}
-                                >
-                                  <Check className="w-4 h-4 mr-1" />
-                                  승인
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleViewDetail(doc)}
-                                  style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)', transition: 'all 150ms ease-in-out' }}
-                                >
-                                  <X className="w-4 h-4 mr-1" />
-                                  반려
-                                </Button>
-                              </>
-                            ) : (
-                              <span>&nbsp;</span>
-                            )}
-                          </div>
                         </TableCell>
                       </TableRow>
                     )
