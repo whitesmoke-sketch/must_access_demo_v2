@@ -461,7 +461,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
             fontSize: '22px',
             fontWeight: 500,
             lineHeight: 1.25,
-            color: '#29363D',
+            color: 'var(--foreground)',
           }}
         >
           회의실 예약
@@ -470,7 +470,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
           style={{
             fontSize: '16px',
             lineHeight: 1.5,
-            color: '#5B6A72',
+            color: 'var(--muted-foreground)',
             marginTop: '4px',
           }}
         >
@@ -504,7 +504,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       fontSize: '20px',
                       fontWeight: 500,
                       lineHeight: 1.3,
-                      color: '#29363D',
+                      color: 'var(--foreground)',
                     }}
                   >
                     {meetingRoom.name}
@@ -540,7 +540,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                           style={{
                             fontSize: '14px',
                             lineHeight: 1.4,
-                            color: '#5B6A72',
+                            color: 'var(--muted-foreground)',
                           }}
                         >
                           위치
@@ -550,7 +550,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '16px',
                             fontWeight: 500,
                             lineHeight: 1.5,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           {meetingRoom.floor}층
@@ -571,7 +571,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                           style={{
                             fontSize: '14px',
                             lineHeight: 1.4,
-                            color: '#5B6A72',
+                            color: 'var(--muted-foreground)',
                           }}
                         >
                           수용 인원
@@ -581,7 +581,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '16px',
                             fontWeight: 500,
                             lineHeight: 1.5,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           최대 {meetingRoom.capacity}명
@@ -597,7 +597,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                     style={{
                       fontSize: '14px',
                       lineHeight: 1.4,
-                      color: '#5B6A72',
+                      color: 'var(--muted-foreground)',
                     }}
                   >
                     제공 장비
@@ -607,7 +607,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       <div
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
                         style={{
-                          backgroundColor: '#F6F8F9',
+                          backgroundColor: 'var(--muted)',
                         }}
                       >
                         <PenTool className="w-3 h-3" />
@@ -616,7 +616,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '14px',
                             fontWeight: 500,
                             lineHeight: 1.33,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           화이트보드
@@ -627,7 +627,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       <div
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
                         style={{
-                          backgroundColor: '#F6F8F9',
+                          backgroundColor: 'var(--muted)',
                         }}
                       >
                         <Monitor className="w-3 h-3" />
@@ -636,7 +636,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '14px',
                             fontWeight: 500,
                             lineHeight: 1.33,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           모니터
@@ -647,7 +647,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       <div
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
                         style={{
-                          backgroundColor: '#F6F8F9',
+                          backgroundColor: 'var(--muted)',
                         }}
                       >
                         <Plug className="w-3 h-3" />
@@ -656,7 +656,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '14px',
                             fontWeight: 500,
                             lineHeight: 1.33,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           콘센트
@@ -667,7 +667,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       <div
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
                         style={{
-                          backgroundColor: '#F6F8F9',
+                          backgroundColor: 'var(--muted)',
                         }}
                       >
                         <Cable className="w-3 h-3" />
@@ -676,7 +676,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '14px',
                             fontWeight: 500,
                             lineHeight: 1.33,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           HDMI
@@ -716,7 +716,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       fontSize: '16px',
                       fontWeight: 500,
                       lineHeight: 1.5,
-                      color: '#29363D',
+                      color: 'var(--foreground)',
                       minWidth: '120px',
                       textAlign: 'center',
                     }}
@@ -753,22 +753,22 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                         padding: '8px 12px',
                         borderRadius: '8px',
                         backgroundColor: isBooked || isDisabled
-                          ? 'rgba(246, 248, 249, 0.5)'
+                          ? 'var(--disabled-bg)'
                           : isSelected
-                          ? 'rgba(99, 91, 255, 0.15)'
-                          : 'rgba(41, 54, 61, 0.05)',
+                          ? 'var(--primary-bg)'
+                          : 'var(--hover-bg)',
                         cursor: isBooked || isDisabled ? 'not-allowed' : 'pointer',
                         border: isSelected ? '2px solid var(--primary)' : '2px solid transparent',
                         opacity: isDisabled ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
                         if (!isBooked && !isSelected && !isDisabled) {
-                          e.currentTarget.style.backgroundColor = 'rgba(41, 54, 61, 0.1)'
+                          e.currentTarget.style.backgroundColor = 'var(--hover-bg)'
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isBooked && !isSelected && !isDisabled) {
-                          e.currentTarget.style.backgroundColor = 'rgba(41, 54, 61, 0.05)'
+                          e.currentTarget.style.backgroundColor = 'var(--hover-bg)'
                         }
                       }}
                       onClick={() => handleTimeSlotClick(time)}
@@ -791,7 +791,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                               fontSize: '14px',
                               fontWeight: 500,
                               lineHeight: 1.4,
-                              color: '#9BA4AB',
+                              color: 'var(--disabled-text)',
                             }}
                           >
                             {booking.title}
@@ -800,7 +800,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             style={{
                               fontSize: '14px',
                               lineHeight: 1.4,
-                              color: '#9BA4AB',
+                              color: 'var(--disabled-text)',
                             }}
                           >
                             {booking.bookedBy} · {booking.start} - {booking.end}
@@ -994,7 +994,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                         key={attendee.id}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg"
                         style={{
-                          backgroundColor: '#F6F8F9',
+                          backgroundColor: 'var(--muted)',
                         }}
                       >
                         <div
@@ -1012,7 +1012,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                           style={{
                             fontSize: '14px',
                             lineHeight: 1.4,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           {attendee.name}
@@ -1032,7 +1032,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                     style={{
                       fontSize: '14px',
                       lineHeight: 1.4,
-                      color: '#9BA4AB',
+                      color: 'var(--disabled-text)',
                     }}
                   >
                     참석자를 추가해주세요
@@ -1074,7 +1074,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                         fontSize: '14px',
                         fontWeight: 500,
                         lineHeight: 1.4,
-                        color: '#29363D',
+                        color: 'var(--foreground)',
                       }}
                     >
                       회의실 이용 정책
@@ -1083,7 +1083,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                       style={{
                         fontSize: '14px',
                         lineHeight: 1.4,
-                        color: '#5B6A72',
+                        color: 'var(--muted-foreground)',
                         paddingLeft: '16px',
                       }}
                     >
@@ -1154,7 +1154,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                     key={member.id}
                     className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
                     style={{
-                      border: '1px solid #E8EBED',
+                      border: '1px solid var(--border)',
                     }}
                   >
                     <div className="flex items-center gap-3">
@@ -1175,7 +1175,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                             fontSize: '16px',
                             fontWeight: 500,
                             lineHeight: 1.5,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           {member.name}
@@ -1184,7 +1184,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                           style={{
                             fontSize: '14px',
                             lineHeight: 1.4,
-                            color: '#5B6A72',
+                            color: 'var(--muted-foreground)',
                           }}
                         >
                           {member.email}
@@ -1210,7 +1210,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                     style={{
                       fontSize: '14px',
                       lineHeight: 1.4,
-                      color: '#9BA4AB',
+                      color: 'var(--disabled-text)',
                     }}
                   >
                     검색 결과가 없습니다

@@ -281,7 +281,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
 
     const iconProps = {
       className: 'w-4 h-4',
-      style: { color: '#5B6A72' },
+      style: { color: 'var(--muted-foreground)' },
     }
 
     const icons = {
@@ -305,9 +305,9 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
         key={type}
         className="flex items-center gap-1 px-2 py-1 rounded"
         style={{
-          backgroundColor: '#F6F8F9',
+          backgroundColor: 'var(--muted)',
           fontSize: 'var(--font-size-caption)',
-          color: '#5B6A72',
+          color: 'var(--muted-foreground)',
         }}
         title={labels[type]}
       >
@@ -323,15 +323,15 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
       return {
         status: 'occupied',
         label: '사용 중',
-        color: '#EF4444',
-        bgColor: '#FEF2F2',
+        color: 'var(--error)',
+        bgColor: 'var(--destructive-bg)',
       }
     }
     return {
       status: 'available',
       label: '사용 가능',
-      color: '#10B981',
-      bgColor: '#F0FDF4',
+      color: 'var(--success)',
+      bgColor: 'var(--success-bg)',
     }
   }
 
@@ -371,8 +371,8 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                 </TooltipTrigger>
                 <TooltipContent
                   style={{
-                    backgroundColor: '#29363D',
-                    color: '#FFFFFF',
+                    backgroundColor: 'var(--tooltip-bg)',
+                    color: 'var(--tooltip-foreground)',
                     borderRadius: '8px',
                     border: 'none',
                     fontSize: '14px',
@@ -394,7 +394,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   style={{
                     border: '2px solid white',
                     marginLeft: '-6px',
-                    backgroundColor: '#5B6A72',
+                    backgroundColor: 'var(--muted-foreground)',
                     color: 'white',
                     fontSize: '11px',
                     fontWeight: 600,
@@ -481,7 +481,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             fontSize: 'var(--font-size-h1)',
             fontWeight: 'var(--font-weight-h1)',
             lineHeight: 1.25,
-            color: '#29363D',
+            color: 'var(--foreground)',
           }}
         >
           회의실 예약 현황
@@ -490,7 +490,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           style={{
             fontSize: 'var(--font-size-body)',
             lineHeight: 1.5,
-            color: '#5B6A72',
+            color: 'var(--muted-foreground)',
             marginTop: '4px',
           }}
         >
@@ -509,7 +509,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   fontSize: 'var(--font-size-caption)',
                   fontWeight: 500,
                   lineHeight: 1.4,
-                  color: '#29363D',
+                  color: 'var(--foreground)',
                 }}
               >
                 회의실 검색
@@ -517,7 +517,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
               <div className="relative">
                 <Search
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  style={{ color: '#A0ACB3' }}
+                  style={{ color: 'var(--color-gray-500)' }}
                 />
                 <Input
                   placeholder="회의실 이름 입력"
@@ -539,7 +539,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   fontSize: 'var(--font-size-caption)',
                   fontWeight: 500,
                   lineHeight: 1.4,
-                  color: '#29363D',
+                  color: 'var(--foreground)',
                 }}
               >
                 인원 수
@@ -564,7 +564,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   fontSize: 'var(--font-size-caption)',
                   fontWeight: 500,
                   lineHeight: 1.4,
-                  color: '#29363D',
+                  color: 'var(--foreground)',
                 }}
               >
                 장비
@@ -585,9 +585,9 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                       onClick={() => toggleEquipmentFilter(eq)}
                       className="px-3 py-1.5 rounded-lg transition-all text-sm"
                       style={{
-                        backgroundColor: isSelected ? '#635BFF' : '#F6F8F9',
-                        color: isSelected ? 'white' : '#5B6A72',
-                        border: isSelected ? 'none' : '1px solid #E5E8EB',
+                        backgroundColor: isSelected ? 'var(--primary)' : 'var(--muted)',
+                        color: isSelected ? 'white' : 'var(--muted-foreground)',
+                        border: isSelected ? 'none' : '1px solid var(--border)',
                         fontSize: 'var(--font-size-caption)',
                         fontWeight: 500,
                         lineHeight: 1.4,
@@ -619,7 +619,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                 }}
                 style={{
                   fontSize: 'var(--font-size-caption)',
-                  color: '#635BFF',
+                  color: 'var(--primary)',
                   border: 'none',
                 }}
               >
@@ -641,7 +641,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   fontSize: 'var(--font-size-body)',
                   fontWeight: 600,
                   lineHeight: 1.5,
-                  color: '#29363D',
+                  color: 'var(--foreground)',
                 }}
               >
                 검색 결과가 없습니다
@@ -651,7 +651,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                 style={{
                   fontSize: 'var(--font-size-caption)',
                   lineHeight: 1.4,
-                  color: '#5B6A72',
+                  color: 'var(--muted-foreground)',
                 }}
               >
                 다른 검색 조건을 시도해보세요
@@ -711,7 +711,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                             fontSize: 'var(--font-size-body)',
                             fontWeight: 600,
                             lineHeight: 1.5,
-                            color: '#29363D',
+                            color: 'var(--foreground)',
                           }}
                         >
                           이 층에 해당하는 회의실이 없습니다
@@ -741,7 +741,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                     fontSize: 'var(--font-size-h4)',
                                     fontWeight: 600,
                                     lineHeight: 1.3,
-                                    color: '#29363D',
+                                    color: 'var(--foreground)',
                                   }}
                                 >
                                   {room.name}
@@ -751,7 +751,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                   <span
                                     style={{
                                       fontSize: 'var(--font-size-caption)',
-                                      color: '#5B6A72',
+                                      color: 'var(--muted-foreground)',
                                       lineHeight: 1.4,
                                     }}
                                   >
@@ -762,7 +762,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                   <span
                                     style={{
                                       fontSize: 'var(--font-size-caption)',
-                                      color: '#5B6A72',
+                                      color: 'var(--muted-foreground)',
                                       lineHeight: 1.4,
                                     }}
                                   >
@@ -802,7 +802,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                         style={{
                                           fontSize: 'var(--font-size-caption)',
                                           fontWeight: 600,
-                                          color: '#5B6A72',
+                                          color: 'var(--muted-foreground)',
                                           lineHeight: 1.4,
                                         }}
                                       >
@@ -814,7 +814,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                   <p
                                     style={{
                                       fontSize: 'var(--font-size-caption)',
-                                      color: '#29363D',
+                                      color: 'var(--foreground)',
                                       fontWeight: 500,
                                       lineHeight: 1.4,
                                       marginBottom: '2px',
@@ -826,7 +826,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                     <p
                                       style={{
                                         fontSize: 'var(--font-size-caption)',
-                                        color: '#5B6A72',
+                                        color: 'var(--muted-foreground)',
                                         lineHeight: 1.4,
                                       }}
                                     >
@@ -843,7 +843,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                   style={{
                                     fontSize: 'var(--font-size-caption)',
                                     fontWeight: 600,
-                                    color: '#29363D',
+                                    color: 'var(--foreground)',
                                     lineHeight: 1.4,
                                   }}
                                 >
@@ -863,7 +863,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                 className="w-full"
                                 onClick={() => handleBookRoom(room.id)}
                                 style={{
-                                  backgroundColor: '#635BFF',
+                                  backgroundColor: 'var(--primary)',
                                   color: 'white',
                                   fontSize: 'var(--font-size-body)',
                                   fontWeight: 500,
@@ -885,7 +885,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                   fontWeight: 500,
                                   lineHeight: 1.5,
                                   borderColor: '#E5E8EB',
-                                  color: '#5B6A72',
+                                  color: 'var(--muted-foreground)',
                                 }}
                               >
                                 <List className="w-4 h-4 mr-2" />
@@ -943,7 +943,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   fontSize: 'var(--font-size-body)',
                   fontWeight: 500,
                   lineHeight: 1.5,
-                  color: '#29363D',
+                  color: 'var(--foreground)',
                   minWidth: '120px',
                   textAlign: 'center',
                 }}
@@ -1026,7 +1026,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                   fontSize: 'var(--font-size-caption)',
                                   fontWeight: 600,
                                   lineHeight: 1.4,
-                                  color: '#29363D',
+                                  color: 'var(--foreground)',
                                 }}
                               >
                                 {booking.title}
@@ -1035,7 +1035,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                 style={{
                                   fontSize: 'var(--font-size-caption)',
                                   lineHeight: 1.4,
-                                  color: '#5B6A72',
+                                  color: 'var(--muted-foreground)',
                                   marginTop: '2px',
                                 }}
                               >
@@ -1049,7 +1049,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                               style={{
                                 fontSize: 'var(--font-size-caption)',
                                 lineHeight: 1.4,
-                                color: '#9BA4AB',
+                                color: 'var(--disabled-text)',
                               }}
                             >
                               예약 가능
@@ -1071,7 +1071,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   handleBookRoom(selectedRoom?.id || '')
                 }}
                 style={{
-                  backgroundColor: '#635BFF',
+                  backgroundColor: 'var(--primary)',
                   color: 'white',
                   fontSize: 'var(--font-size-body)',
                   fontWeight: 500,
