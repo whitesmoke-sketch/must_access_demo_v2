@@ -669,7 +669,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
               boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
             }}
           >
-            {[2, 3, 6].map((floor) => {
+            {[-1, 2, 3, 4, 6].map((floor) => {
               const floorRooms = meetingRooms.filter((r) => r.floor === floor)
               const availableCount = floorRooms.filter((r) => !r.currentBooking).length
               const occupiedCount = floorRooms.filter((r) => r.currentBooking).length
@@ -681,13 +681,13 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   className="flex-1"
                 >
                   <div className="flex items-center gap-2 justify-center flex-wrap">
-                    <span>{floor}층</span>
+                    <span>{floor === -1 ? 'B1' : `${floor}층`}</span>
                     <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#10B981' }} />
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--success)' }} />
                       <span>{availableCount}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--error)' }} />
                       <span>{occupiedCount}</span>
                     </div>
                   </div>
@@ -696,7 +696,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             })}
           </TabsList>
 
-          {[2, 3, 6].map((floor) => {
+          {[-1, 2, 3, 4, 6].map((floor) => {
             const floorRooms = roomsByFloor[floor] || []
 
             return (
