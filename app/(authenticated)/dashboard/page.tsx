@@ -6,6 +6,7 @@ import { QuickActions } from '@/components/dashboard/QuickActions'
 import { ApprovalStatusClient } from '@/components/dashboard/ApprovalStatusClient'
 import { MyReservationsCard } from '@/components/dashboard/MyReservationsCard'
 import { TodayOnLeaveCard } from '@/components/dashboard/TodayOnLeaveCard'
+import { StudioAccessCard } from '@/components/dashboard/StudioAccessCard'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -201,6 +202,11 @@ export default async function DashboardPage() {
         />
 
         <TodayOnLeaveCard members={todayOnLeaveMembers} />
+      </div>
+
+      {/* 하단 그리드 - 스튜디오 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StudioAccessCard status="restricted" reason="브랜드 리뉴얼 프로젝트 촬영" />
       </div>
     </div>
   )
