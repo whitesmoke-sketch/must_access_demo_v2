@@ -10,7 +10,9 @@ import {
   Home,
   UserX,
   QrCode,
-  ChevronRight
+  ChevronRight,
+  Briefcase,
+  Palmtree
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +53,36 @@ const floorData = [
   },
 ];
 
+// Mock 근무 현황 데이터 (실제 구현 시 DB에서 가져와야 함)
+const fieldWorkMembers = [
+  { id: '1', name: '김철수', department: '영업팀' },
+  { id: '2', name: '이영희', department: '마케팅팀' },
+  { id: '3', name: '박민수', department: '영업팀' },
+  { id: '4', name: '정수진', department: '기획팀' },
+  { id: '5', name: '한지민', department: '영업팀' },
+  { id: '6', name: '오세훈', department: '기획팀' },
+  { id: '7', name: '류현진', department: '마케팅팀' },
+];
+
+const remoteMembers = [
+  { id: '5', name: '최동욱', department: '개발팀' },
+  { id: '6', name: '강서연', department: '디자인팀' },
+  { id: '7', name: '윤재호', department: '개발팀' },
+  { id: '8', name: '임하늘', department: '개발팀' },
+  { id: '9', name: '송민정', department: '기획팀' },
+  { id: '10', name: '배수지', department: '디자인팀' },
+  { id: '11', name: '김태희', department: '개발팀' },
+];
+
+const vacationMembers = [
+  { id: '10', name: '홍길동', department: '인사팀' },
+  { id: '11', name: '김민지', department: '재무팀' },
+  { id: '12', name: '이준호', department: '총무팀' },
+  { id: '13', name: '박서준', department: '인사팀' },
+  { id: '14', name: '정유미', department: '재무팀' },
+  { id: '15', name: '조인성', department: '총무팀' },
+];
+
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
 
@@ -75,48 +107,12 @@ export default async function AdminDashboardPage() {
     redirect('/dashboard');
   }
 
-  const today = new Date().toISOString().split('T')[0];
-
-  // 1. 전사 근태 현황 데이터
-  const { data: todayAttendance } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('date', today);
-
-  const { data: allEmployees } = await supabase
-    .from('employee')
-    .select('id')
-    .eq('status', 'active');
-
-  const totalMembers = allEmployees?.length || 0;
-
-  // 출근 인원 수 (정상 출근 + 지각)
-  const checkedInCount = todayAttendance?.filter(r =>
-    r.status === 'checked_in' || r.is_late
-  ).length || 0;
-
-  // 지각 인원 수
-  const lateCount = todayAttendance?.filter(r => r.is_late).length || 0;
-
-  // 결근(미출근) 인원 수
-  const absentCount = totalMembers - (todayAttendance?.length || 0);
-
-  // 재택 근무 인원 수 (Mock 데이터 - 실제로는 DB에서)
-  const remoteCount = 5;
-
-  // 근태 준수율
-  const onTimeCount = todayAttendance?.filter(r =>
-    r.status === 'checked_in' && !r.is_late
-  ).length || 0;
-  const attendanceRate = totalMembers > 0 ? Math.round((onTimeCount / totalMembers) * 100) : 0;
-
-  // 근태 현황 도넛 차트 데이터
-  const attendanceDonutData = [
-    { name: '출근', value: checkedInCount, color: '#4CD471' },
-    { name: '지각', value: lateCount, color: '#F8C653' },
-    { name: '결근', value: absentCount, color: '#FF6B6B' },
-    { name: '재택', value: remoteCount, color: '#635BFF' },
-  ];
+  // TODO: 향후 근태 현황 차트 추가 시 사용
+  // const today = new Date().toISOString().split('T')[0];
+  // const { data: todayAttendance } = await supabase
+  //   .from('attendance')
+  //   .select('*')
+  //   .eq('date', today);
 
   // 2. 자원 사용 현황 (좌석)
   const totalSeats = floorData.reduce((sum, floor) => sum + floor.totalSeats, 0);
@@ -232,7 +228,7 @@ export default async function AdminDashboardPage() {
         {/* Main Grid - 3 columns on desktop, 2 on tablet, 1 on mobile */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {/* 1. 전사 근태 현황 */}
+          {/* 1. 오늘의 근무 현황 */}
           <Card
             className="rounded-2xl md:col-span-2 lg:col-span-2"
             style={{
@@ -247,97 +243,218 @@ export default async function AdminDashboardPage() {
                 lineHeight: '24px',
                 color: '#29363D'
               }}>
-                전사 근태 현황
+                오늘의 근무 현황
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                {/* 왼쪽: 근태 통계 카드 */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* 출근 */}
-                    <div
-                      className="p-4 text-center"
-                      style={{
-                        backgroundColor: '#F6F8F9',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <Users className="w-5 h-5 mx-auto mb-2" style={{ color: '#4CD471' }} />
-                      <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>출근</p>
-                      <p className="mt-1" style={{ fontSize: '24px', fontWeight: 700, lineHeight: '31.2px', color: '#4CD471' }}>
-                        {checkedInCount}
-                      </p>
-                    </div>
-
-                    {/* 지각 */}
-                    <div
-                      className="p-4 text-center"
-                      style={{
-                        backgroundColor: '#F6F8F9',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <Clock className="w-5 h-5 mx-auto mb-2" style={{ color: '#F8C653' }} />
-                      <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>지각</p>
-                      <p className="mt-1" style={{ fontSize: '24px', fontWeight: 700, lineHeight: '31.2px', color: '#F8C653' }}>
-                        {lateCount}
-                      </p>
-                    </div>
-
-                    {/* 결근 */}
-                    <div
-                      className="p-4 text-center"
-                      style={{
-                        backgroundColor: '#F6F8F9',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <XCircle className="w-5 h-5 mx-auto mb-2" style={{ color: '#FF6B6B' }} />
-                      <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>결근</p>
-                      <p className="mt-1" style={{ fontSize: '24px', fontWeight: 700, lineHeight: '31.2px', color: '#FF6B6B' }}>
-                        {absentCount}
-                      </p>
-                    </div>
-
-                    {/* 재택 */}
-                    <div
-                      className="p-4 text-center"
-                      style={{
-                        backgroundColor: '#F6F8F9',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <Home className="w-5 h-5 mx-auto mb-2" style={{ color: '#635BFF' }} />
-                      <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>재택</p>
-                      <p className="mt-1" style={{ fontSize: '24px', fontWeight: 700, lineHeight: '31.2px', color: '#635BFF' }}>
-                        {remoteCount}
-                      </p>
-                    </div>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 외근 인원 */}
+                <div
+                  className="md:border-r md:pr-6"
+                  style={{
+                    borderColor: '#E5E8EB',
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Briefcase className="w-4 h-4" style={{ color: '#635BFF' }} />
+                    <h3 style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: '#29363D'
+                    }}>
+                      외근 인원 ({fieldWorkMembers.length}명)
+                    </h3>
                   </div>
-
-                  {/* 근태 준수율 */}
-                  <div
-                    className="text-center p-4"
-                    style={{
-                      backgroundColor: '#F6F8F9',
-                      borderRadius: '12px'
-                    }}
-                  >
-                    <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-                      전사 근태 준수율
-                    </p>
-                    <p className="mt-2" style={{ fontSize: '32px', fontWeight: 700, lineHeight: '41.6px', color: '#635BFF' }}>
-                      {attendanceRate}%
-                    </p>
-                    <p className="mt-1" style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-                      {onTimeCount}명 정상 출근 / 총 {totalMembers}명
-                    </p>
+                  <div className="space-y-2">
+                    {fieldWorkMembers.slice(0, 5).map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 transition-all"
+                        style={{
+                          backgroundColor: '#F6F8F9',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: '#635BFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {member.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
+                              {member.name}
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#5B6A72', marginTop: '2px' }}>
+                              {member.department}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {fieldWorkMembers.length > 5 && (
+                      <button
+                        className="w-full py-2 transition-all"
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: '#5B6A72',
+                          backgroundColor: 'transparent',
+                        }}
+                      >
+                        전체보기
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* 오른쪽: 도넛 차트 */}
-                <AttendanceDonutChart data={attendanceDonutData} />
+                {/* 재택 인원 */}
+                <div
+                  className="md:border-r md:pr-6"
+                  style={{
+                    borderColor: '#E5E8EB',
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Home className="w-4 h-4" style={{ color: '#16CDC7' }} />
+                    <h3 style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: '#29363D'
+                    }}>
+                      재택 인원 ({remoteMembers.length}명)
+                    </h3>
+                  </div>
+                  <div className="space-y-2">
+                    {remoteMembers.slice(0, 5).map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 transition-all"
+                        style={{
+                          backgroundColor: '#F6F8F9',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: '#16CDC7',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {member.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
+                              {member.name}
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#5B6A72', marginTop: '2px' }}>
+                              {member.department}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {remoteMembers.length > 5 && (
+                      <button
+                        className="w-full py-2 transition-all"
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: '#5B6A72',
+                          backgroundColor: 'transparent',
+                        }}
+                      >
+                        전체보기
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 연차 인원 */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Palmtree className="w-4 h-4" style={{ color: '#F8C653' }} />
+                    <h3 style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: '#29363D'
+                    }}>
+                      연차 인원 ({vacationMembers.length}명)
+                    </h3>
+                  </div>
+                  <div className="space-y-2">
+                    {vacationMembers.slice(0, 5).map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 transition-all"
+                        style={{
+                          backgroundColor: '#F6F8F9',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: '#F8C653',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {member.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
+                              {member.name}
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#5B6A72', marginTop: '2px' }}>
+                              {member.department}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {vacationMembers.length > 5 && (
+                      <button
+                        className="w-full py-2 transition-all"
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: '#5B6A72',
+                          backgroundColor: 'transparent',
+                        }}
+                      >
+                        전체보기
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
