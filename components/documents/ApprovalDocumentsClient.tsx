@@ -508,15 +508,12 @@ export function ApprovalDocumentsClient({
                     {activeTab === 'reference' ? '열람 상태' : '상태'}
                   </TableHead>
                   <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '60px', minWidth: '60px' }}>상세</TableHead>
-                  {activeTab !== 'reference' && (
-                    <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '180px', minWidth: '180px' }}>작업</TableHead>
-                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={activeTab === 'reference' ? 6 : 7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
+                    <TableCell colSpan={6} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
                       {activeTab === 'reference' ? '참조 문서가 없습니다' : '결재 문서가 없습니다'}
                     </TableCell>
                   </TableRow>
