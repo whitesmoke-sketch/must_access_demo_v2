@@ -43,12 +43,9 @@ export type EmployeeWithRole = {
   id: string
   name: string
   email: string
-  team?: string | null
-  position?: string | null
   role: {
     code: string
     name: string
-    level?: number
   }
 }
 
