@@ -230,7 +230,7 @@ export function ApprovalLineEditor({
       order: selectedOrder,
     };
     onApproversChange([...approvers, newApprover]);
-    setShowAddDialog(false);
+    // Dialog는 "확인" 버튼을 눌렀을 때 닫힘
 
     const roleLabel = selectedApproverRole === 'reviewer' ? '합의자' : '결재자';
     toast.success(`${roleLabel} 추가 완료`, {
@@ -306,7 +306,7 @@ export function ApprovalLineEditor({
     }
 
     onApproversChange(updated);
-    setShowDelegateDialog(false);
+    // Dialog는 "확인" 버튼을 눌렀을 때 닫힘
     setEditingApproverId(null);
   };
 
