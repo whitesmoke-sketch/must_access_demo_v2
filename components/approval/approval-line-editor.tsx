@@ -223,6 +223,10 @@ export function ApprovalLineEditor({
   const [tempSelectedApproverForAdd, setTempSelectedApproverForAdd] = React.useState<Approver | null>(null);
   const [tempSelectedApproverForChange, setTempSelectedApproverForChange] = React.useState<Approver | null>(null);
 
+  // 선택된 구성원 ID (ApproverSelector의 value prop용)
+  const [selectedApproverIdForAdd, setSelectedApproverIdForAdd] = React.useState('');
+  const [selectedApproverIdForChange, setSelectedApproverIdForChange] = React.useState('');
+
   // 확인 버튼 클릭 시 실제로 추가
   const handleConfirmAdd = () => {
     if (!tempSelectedApproverForAdd) {
@@ -248,6 +252,7 @@ export function ApprovalLineEditor({
 
     // 초기화 및 Dialog 닫기
     setTempSelectedApproverForAdd(null);
+    setSelectedApproverIdForAdd('');
     setShowAddDialog(false);
   };
 
@@ -327,6 +332,7 @@ export function ApprovalLineEditor({
 
     // 초기화 및 Dialog 닫기
     setTempSelectedApproverForChange(null);
+    setSelectedApproverIdForChange('');
     setShowDelegateDialog(false);
     setEditingApproverId(null);
   };
@@ -552,10 +558,11 @@ export function ApprovalLineEditor({
                 구성원
               </Label>
               <ApproverSelector
+                value={selectedApproverIdForAdd}
+                onValueChange={setSelectedApproverIdForAdd}
                 onSelectApprover={setTempSelectedApproverForAdd}
                 excludeIds={excludeIds}
                 placeholder="구성원 검색 및 선택"
-                autoCloseOnSelect={false}
               />
             </div>
           </div>
@@ -610,10 +617,11 @@ export function ApprovalLineEditor({
                 구성원
               </Label>
               <ApproverSelector
+                value={selectedApproverIdForChange}
+                onValueChange={setSelectedApproverIdForChange}
                 onSelectApprover={setTempSelectedApproverForChange}
                 excludeIds={excludeIds}
                 placeholder="구성원 검색 및 선택"
-                autoCloseOnSelect={false}
               />
             </div>
           </div>
