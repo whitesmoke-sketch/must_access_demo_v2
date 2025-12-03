@@ -89,7 +89,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
           onClick={onMobileMenuClick}
           className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
         >
-          <Menu className="w-6 h-6" style={{ color: '#5B6A72' }} />
+          <Menu className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
         </button>
 
         {/* TODO: 추후 구현 예정 - Center - Search Bar (Desktop) */}

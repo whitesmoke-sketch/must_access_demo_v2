@@ -208,7 +208,7 @@ export function Sidebar({
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               style={{ marginLeft: collapsed ? 'auto' : '0' }}
             >
-              <Menu className="w-5 h-5" style={{ color: '#A0ACB3' }} />
+              <Menu className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
             </button>
           </div>
 
