@@ -149,7 +149,7 @@ export function SeatListView({
                 </div>
               </div>
 
-              {isPinned && isMyCurrentSeat && (
+              {isMyCurrentSeat && (
                 <div className="flex-shrink-0">
                   <Button
                     variant="outline"
