@@ -35,15 +35,6 @@ interface ApprovalRequest {
   days: number
 }
 
-interface Alert {
-  id: number
-  severity: string
-  message: string
-  time: string
-  category: string
-  icon: any
-}
-
 interface FloorData {
   floor: string
   usedSeats: number
@@ -57,7 +48,6 @@ interface AdminDashboardClientProps {
   remoteMembers: Member[]
   vacationMembers: Member[]
   approvalQueue: ApprovalRequest[]
-  alerts: Alert[]
   floorData: FloorData[]
   totalSeats: number
   totalUsedSeats: number
@@ -70,7 +60,6 @@ export function AdminDashboardClient({
   remoteMembers,
   vacationMembers,
   approvalQueue,
-  alerts,
   floorData,
   totalSeats,
   totalUsedSeats,
@@ -80,6 +69,42 @@ export function AdminDashboardClient({
   const [showFieldWorkModal, setShowFieldWorkModal] = useState(false)
   const [showRemoteModal, setShowRemoteModal] = useState(false)
   const [showVacationModal, setShowVacationModal] = useState(false)
+
+  // 이상 상황 알림 (Client Component 내부에서 정의)
+  const alerts = [
+    {
+      id: 1,
+      severity: 'critical',
+      message: 'Hubstaff vs Biostar2 근태 편차 발생 (3건)',
+      time: '5분 전',
+      category: '근태',
+      icon: AlertTriangle,
+    },
+    {
+      id: 2,
+      severity: 'warning',
+      message: '장시간 자리비움 감지 (김철수, 이영희)',
+      time: '15분 전',
+      category: '근태',
+      icon: Clock,
+    },
+    {
+      id: 3,
+      severity: 'critical',
+      message: '무단 미출근 2건',
+      time: '30분 전',
+      category: '근태',
+      icon: UserX,
+    },
+    {
+      id: 4,
+      severity: 'warning',
+      message: '방문자 QR 발급 실패 (1건)',
+      time: '1시간 전',
+      category: '시스템',
+      icon: QrCode,
+    },
+  ]
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

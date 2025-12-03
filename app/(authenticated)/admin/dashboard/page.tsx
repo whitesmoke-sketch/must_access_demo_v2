@@ -1,4 +1,3 @@
-import { AlertTriangle, Clock, UserX, QrCode } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AdminDashboardClient } from '@/components/admin/AdminDashboardClient';
@@ -93,49 +92,12 @@ export default async function AdminDashboardPage() {
     days: request.days_count || 1,
   })) || [];
 
-  // 이상 상황 알림
-  const alerts = [
-    {
-      id: 1,
-      severity: 'critical',
-      message: 'Hubstaff vs Biostar2 근태 편차 발생 (3건)',
-      time: '5분 전',
-      category: '근태',
-      icon: AlertTriangle,
-    },
-    {
-      id: 2,
-      severity: 'warning',
-      message: '장시간 자리비움 감지 (김철수, 이영희)',
-      time: '15분 전',
-      category: '근태',
-      icon: Clock,
-    },
-    {
-      id: 3,
-      severity: 'critical',
-      message: '무단 미출근 2건',
-      time: '30분 전',
-      category: '근태',
-      icon: UserX,
-    },
-    {
-      id: 4,
-      severity: 'warning',
-      message: '방문자 QR 발급 실패 (1건)',
-      time: '1시간 전',
-      category: '시스템',
-      icon: QrCode,
-    },
-  ];
-
   return (
     <AdminDashboardClient
       fieldWorkMembers={fieldWorkMembers}
       remoteMembers={remoteMembers}
       vacationMembers={vacationMembers}
       approvalQueue={approvalQueue}
-      alerts={alerts}
       floorData={floorData}
       totalSeats={totalSeats}
       totalUsedSeats={totalUsedSeats}
