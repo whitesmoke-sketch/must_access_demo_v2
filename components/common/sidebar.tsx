@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -49,6 +49,7 @@ export function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [adminModeEnabled, setAdminModeEnabled] = useState(false)
 
@@ -320,13 +321,19 @@ export function Sidebar({
                       }
                     }}
                     onClick={() => {
-                      setAdminModeEnabled(!adminModeEnabled)
+                      const newAdminMode = !adminModeEnabled
+                      setAdminModeEnabled(newAdminMode)
+
+                      // 관리자 모드 ON → 관리자 대시보드로
+                      // 관리자 모드 OFF → 일반 대시보드로
+                      router.push(newAdminMode ? '/admin/dashboard' : '/dashboard')
+
                       toast.success(
-                        adminModeEnabled ? '일반 모드로 전환되었습니다' : '관리자 모드로 전환되었습니다',
+                        newAdminMode ? '관리자 모드로 전환되었습니다' : '일반 모드로 전환되었습니다',
                         {
-                          description: adminModeEnabled
-                            ? '일반 사용자 메뉴가 표시됩니다.'
-                            : '관리자 메뉴가 표시됩니다.',
+                          description: newAdminMode
+                            ? '관리자 대시보드로 이동합니다.'
+                            : '일반 대시보드로 이동합니다.',
                         }
                       )
                     }}
@@ -458,13 +465,19 @@ export function Sidebar({
                   }
                 }}
                 onClick={() => {
-                  setAdminModeEnabled(!adminModeEnabled)
+                  const newAdminMode = !adminModeEnabled
+                  setAdminModeEnabled(newAdminMode)
+
+                  // 관리자 모드 ON → 관리자 대시보드로
+                  // 관리자 모드 OFF → 일반 대시보드로
+                  router.push(newAdminMode ? '/admin/dashboard' : '/dashboard')
+
                   toast.success(
-                    adminModeEnabled ? '일반 모드로 전환되었습니다' : '관리자 모드로 전환되었습니다',
+                    newAdminMode ? '관리자 모드로 전환되었습니다' : '일반 모드로 전환되었습니다',
                     {
-                      description: adminModeEnabled
-                        ? '일반 사용자 메뉴가 표시됩니다.'
-                        : '관리자 메뉴가 표시됩니다.',
+                      description: newAdminMode
+                        ? '관리자 대시보드로 이동합니다.'
+                        : '일반 대시보드로 이동합니다.',
                     }
                   )
                 }}
