@@ -648,8 +648,9 @@ export function ApprovalDocumentsClient({
                             <Eye className="w-4 h-4" />
                           </Button>
                         </TableCell>
-                        <TableCell className="text-center p-3" style={{ width: '180px', minWidth: '180px' }}>
-                          <div className="flex items-center justify-center gap-2">
+                        {activeTab !== 'reference' && (
+                          <TableCell className="text-center p-3" style={{ width: '180px', minWidth: '180px' }}>
+                            <div className="flex items-center justify-center gap-2">
                             {doc.status === 'pending' && (
                               <>
                                 <Button
@@ -677,7 +678,8 @@ export function ApprovalDocumentsClient({
                               </>
                             )}
                           </div>
-                        </TableCell>
+                          </TableCell>
+                        )}
                       </TableRow>
                     )
                   })
