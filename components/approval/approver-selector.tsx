@@ -35,6 +35,7 @@ interface ApproverSelectorProps {
   placeholder?: string;
   disabled?: boolean;
   excludeIds?: string[]; // 이미 선택된 승인자 제외
+  autoCloseOnSelect?: boolean;
 }
 
 export function ApproverSelector({
@@ -44,6 +45,7 @@ export function ApproverSelector({
   placeholder = "승인자를 선택하세요",
   disabled = false,
   excludeIds = [],
+  autoCloseOnSelect = true,
 }: ApproverSelectorProps) {
   const [open, setOpen] = React.useState(false);
   const [approvers, setApprovers] = React.useState<Approver[]>([]);
@@ -114,7 +116,9 @@ export function ApproverSelector({
                   onSelect={() => {
                     onValueChange?.(approver.id);
                     onSelectApprover?.(approver);
-                    setOpen(false);
+                    if (autoCloseOnSelect) {
+                      setOpen(false);
+                    }
                   }}
                 >
                   <Check

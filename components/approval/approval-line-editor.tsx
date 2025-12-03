@@ -534,6 +534,7 @@ export function ApprovalLineEditor({
                 onSelectApprover={handleAddApprover}
                 excludeIds={excludeIds}
                 placeholder="구성원 검색 및 선택"
+                autoCloseOnSelect={false}
               />
             </div>
           </div>
@@ -591,6 +592,7 @@ export function ApprovalLineEditor({
                 onSelectApprover={handleApproverChange}
                 excludeIds={excludeIds}
                 placeholder="구성원 검색 및 선택"
+                autoCloseOnSelect={false}
               />
             </div>
           </div>
