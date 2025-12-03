@@ -100,11 +100,46 @@ export function ApprovalDocumentsClient({
   myApprovalStatusMap,
   approvalStepsMap,
 }: ApprovalDocumentsClientProps) {
-  const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed' | 'reference'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | LeaveStatus>('all')
   const [filterType, setFilterType] = useState<'all' | 'leave'>('all')
+  const [filterReadStatus, setFilterReadStatus] = useState<'all' | 'read' | 'unread'>('all')
   const [currentPage, setCurrentPage] = useState(1)
+
+  // Mock 참조 문서 데이터
+  const [referenceDocuments] = useState([
+    {
+      id: 'ref-001',
+      employee_id: 'emp-001',
+      memberName: '홍길동',
+      department: '개발팀',
+      role: '과장',
+      leave_type: 'annual' as LeaveType,
+      start_date: '2024-12-01',
+      end_date: '2024-12-03',
+      requested_days: 3,
+      reason: '개인 사유',
+      status: 'approved' as LeaveStatus,
+      requested_at: '2024-11-25T09:00:00',
+      readStatus: 'unread' as const,
+    },
+    {
+      id: 'ref-002',
+      employee_id: 'emp-002',
+      memberName: '김철수',
+      department: '마케팅팀',
+      role: '부장',
+      leave_type: 'half_day' as LeaveType,
+      start_date: '2024-11-26',
+      end_date: '2024-11-26',
+      requested_days: 0.5,
+      reason: '프로젝트 마감',
+      status: 'pending' as LeaveStatus,
+      requested_at: '2024-11-26T14:30:00',
+      readStatus: 'read' as const,
+    },
+  ])
   const itemsPerPage = 10
 
   const [selectedDocument, setSelectedDocument] = useState<ApprovalDocument | null>(null)
@@ -139,12 +174,26 @@ export function ApprovalDocumentsClient({
     })
   }, [documents, searchQuery, filterStatus, filterType, activeTab])
 
+  // 참조 문서 필터링
+  const filteredReferenceDocuments = useMemo(() => {
+    return referenceDocuments.filter((doc) => {
+      const matchesSearch =
+        doc.memberName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.department.toLowerCase().includes(searchQuery.toLowerCase())
+
+      const matchesReadStatus = filterReadStatus === 'all' || doc.readStatus === filterReadStatus
+
+      return matchesSearch && matchesReadStatus
+    })
+  }, [referenceDocuments, searchQuery, filterReadStatus])
+
   // 페이지네이션
-  const paginatedDocuments = filteredDocuments.slice(
+  const displayDocuments = activeTab === 'reference' ? filteredReferenceDocuments : filteredDocuments
+  const paginatedDocuments = displayDocuments.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
+  const totalPages = Math.ceil(displayDocuments.length / itemsPerPage)
 
   // 상세 보기
   const handleViewDetail = (document: ApprovalDocument) => {
@@ -235,6 +284,25 @@ export function ApprovalDocumentsClient({
     return (
       <Badge className="!border-0" style={{ ...currentStyle, fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
         {currentLabel}
+      </Badge>
+    )
+  }
+
+  // 열람 상태 뱃지
+  const getReadStatusBadge = (readStatus: 'read' | 'unread') => {
+    const styles = {
+      unread: { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' },
+      read: { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' },
+    }
+
+    const labels = {
+      unread: '미열람',
+      read: '열람',
+    }
+
+    return (
+      <Badge className="!border-0" style={{ ...styles[readStatus], fontSize: 'var(--font-size-small)', lineHeight: 'var(--line-height-small)', fontWeight: 600 }}>
+        {labels[readStatus]}
       </Badge>
     )
   }
@@ -337,6 +405,7 @@ export function ApprovalDocumentsClient({
               { value: 'all', label: '전체' },
               { value: 'in-progress', label: '결재대기' },
               { value: 'completed', label: '결재완료' },
+              { value: 'reference', label: '참조' },
             ].map((tab) => (
               <button
                 key={tab.value}
@@ -383,19 +452,33 @@ export function ApprovalDocumentsClient({
             </div>
             {/* 필터들 */}
             <div className="flex gap-4 lg:flex-shrink-0">
-              <Select value={filterStatus} onValueChange={(value: typeof filterStatus) => setFilterStatus(value)}>
-                <SelectTrigger className="w-full lg:w-[200px]">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 상태</SelectItem>
-                  <SelectItem value="pending">승인 대기</SelectItem>
-                  <SelectItem value="approved">승인 완료</SelectItem>
-                  <SelectItem value="rejected">반려</SelectItem>
-                  <SelectItem value="retrieved">회수</SelectItem>
-                </SelectContent>
-              </Select>
+              {activeTab === 'reference' ? (
+                <Select value={filterReadStatus} onValueChange={(value: typeof filterReadStatus) => setFilterReadStatus(value)}>
+                  <SelectTrigger className="w-full lg:w-[200px]">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 열람 상태</SelectItem>
+                    <SelectItem value="unread">미열람</SelectItem>
+                    <SelectItem value="read">열람</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select value={filterStatus} onValueChange={(value: typeof filterStatus) => setFilterStatus(value)}>
+                  <SelectTrigger className="w-full lg:w-[200px]">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 상태</SelectItem>
+                    <SelectItem value="pending">승인 대기</SelectItem>
+                    <SelectItem value="approved">승인 완료</SelectItem>
+                    <SelectItem value="rejected">반려</SelectItem>
+                    <SelectItem value="retrieved">회수</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
                 <SelectTrigger className="w-full lg:w-[200px]">
                   <Filter className="w-4 h-4 mr-2" />
@@ -421,18 +504,84 @@ export function ApprovalDocumentsClient({
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청자</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>소속</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청일시</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>상태</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>
+                    {activeTab === 'reference' ? '열람 상태' : '상태'}
+                  </TableHead>
                   <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '60px', minWidth: '60px' }}>상세</TableHead>
+                  {activeTab !== 'reference' && (
+                    <TableHead className="text-center p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '180px', minWidth: '180px' }}>작업</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDocuments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
-                      결재 문서가 없습니다
+                    <TableCell colSpan={activeTab === 'reference' ? 6 : 7} className="text-center" style={{ paddingTop: '48px', paddingBottom: '48px', color: 'var(--muted-foreground)', fontSize: 'var(--font-size-caption)' }}>
+                      {activeTab === 'reference' ? '참조 문서가 없습니다' : '결재 문서가 없습니다'}
                     </TableCell>
                   </TableRow>
+                ) : activeTab === 'reference' ? (
+                  // 참조 문서 테이블
+                  (paginatedDocuments as any[]).map((doc) => (
+                    <TableRow
+                      key={doc.id}
+                      style={{ transition: 'background-color 150ms ease-in-out', borderBottom: '1px solid var(--border)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--muted)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
+                      <TableCell className="p-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', fontSize: 'var(--font-size-copyright)', fontWeight: 'var(--font-weight-medium)' }}>
+                              {doc.memberName.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
+                              {doc.memberName}
+                            </p>
+                            <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)' }}>
+                              {doc.role}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
+                        {doc.department}
+                      </TableCell>
+                      <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
+                        {new Date(doc.requested_at).toLocaleString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </TableCell>
+                      <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
+                        {getReadStatusBadge(doc.readStatus)}
+                      </TableCell>
+                      <TableCell className="text-center p-3" style={{ width: '60px', minWidth: '60px' }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: 참조 문서 상세 보기
+                          }}
+                          style={{ color: 'var(--card-foreground)', padding: '4px 8px', transition: 'all 150ms ease-in-out' }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
+                  // 일반 결재 문서 테이블
                   paginatedDocuments.map((doc) => {
                     const employee = getEmployee(doc.employee)
 
@@ -500,6 +649,36 @@ export function ApprovalDocumentsClient({
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                        </TableCell>
+                        <TableCell className="text-center p-3" style={{ width: '180px', minWidth: '180px' }}>
+                          <div className="flex items-center justify-center gap-2">
+                            {doc.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove(doc)}
+                                  style={{
+                                    backgroundColor: 'var(--success)',
+                                    color: 'white',
+                                  }}
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  승인
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleReject(doc)}
+                                  style={{
+                                    backgroundColor: 'var(--destructive)',
+                                    color: 'white',
+                                  }}
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  반려
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
