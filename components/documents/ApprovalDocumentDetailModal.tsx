@@ -528,6 +528,34 @@ export function ApprovalDocumentDetailModal({
             </div>
           </Card>
 
+          <DialogFooter>
+            {canApprove && (
+              <>
+                <Button
+                  onClick={handleApprove}
+                  disabled={processing}
+                  style={{
+                    backgroundColor: '#10B981',
+                    color: 'white',
+                  }}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  승인
+                </Button>
+                <Button
+                  onClick={handleRejectClick}
+                  disabled={processing}
+                  style={{
+                    backgroundColor: '#EF4444',
+                    color: 'white',
+                  }}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  반려
+                </Button>
+              </>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
