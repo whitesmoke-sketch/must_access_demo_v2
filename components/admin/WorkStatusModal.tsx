@@ -1,7 +1,8 @@
 'use client'
 
+import React from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { X, Briefcase, Home, Palmtree } from 'lucide-react'
+import { Briefcase, Home, Palmtree, Search } from 'lucide-react'
 
 interface Member {
   id: string
@@ -22,18 +23,25 @@ export function WorkStatusModal({
   onClose,
   title,
   members,
-  icon
+  icon,
 }: WorkStatusModalProps) {
-  const getIconComponent = () => {
-    switch (icon) {
-      case 'fieldwork':
-        return <Briefcase className="w-5 h-5" style={{ color: '#635BFF' }} />
-      case 'remote':
-        return <Home className="w-5 h-5" style={{ color: '#16CDC7' }} />
-      case 'vacation':
-        return <Palmtree className="w-5 h-5" style={{ color: '#F8C653' }} />
+  const [searchQuery, setSearchQuery] = React.useState('')
+
+  // 모달이 닫힐 때 검색어 초기화
+  React.useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('')
     }
-  }
+  }, [isOpen])
+
+  // 검색 필터링
+  const filteredMembers = members.filter((member) => {
+    const query = searchQuery.toLowerCase()
+    return (
+      member.name.toLowerCase().includes(query) ||
+      member.department.toLowerCase().includes(query)
+    )
+  })
 
   const getAvatarColor = () => {
     switch (icon) {
@@ -51,115 +59,124 @@ export function WorkStatusModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-2xl"
+        aria-describedby={undefined}
         style={{
+          maxWidth: '480px',
+          padding: '0',
           backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          padding: 0,
         }}
       >
-        <DialogHeader
-          style={{
-            padding: '24px',
-            borderBottom: '1px solid #E5E8EB',
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {getIconComponent()}
-              <DialogTitle style={{
-                fontSize: '18px',
-                fontWeight: 600,
-                lineHeight: '24px',
-                color: '#29363D'
-              }}>
-                {title}
-              </DialogTitle>
-              <span style={{
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#5B6A72',
-              }}>
-                ({members.length}명)
-              </span>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="닫기"
-            >
-              <X className="w-5 h-5" style={{ color: '#5B6A72' }} />
-            </button>
-          </div>
+        <DialogHeader style={{ padding: '24px 24px 16px' }}>
+          <DialogTitle style={{
+            fontSize: '18px',
+            fontWeight: 600,
+            color: '#29363D',
+          }}>
+            {title} ({members.length}명)
+          </DialogTitle>
         </DialogHeader>
 
         <div
-          className="p-6"
           style={{
-            maxHeight: '500px',
+            margin: '0 16px 16px',
+            maxHeight: '60vh',
             overflowY: 'auto',
           }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center gap-3 p-3 transition-all"
+          <div className="space-y-3">
+            {/* 검색 입력 */}
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: '#5B6A72' }}
+              />
+              <input
+                type="text"
+                placeholder="이름 또는 부서 검색"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
-                  backgroundColor: '#F6F8F9',
+                  width: '100%',
+                  height: '42px',
+                  paddingLeft: '40px',
+                  paddingRight: '12px',
+                  fontSize: '14px',
+                  color: '#29363D',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E5E8EB',
                   borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'all 150ms ease-in-out',
                 }}
-              >
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#635BFF'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#E5E8EB'
+                }}
+              />
+            </div>
+
+            {/* 멤버 목록 - 1열 리스트 */}
+            {filteredMembers.length > 0 ? (
+              filteredMembers.map((member) => (
                 <div
+                  key={member.id}
+                  className="flex items-center gap-3 p-3 transition-all"
                   style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    backgroundColor: avatarColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    flexShrink: 0,
+                    backgroundColor: '#F6F8F9',
+                    borderRadius: '8px',
                   }}
                 >
-                  {member.name.charAt(0)}
+                  {/* 프로필 아바타 (이름 첫 글자) */}
+                  <div
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      backgroundColor: avatarColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {member.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: '#29363D',
+                    }}>
+                      {member.name}
+                    </p>
+                    <p style={{
+                      fontSize: '12px',
+                      color: '#5B6A72',
+                      marginTop: '2px',
+                    }}>
+                      {member.department}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p style={{
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#29363D',
-                    lineHeight: '20px',
-                  }}>
-                    {member.name}
-                  </p>
-                  <p style={{
-                    fontSize: '12px',
-                    color: '#5B6A72',
-                    marginTop: '2px',
-                    lineHeight: '16px',
-                  }}>
-                    {member.department}
-                  </p>
-                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: '#5B6A72',
+                  fontSize: '14px',
+                }}
+              >
+                검색 결과가 없습니다
               </div>
-            ))}
+            )}
           </div>
-
-          {members.length === 0 && (
-            <div className="text-center py-12">
-              <p style={{
-                fontSize: '14px',
-                color: '#5B6A72',
-                lineHeight: '20px',
-              }}>
-                해당 인원이 없습니다
-              </p>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>
