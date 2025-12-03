@@ -29,6 +29,34 @@ interface HeaderProps {
   onMobileMenuClick?: () => void
 }
 
+// Mobile More Button (3 dots vertically)
+function MoreButton({ onClick, isActive }: { onClick: () => void; isActive: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className="relative rounded-[10px] shrink-0 transition-colors"
+      style={{
+        width: '40px',
+        height: '40px',
+        backgroundColor: isActive ? 'var(--sidebar-accent)' : 'transparent',
+      }}
+      aria-label="더보기"
+    >
+      <div className="flex items-center justify-center size-full">
+        <div className="relative shrink-0 size-[24px]">
+          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+            <g>
+              <circle cx="12" cy="5" r="1.5" fill={isActive ? 'var(--primary)' : 'var(--muted-foreground)'} />
+              <circle cx="12" cy="12" r="1.5" fill={isActive ? 'var(--primary)' : 'var(--muted-foreground)'} />
+              <circle cx="12" cy="19" r="1.5" fill={isActive ? 'var(--primary)' : 'var(--muted-foreground)'} />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </button>
+  )
+}
+
 export function Header({ user, employee, notifications = [], onMobileMenuClick }: HeaderProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -40,6 +68,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
     return false
   })
   const [currentStatus, setCurrentStatus] = useState<UserStatus>('online')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Dark mode effect
   useEffect(() => {
@@ -93,70 +122,150 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
   }
 
   return (
-    <header
-      className="bg-white px-6 flex items-center h-16 flex-shrink-0 border-b"
-      style={{ borderColor: '#E5E8EB' }}
-    >
-      <div className="flex items-center justify-between w-full max-w-full">
-        {/* Left - Mobile Menu */}
-        <button
-          onClick={onMobileMenuClick}
-          className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+    <>
+      {/* Mobile Header */}
+      <div className="lg:hidden w-full">
+        <div
+          className="flex items-center justify-center h-16 border-b"
+          style={{ backgroundColor: 'var(--sidebar)', borderColor: 'var(--border)' }}
         >
-          <Menu className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
-        </button>
+          <div className="flex items-center justify-between px-4 w-full">
+            {/* Menu Button */}
+            <button
+              onClick={onMobileMenuClick}
+              className="relative rounded-[10px] shrink-0"
+              style={{ width: '40px', height: '40px' }}
+              aria-label="메뉴 열기"
+            >
+              <div className="flex items-center justify-center size-full">
+                <Menu className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+              </div>
+            </button>
 
-        {/* TODO: 추후 구현 예정 - Center - Search Bar (Desktop) */}
-        {/* <div className="hidden lg:flex items-center flex-1 max-w-md">
-          <div className="relative w-full">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-              style={{ color: '#A0ACB3' }}
-            />
-            <input
-              type="text"
-              placeholder="검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border transition-colors"
-              style={{
-                backgroundColor: '#F8FAFC',
-                borderColor: '#E5E8EB',
-                color: '#29363D',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#635BFF'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = '#E5E8EB'
-              }}
-            />
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* More Button */}
+            <MoreButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)} isActive={mobileMenuOpen} />
           </div>
-        </div> */}
+        </div>
 
-        <div className="flex-1 lg:flex-none" />
-
-        {/* Right - Actions */}
-        <div className="flex items-center gap-3">
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="hidden lg:block p-2 rounded-lg transition-all"
-            aria-label="다크모드 토글"
-            style={{
-              backgroundColor: 'var(--muted)',
-              transitionDuration: '150ms',
-              transitionTimingFunction: 'ease-in-out',
-            }}
+        {/* Mobile Additional Menu */}
+        {mobileMenuOpen && (
+          <div
+            className="flex items-center justify-end px-4 h-16 border-b gap-3"
+            style={{ backgroundColor: 'var(--sidebar)', borderColor: 'var(--border)' }}
           >
-            {darkMode ? (
-              <Sun className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
-            ) : (
-              <Moon className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
-            )}
-          </button>
+            {/* Dark Mode */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="rounded-[10px] p-2 shrink-0"
+              aria-label="다크모드"
+              style={{ backgroundColor: 'var(--background)' }}
+            >
+              {darkMode ? (
+                <Sun className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+              ) : (
+                <Moon className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+              )}
+            </button>
 
-          {/* TODO: 추후 구현 예정 - Language Toggle Dropdown */}
+            {/* Notifications */}
+            <NotificationDropdown notifications={notifications} userId={user.id} />
+
+            {/* Profile */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-all"
+                  style={{ backgroundColor: 'var(--primary)' }}
+                  aria-label="프로필"
+                >
+                  <User className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-4 py-3 border-b">
+                  <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', fontWeight: 600 }}>
+                    {employee?.name || user.email}
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', marginTop: '2px' }}>
+                    {employee?.role?.code === 'super_admin' ? '최고관리자' : employee?.role?.code === 'admin' ? '관리자' : '구성원'}
+                  </p>
+                </div>
+
+                <DropdownMenuSeparator />
+
+                {/* Status Selection */}
+                <div className="px-2 py-2">
+                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', padding: '8px 12px' }}>
+                    상태 변경
+                  </p>
+                  {(['online', 'in_meeting', 'lunch', 'away', 'offline', 'vacation'] as UserStatus[]).map((status) => {
+                    const info = getStatusInfo(status)
+                    const isActive = currentStatus === status
+                    return (
+                      <DropdownMenuItem
+                        key={status}
+                        className="cursor-pointer"
+                        onClick={() => handleStatusChange(status)}
+                        style={{ backgroundColor: isActive ? 'var(--primary-bg)' : 'transparent' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: info.color }} />
+                          <span style={{ fontSize: 'var(--font-size-caption)' }}>
+                            {info.emoji} {info.label}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </div>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem className="cursor-pointer" onClick={() => router.push('/account')}>
+                  내 계정
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+                  로그아웃
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Header */}
+      <header
+        className="hidden lg:flex px-6 items-center h-16 flex-shrink-0 border-b"
+        style={{ backgroundColor: 'var(--sidebar)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex items-center justify-between w-full max-w-full">
+
+          <div className="flex-1" />
+
+          {/* Right - Actions */}
+          <div className="flex items-center gap-3">
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 rounded-lg transition-all"
+              aria-label="다크모드 토글"
+              style={{
+                backgroundColor: 'var(--muted)',
+                transitionDuration: '150ms',
+                transitionTimingFunction: 'ease-in-out',
+              }}
+            >
+              {darkMode ? (
+                <Sun className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+              ) : (
+                <Moon className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+              )}
+            </button>
+
+            {/* TODO: 추후 구현 예정 - Language Toggle Dropdown */}
           {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -242,7 +351,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                   transitionTimingFunction: 'ease-in-out',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.1)'
+                  e.currentTarget.style.backgroundColor = 'var(--primary-bg)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
@@ -250,7 +359,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                  style={{ backgroundColor: '#635BFF' }}
+                  style={{ backgroundColor: 'var(--primary)' }}
                 >
                   <User className="w-4 h-4" />
                 </div>
@@ -284,7 +393,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                 <p
                   style={{
                     fontSize: 'var(--font-size-body)',
-                    color: '#29363D',
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                   }}
                 >
@@ -293,7 +402,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                 <p
                   style={{
                     fontSize: 'var(--font-size-caption)',
-                    color: '#5B6A72',
+                    color: 'var(--muted-foreground)',
                     marginTop: '2px',
                   }}
                 >
@@ -310,7 +419,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                 <p
                   style={{
                     fontSize: 'var(--font-size-caption)',
-                    color: '#5B6A72',
+                    color: 'var(--muted-foreground)',
                     padding: '8px 12px',
                   }}
                 >
@@ -335,7 +444,7 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                       onClick={() => handleStatusChange(status)}
                       style={{
                         backgroundColor: isActive
-                          ? 'rgba(99, 91, 255, 0.1)'
+                          ? 'var(--primary-bg)'
                           : 'transparent',
                       }}
                     >
@@ -361,8 +470,9 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   )
 }
