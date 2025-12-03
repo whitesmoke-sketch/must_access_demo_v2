@@ -219,23 +219,36 @@ export function ApprovalLineEditor({
   const [selectedApproverRole, setSelectedApproverRole] = React.useState<'approver' | 'reviewer'>('approver');
   const [selectedOrder, setSelectedOrder] = React.useState<number>(1);
 
-  const handleAddApprover = (approver: Approver) => {
+  // 임시로 선택된 구성원 저장
+  const [tempSelectedApproverForAdd, setTempSelectedApproverForAdd] = React.useState<Approver | null>(null);
+  const [tempSelectedApproverForChange, setTempSelectedApproverForChange] = React.useState<Approver | null>(null);
+
+  // 확인 버튼 클릭 시 실제로 추가
+  const handleConfirmAdd = () => {
+    if (!tempSelectedApproverForAdd) {
+      toast.error('구성원을 선택해주세요');
+      return;
+    }
+
     const newApprover: ApprovalStep = {
-      id: approver.id,
-      name: approver.name,
-      email: approver.email,
-      role: approver.role,
-      department: approver.department,
+      id: tempSelectedApproverForAdd.id,
+      name: tempSelectedApproverForAdd.name,
+      email: tempSelectedApproverForAdd.email,
+      role: tempSelectedApproverForAdd.role,
+      department: tempSelectedApproverForAdd.department,
       approverRole: selectedApproverRole,
       order: selectedOrder,
     };
     onApproversChange([...approvers, newApprover]);
-    // Dialog는 "확인" 버튼을 눌렀을 때 닫힘
 
     const roleLabel = selectedApproverRole === 'reviewer' ? '합의자' : '결재자';
     toast.success(`${roleLabel} 추가 완료`, {
-      description: `${approver.name}님이 ${selectedOrder}순위로 추가되었습니다.`,
+      description: `${tempSelectedApproverForAdd.name}님이 ${selectedOrder}순위로 추가되었습니다.`,
     });
+
+    // 초기화 및 Dialog 닫기
+    setTempSelectedApproverForAdd(null);
+    setShowAddDialog(false);
   };
 
   const handleRemoveApprover = (approverId: string) => {
@@ -266,7 +279,12 @@ export function ApprovalLineEditor({
     setShowDelegateDialog(true);
   };
 
-  const handleApproverChange = (approver: Approver) => {
+  // 확인 버튼 클릭 시 실제로 변경/대결자 지정
+  const handleConfirmChange = () => {
+    if (!tempSelectedApproverForChange) {
+      toast.error('구성원을 선택해주세요');
+      return;
+    }
     if (editingApproverId === null) return;
 
     const updated = approvers.map(a => {
@@ -277,17 +295,17 @@ export function ApprovalLineEditor({
         return {
           ...a,
           isDelegated: true,
-          delegateId: approver.id,
-          delegateName: approver.name,
+          delegateId: tempSelectedApproverForChange.id,
+          delegateName: tempSelectedApproverForChange.name,
         };
       } else {
         // 결재자 교체
         return {
-          id: approver.id,
-          name: approver.name,
-          email: approver.email,
-          role: approver.role,
-          department: approver.department,
+          id: tempSelectedApproverForChange.id,
+          name: tempSelectedApproverForChange.name,
+          email: tempSelectedApproverForChange.email,
+          role: tempSelectedApproverForChange.role,
+          department: tempSelectedApproverForChange.department,
           isDelegated: false,
           approverRole: a.approverRole,
           order: a.order,
@@ -297,16 +315,19 @@ export function ApprovalLineEditor({
 
     if (isDelegating) {
       toast.success('대결자 지정 완료', {
-        description: `${approver.name}님을 대결자로 지정했습니다.`,
+        description: `${tempSelectedApproverForChange.name}님을 대결자로 지정했습니다.`,
       });
     } else {
       toast.success('결재자 변경 완료', {
-        description: `${approver.name}님으로 변경했습니다.`,
+        description: `${tempSelectedApproverForChange.name}님으로 변경했습니다.`,
       });
     }
 
     onApproversChange(updated);
-    // Dialog는 "확인" 버튼을 눌렀을 때 닫힘
+
+    // 초기화 및 Dialog 닫기
+    setTempSelectedApproverForChange(null);
+    setShowDelegateDialog(false);
     setEditingApproverId(null);
   };
 
@@ -531,7 +552,7 @@ export function ApprovalLineEditor({
                 구성원
               </Label>
               <ApproverSelector
-                onSelectApprover={handleAddApprover}
+                onSelectApprover={setTempSelectedApproverForAdd}
                 excludeIds={excludeIds}
                 placeholder="구성원 검색 및 선택"
                 autoCloseOnSelect={false}
@@ -541,7 +562,7 @@ export function ApprovalLineEditor({
 
           <DialogFooter>
             <Button
-              onClick={() => setShowAddDialog(false)}
+              onClick={handleConfirmAdd}
               style={{
                 backgroundColor: 'var(--primary)',
                 color: 'var(--primary-foreground)',
@@ -589,7 +610,7 @@ export function ApprovalLineEditor({
                 구성원
               </Label>
               <ApproverSelector
-                onSelectApprover={handleApproverChange}
+                onSelectApprover={setTempSelectedApproverForChange}
                 excludeIds={excludeIds}
                 placeholder="구성원 검색 및 선택"
                 autoCloseOnSelect={false}
@@ -599,7 +620,7 @@ export function ApprovalLineEditor({
 
           <DialogFooter>
             <Button
-              onClick={() => setShowDelegateDialog(false)}
+              onClick={handleConfirmChange}
               style={{
                 backgroundColor: 'var(--primary)',
                 color: 'var(--primary-foreground)',
