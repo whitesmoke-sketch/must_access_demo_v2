@@ -318,6 +318,7 @@ export function ApprovalLineSelector({
                 value={selectedId}
                 onValueChange={setSelectedId}
                 placeholder="구성원 검색 및 선택"
+                autoCloseOnSelect={false}
               />
             </div>
           </div>

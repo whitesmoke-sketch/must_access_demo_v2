@@ -31,13 +31,15 @@ interface MemberComboboxProps {
   value: string
   onValueChange: (value: string) => void
   placeholder?: string
+  autoCloseOnSelect?: boolean
 }
 
 export function MemberCombobox({
   members,
   value,
   onValueChange,
-  placeholder = '구성원 선택'
+  placeholder = '구성원 선택',
+  autoCloseOnSelect = true
 }: MemberComboboxProps) {
   const [open, setOpen] = useState(false)
 
@@ -69,7 +71,9 @@ export function MemberCombobox({
                 value={`${member.name} ${member.position || ''} ${member.department_id || ''} ${member.team || ''}`}
                 onSelect={() => {
                   onValueChange(member.id)
-                  setOpen(false)
+                  if (autoCloseOnSelect) {
+                    setOpen(false)
+                  }
                 }}
               >
                 <Check
