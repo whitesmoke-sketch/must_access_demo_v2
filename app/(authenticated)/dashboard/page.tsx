@@ -181,31 +181,37 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Main Grid */}
+      {/* Main Grid - 피그마 디자인: 모든 카드가 하나의 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 1. 근무 상태 */}
         <WorkStatusCard employeeId={user.id} />
-        <LeaveBalanceCard employeeId={user.id} />
-        <QuickActions />
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {/* 2. 연차 요약 */}
+        <LeaveBalanceCard employeeId={user.id} />
+
+        {/* 3. 빠른 메뉴 */}
+        <QuickActions />
+
+        {/* 4. 나의 예약 현황 */}
         <MyReservationsCard employeeId={user.id} />
 
-        <ApprovalStatusClient
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          myRequests={myRequests as any}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          pendingRequests={pendingRequests as any}
-          isAdmin={isAdmin}
-          userId={user.id}
-          approvalStepsMap={approvalStepsMap}
-        />
+        {/* 5. 결재 현황 (2열 차지) */}
+        <div className="md:col-span-2 lg:col-span-2">
+          <ApprovalStatusClient
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            myRequests={myRequests as any}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            pendingRequests={pendingRequests as any}
+            isAdmin={isAdmin}
+            userId={user.id}
+            approvalStepsMap={approvalStepsMap}
+          />
+        </div>
 
+        {/* 6. 오늘 연차인 멤버 */}
         <TodayOnLeaveCard members={todayOnLeaveMembers} />
-      </div>
 
-      {/* 하단 그리드 - 스튜디오 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 7. 지하1층 스튜디오 */}
         <StudioAccessCard status="restricted" reason="브랜드 리뉴얼 프로젝트 촬영" />
       </div>
     </div>
