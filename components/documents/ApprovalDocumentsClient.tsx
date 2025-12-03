@@ -645,38 +645,6 @@ export function ApprovalDocumentsClient({
                             <Eye className="w-4 h-4" />
                           </Button>
                         </TableCell>
-                        {activeTab !== 'reference' && (
-                          <TableCell className="text-center p-3" style={{ width: '180px', minWidth: '180px' }}>
-                            <div className="flex items-center justify-center gap-2">
-                            {doc.status === 'pending' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleApprove(doc)}
-                                  style={{
-                                    backgroundColor: 'var(--success)',
-                                    color: 'white',
-                                  }}
-                                >
-                                  <Check className="w-4 h-4 mr-1" />
-                                  승인
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleReject(doc)}
-                                  style={{
-                                    backgroundColor: 'var(--destructive)',
-                                    color: 'white',
-                                  }}
-                                >
-                                  <X className="w-4 h-4 mr-1" />
-                                  반려
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                          </TableCell>
-                        )}
                       </TableRow>
                     )
                   })
