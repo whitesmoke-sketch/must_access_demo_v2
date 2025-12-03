@@ -570,9 +570,7 @@ export function ApprovalDocumentsClient({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            // TODO: 참조 문서 상세 보기
-                          }}
+                          onClick={() => handleViewDetail(doc as any)}
                           style={{ color: 'var(--card-foreground)', padding: '4px 8px', transition: 'all 150ms ease-in-out' }}
                         >
                           <Eye className="w-4 h-4" />
