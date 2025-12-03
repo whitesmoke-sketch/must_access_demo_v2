@@ -241,8 +241,8 @@ export default function SeatsPage() {
                         </p>
                         <Button
                           onClick={() => {
-                            const availableSeat = seats.find(s => s.status === 'available')
-                            setSelectedSeat(availableSeat || null)
+                            const testSeat = seats.find(s => s.name === 'A-202') || seats.find(s => s.status === 'available')
+                            setSelectedSeat(testSeat || null)
                           }}
                           style={{
                             backgroundColor: 'var(--primary)',
