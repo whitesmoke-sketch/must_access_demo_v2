@@ -91,7 +91,7 @@ export function LeaveManagementTable({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-lg border overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
+        <div className="rounded-lg overflow-x-auto">
           <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
