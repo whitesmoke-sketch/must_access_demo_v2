@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 
 interface UserData {
@@ -438,17 +440,11 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               >
                 생년월일
               </Label>
-              <Input
-                id="birthDate"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
+              <DatePicker
+                date={birthDate ? new Date(birthDate) : undefined}
+                onDateChange={(date) => setBirthDate(date ? date.toISOString().split('T')[0] : '')}
+                placeholder="생년월일 선택"
                 className="mt-1"
-                style={{
-                  fontSize: 'var(--font-size-body)',
-                  lineHeight: 1.5,
-                  height: '42px',
-                }}
               />
             </div>
 
@@ -491,24 +487,16 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               >
                 성별 <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
               </Label>
-              <select
-                id="gender"
-                value={gender}
-                onChange={(e) => setGender(e.target.value as '남성' | '여성' | '기타')}
-                className="mt-1 w-full rounded-md border px-3 py-2"
-                style={{
-                  fontSize: 'var(--font-size-body)',
-                  lineHeight: 1.5,
-                  borderColor: 'var(--border)',
-                  backgroundColor: 'var(--background)',
-                  color: 'var(--foreground)',
-                  height: '42px',
-                }}
-              >
-                <option value="남성">남성</option>
-                <option value="여성">여성</option>
-                <option value="기타">기타</option>
-              </select>
+              <Select value={gender} onValueChange={(value) => setGender(value as '남성' | '여성' | '기타')}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="성별 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="남성">남성</SelectItem>
+                  <SelectItem value="여성">여성</SelectItem>
+                  <SelectItem value="기타">기타</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

@@ -22,13 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 import {
   Dialog,
   DialogContent,
@@ -848,116 +843,56 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                 <Label
                   htmlFor="date"
                   style={{
-                    fontSize: '16px',
+                    fontSize: 'var(--font-size-caption)',
                     fontWeight: 500,
                     lineHeight: 1.5,
                   }}
                 >
                   날짜 *
                 </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                <DatePicker
+                  date={selectedDate ? new Date(selectedDate) : undefined}
+                  onDateChange={(date) => setSelectedDate(date ? date.toISOString().split('T')[0] : '')}
+                  placeholder="날짜 선택"
                 />
               </div>
 
               {/* Start time */}
               <div className="space-y-2">
                 <Label
+                  htmlFor="startTime"
                   style={{
-                    fontSize: '16px',
+                    fontSize: 'var(--font-size-caption)',
                     fontWeight: 500,
                     lineHeight: 1.5,
                   }}
                 >
                   시작 시간 *
                 </Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={startTime.split(':')[0] || ''}
-                    onValueChange={(hour) => {
-                      const minute = startTime.split(':')[1] || '00'
-                      setStartTime(`${hour}:${minute}`)
-                    }}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="시" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map((hour) => (
-                        <SelectItem key={hour} value={hour}>
-                          {hour}시
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={startTime.split(':')[1] || ''}
-                    onValueChange={(minute) => {
-                      const hour = startTime.split(':')[0] || '00'
-                      setStartTime(`${hour}:${minute}`)
-                    }}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="분" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="00">00분</SelectItem>
-                      <SelectItem value="30">30분</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <TimePicker
+                  value={startTime}
+                  onValueChange={setStartTime}
+                  placeholder="시작 시간 선택"
+                />
               </div>
 
               {/* End time */}
               <div className="space-y-2">
                 <Label
+                  htmlFor="endTime"
                   style={{
-                    fontSize: '16px',
+                    fontSize: 'var(--font-size-caption)',
                     fontWeight: 500,
                     lineHeight: 1.5,
                   }}
                 >
                   종료 시간 *
                 </Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={endTime.split(':')[0] || ''}
-                    onValueChange={(hour) => {
-                      const minute = endTime.split(':')[1] || '00'
-                      setEndTime(`${hour}:${minute}`)
-                    }}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="시" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map((hour) => (
-                        <SelectItem key={hour} value={hour}>
-                          {hour}시
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={endTime.split(':')[1] || ''}
-                    onValueChange={(minute) => {
-                      const hour = endTime.split(':')[0] || '00'
-                      setEndTime(`${hour}:${minute}`)
-                    }}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="분" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="00">00분</SelectItem>
-                      <SelectItem value="30">30분</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <TimePicker
+                  value={endTime}
+                  onValueChange={setEndTime}
+                  placeholder="종료 시간 선택"
+                />
               </div>
 
               {/* Attendees */}
