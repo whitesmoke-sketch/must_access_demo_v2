@@ -29,7 +29,7 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         style={{
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
-          minHeight: '184px',
+          minHeight: '182px',
         }}
       >
         <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
@@ -75,7 +75,7 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         style={{
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
-          minHeight: '184px',
+          minHeight: '182px',
         }}
       >
         <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
@@ -121,7 +121,7 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         style={{
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
-          minHeight: '184px',
+          minHeight: '182px',
         }}
       >
         <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
