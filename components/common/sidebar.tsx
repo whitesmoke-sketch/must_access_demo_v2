@@ -99,7 +99,7 @@ export function Sidebar({
     },
     {
       id: 'my-documents',
-      label: '내 문서',
+      label: '기안함',
       icon: FileText,
       href: '/documents/my-documents',
       implemented: true,

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
-import { DoorOpen, Armchair, FileText } from 'lucide-react'
+import { DoorOpen, FileText, FileCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 const actions = [
@@ -13,14 +13,14 @@ const actions = [
     implemented: true
   },
   {
-    icon: Armchair,
-    label: '좌석 등록',
-    href: '/resources/seats',
-    implemented: false
+    icon: FileText,
+    label: '기안함',
+    href: '/documents/my-documents',
+    implemented: true
   },
   {
-    icon: FileText,
-    label: '결재 문서',
+    icon: FileCheck,
+    label: '결재함',
     href: '/documents',
     implemented: true
   }
