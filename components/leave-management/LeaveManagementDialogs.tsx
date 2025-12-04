@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { LeavePolicySettings } from './LeavePolicySettings'
 import { LeaveManualAdjustment } from './LeaveManualAdjustment'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -61,10 +60,6 @@ interface LeaveManagementDialogsProps {
   getMemberLeaveHistory: (memberId: string) => LeaveRequest[]
   getStatusBadge: (status: string) => JSX.Element | null
 
-  // Policy Dialog
-  isPolicyDialogOpen: boolean
-  setIsPolicyDialogOpen: (open: boolean) => void
-
   // Manual Dialog
   isManualDialogOpen: boolean
   setIsManualDialogOpen: (open: boolean) => void
@@ -89,8 +84,6 @@ export function LeaveManagementDialogs({
   selectedMember,
   getMemberLeaveHistory,
   getStatusBadge,
-  isPolicyDialogOpen,
-  setIsPolicyDialogOpen,
   isManualDialogOpen,
   setIsManualDialogOpen,
 }: LeaveManagementDialogsProps) {
@@ -407,26 +400,6 @@ export function LeaveManagementDialogs({
         </DialogContent>
       </Dialog>
 
-      {/* 정책 설정 모달 */}
-      <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle
-              style={{ fontSize: 'var(--font-size-h1)', fontWeight: 'var(--font-weight-h1)', lineHeight: 1.25 }}
-            >
-              휴가 정책 설정
-            </DialogTitle>
-            <DialogDescription style={{ fontSize: 'var(--font-size-body)', lineHeight: 1.5 }}>
-              회사의 휴가 정책과 부재유형을 설정합니다
-            </DialogDescription>
-          </DialogHeader>
-          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
-            <div className="p-6">
-              <LeavePolicySettings onBack={() => setIsPolicyDialogOpen(false)} />
-            </div>
-          </Card>
-        </DialogContent>
-      </Dialog>
 
       {/* 연차 수동 관리 모달 */}
       <Dialog open={isManualDialogOpen} onOpenChange={setIsManualDialogOpen}>

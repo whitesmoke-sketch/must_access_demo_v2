@@ -9,7 +9,6 @@ import {
   Search,
   Filter,
   Gift,
-  Settings,
   Check,
   X,
   Eye,
@@ -52,13 +51,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { LeavePolicySettings } from './LeavePolicySettings'
 import { LeaveManualAdjustment } from './LeaveManualAdjustment'
 import { MonthlyLeaveCalendar } from './MonthlyLeaveCalendar'
 import { LeaveManagementTable } from './LeaveManagementTable'
 import { LeaveManagementDialogs } from './LeaveManagementDialogs'
 
-type ViewMode = 'main' | 'policy' | 'manual'
+type ViewMode = 'main' | 'manual'
 
 interface LeaveManagementClientProps {
   initialMembers: Member[]
@@ -77,7 +75,6 @@ export function LeaveManagementClient({
   const [filterTeam, setFilterTeam] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [isRewardGrantDialogOpen, setIsRewardGrantDialogOpen] = useState(false)
-  const [isPolicyDialogOpen, setIsPolicyDialogOpen] = useState(false)
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
@@ -422,9 +419,6 @@ export function LeaveManagementClient({
 
   return (
     <div className="space-y-6">
-      {/* Policy Settings View */}
-      {viewMode === 'policy' && <LeavePolicySettings onBack={() => setViewMode('main')} />}
-
       {/* Manual Adjustment View */}
       {viewMode === 'manual' && <LeaveManualAdjustment onBack={() => setViewMode('main')} members={members} />}
 
@@ -465,20 +459,6 @@ export function LeaveManagementClient({
                 <Edit className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">연차 수동 관리</span>
                 <span className="sm:hidden">수동 관리</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setIsPolicyDialogOpen(true)}
-                className="w-full sm:w-auto"
-                style={{
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5,
-                }}
-              >
-                <Settings className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">정책 설정</span>
-                <span className="sm:hidden">정책</span>
               </Button>
               <Button
                 onClick={() => setIsRewardGrantDialogOpen(true)}
@@ -845,8 +825,6 @@ export function LeaveManagementClient({
             selectedMember={selectedMember}
             getMemberLeaveHistory={getMemberLeaveHistory}
             getStatusBadge={getStatusBadge}
-            isPolicyDialogOpen={isPolicyDialogOpen}
-            setIsPolicyDialogOpen={setIsPolicyDialogOpen}
             isManualDialogOpen={isManualDialogOpen}
             setIsManualDialogOpen={setIsManualDialogOpen}
           />
