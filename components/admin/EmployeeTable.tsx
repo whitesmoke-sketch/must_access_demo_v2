@@ -159,7 +159,7 @@ export function EmployeeTable() {
                       </TableCell>
                       <TableCell className="text-right">
                         <EmployeeModal mode="edit" employee={employee} onSuccess={loadData}>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                             <Edit className="w-4 h-4" />
                           </Button>
                         </EmployeeModal>

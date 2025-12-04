@@ -1,25 +1,39 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { DocumentTypeSelector } from './DocumentTypeSelector'
 import { LeaveBalanceCards } from './LeaveBalanceCards'
-import { ApprovalLineEditor, type ApprovalStep as EditorApprovalStep } from '@/components/approval/approval-line-editor'
-import { ApprovalTemplateLoadModal } from '@/components/approval/approval-template-modal'
-import { ApprovalTemplateSaveModal } from '@/components/approval/approval-template-save-modal'
-import { ReferenceSelector } from './ReferenceSelector'
 import { submitDocumentRequest } from '@/app/actions/document'
 import { generateDefaultApprovers } from '@/app/actions/approval'
-import { Upload, X, AlertCircle, Plus } from 'lucide-react'
+import { Upload, X, AlertCircle, Plus, User, Edit2, Trash2, GripVertical, FileText, Search, Check } from 'lucide-react'
 import { toast } from 'sonner'
+import { DndProvider, useDrag, useDrop } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 
 type DocumentType =
   | 'annual_leave'
@@ -36,7 +50,19 @@ interface ServerApprovalStep {
   approverId: string
   approverName: string
   approverPosition: string
-  approvalType: 'single' | 'agreement'  // 결재 유형: single(단독), agreement(합의)
+  approvalType: 'single' | 'agreement'
+  isDelegated?: boolean
+  delegateId?: string
+  delegateName?: string
+}
+
+interface ApprovalStep {
+  id: string
+  order: number
+  approverId: string
+  approverName: string
+  approverPosition: string
+  role: 'approver' | 'reviewer'
   isDelegated?: boolean
   delegateId?: string
   delegateName?: string
@@ -78,14 +104,177 @@ interface Balance {
   reward_remaining?: number
 }
 
+interface ExpenseItem {
+  item: string
+  amount: string
+}
+
+interface ExistingDocument {
+  id: string
+  title: string
+  type: string
+  submittedAt: string
+  status: 'pending' | 'approved' | 'rejected'
+}
+
 interface RequestFormProps {
   currentUser: CurrentUser
   balance: Balance | null
   members: Member[]
   initialDocumentType?: string
+  existingDocuments?: ExistingDocument[]
 }
 
-export function RequestForm({ currentUser, balance, members, initialDocumentType }: RequestFormProps) {
+interface DraggableApprovalGroupProps {
+  order: number
+  stepsInOrder: ApprovalStep[]
+  approvalSteps: ApprovalStep[]
+  openApprovalDialog: (index: number, delegating: boolean) => void
+  removeApprover: (id: string) => void
+  moveOrderGroup: (dragOrder: number, hoverOrder: number) => void
+}
+
+const DraggableApprovalGroup: React.FC<DraggableApprovalGroupProps> = ({
+  order,
+  stepsInOrder,
+  approvalSteps,
+  openApprovalDialog,
+  removeApprover,
+  moveOrderGroup,
+}) => {
+  const ref = useRef<HTMLDivElement>(null)
+
+  const [{ isDragging }, drag] = useDrag({
+    type: 'APPROVAL_GROUP',
+    item: { order },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  })
+
+  const [, drop] = useDrop({
+    accept: 'APPROVAL_GROUP',
+    hover: (item: { order: number }) => {
+      if (item.order !== order) {
+        moveOrderGroup(item.order, order)
+        item.order = order
+      }
+    },
+  })
+
+  drag(drop(ref))
+
+  return (
+    <div
+      ref={ref}
+      className="rounded-lg p-3"
+      style={{
+        backgroundColor: 'var(--muted)',
+        opacity: isDragging ? 0.5 : 1,
+        cursor: 'move',
+      }}
+    >
+      <div className="flex items-center gap-3">
+        {/* Drag Handle */}
+        <div
+          className="flex items-center justify-center flex-shrink-0"
+          style={{
+            width: '16px',
+            height: '16px',
+            cursor: 'grab'
+          }}
+        >
+          <GripVertical className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+        </div>
+
+        {/* Order Badge */}
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{
+            backgroundColor: 'rgba(99, 91, 255, 0.2)',
+            fontSize: 'var(--font-size-caption)',
+            fontWeight: 600,
+            color: 'var(--primary)'
+          }}
+        >
+          {order}
+        </div>
+
+        {/* Group Container */}
+        <div className="flex-1 space-y-3">
+          {stepsInOrder.map((step) => {
+            const globalIndex = approvalSteps.findIndex(s => s.id === step.id)
+
+            // Role-based styling
+            const roleStyle = step.role === 'reviewer'
+              ? { iconBg: 'rgba(245, 158, 11, 0.1)', iconColor: '#F59E0B' }
+              : { iconBg: 'rgba(99, 91, 255, 0.1)', iconColor: 'var(--primary)' }
+
+            return (
+              <div
+                key={step.id}
+                className="flex items-center gap-3"
+              >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: roleStyle.iconBg }}
+                  >
+                    <User className="w-5 h-5" style={{ color: roleStyle.iconColor }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p style={{
+                      fontSize: 'var(--font-size-body)',
+                      fontWeight: 600,
+                      color: 'var(--foreground)',
+                      lineHeight: 1.5
+                    }}>
+                      {step.isDelegated && step.delegateName
+                        ? `${step.delegateName} (대결)`
+                        : step.approverName}
+                    </p>
+                    <p style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: 1.4
+                    }}>
+                      {step.role === 'reviewer' ? '합의자' : '결재자'} · {step.approverPosition}
+                      {step.isDelegated && ` (원 결재자: ${step.approverName})`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openApprovalDialog(globalIndex, false)}
+                    className="h-8 w-9 p-0"
+                    title="수정"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeApprover(step.id)}
+                    className="h-8 w-9 p-0"
+                    title="삭제"
+                  >
+                    <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function RequestForm({ currentUser, balance, members, initialDocumentType, existingDocuments = [] }: RequestFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -108,6 +297,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [leaveType, setLeaveType] = useState<'full' | 'half' | 'quarter'>('full')
   const [halfDaySlot, setHalfDaySlot] = useState<'morning' | 'afternoon'>('morning')
 
+  // 일자별 유형 선택 (연차 신청용)
+  const [dateDetails, setDateDetails] = useState<{ [date: string]: 'full' | 'morning' | 'afternoon' }>({})
+
   // 경조사비
   const [condolenceType, setCondolenceType] = useState('')
   const [targetName, setTargetName] = useState('')
@@ -117,22 +309,59 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [overtimeDate, setOvertimeDate] = useState<Date>()
   const [overtimeHours, setOvertimeHours] = useState('')
 
-  // 지출결의서
-  const [expenseItem, setExpenseItem] = useState('')
-  const [expenseAmount, setExpenseAmount] = useState('')
+  // 지출결의서 - 다중 항목 지원
+  const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([{ item: '', amount: '' }])
   const [paymentMethod, setPaymentMethod] = useState('')
 
   // 첨부파일
   const [attachments, setAttachments] = useState<File[]>([])
 
+  // 기존 문서 첨부
+  const [selectedExistingDocs, setSelectedExistingDocs] = useState<string[]>([])
+  const [isExistingDocDialogOpen, setIsExistingDocDialogOpen] = useState(false)
+  const [tempSelectedDocs, setTempSelectedDocs] = useState<string[]>([])
+  const [docSearchQuery, setDocSearchQuery] = useState('')
+
   // Step 3: 결재선
-  const [approvalSteps, setApprovalSteps] = useState<EditorApprovalStep[]>([])
-  const [showLoadModal, setShowLoadModal] = useState(false)
-  const [showSaveModal, setShowSaveModal] = useState(false)
-  const [showAddApproverDialog, setShowAddApproverDialog] = useState(false)
+  const [approvalSteps, setApprovalSteps] = useState<ApprovalStep[]>([])
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false)
+  const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
+  const [selectedApproverId, setSelectedApproverId] = useState('')
+  const [isDelegating, setIsDelegating] = useState(false)
+  const [selectedDelegateId, setSelectedDelegateId] = useState('')
+  const [selectedRole, setSelectedRole] = useState<'approver' | 'reviewer'>('approver')
+  const [selectedOrder, setSelectedOrder] = useState<number>(1)
 
   // Step 4: 참조자
   const [referenceSteps, setReferenceSteps] = useState<ReferenceStep[]>([])
+  const [isReferenceDialogOpen, setIsReferenceDialogOpen] = useState(false)
+  const [selectedReferenceId, setSelectedReferenceId] = useState('')
+
+  // 날짜 변경 시 일자별 상세 초기화 (연차 신청일 경우)
+  useEffect(() => {
+    if (startDate && endDate && documentType === 'annual_leave') {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+
+      // 날짜 범위의 모든 날짜 생성
+      const dateList: string[] = []
+      const current = new Date(start)
+      while (current <= end) {
+        dateList.push(current.toISOString().split('T')[0])
+        current.setDate(current.getDate() + 1)
+      }
+
+      // 기존 dateDetails를 유지하면서 새로운 날짜는 'full'로 초기화
+      const newDateDetails: { [date: string]: 'full' | 'morning' | 'afternoon' } = {}
+      dateList.forEach(date => {
+        newDateDetails[date] = dateDetails[date] || 'full'
+      })
+      setDateDetails(newDateDetails)
+    } else {
+      setDateDetails({})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, documentType])
 
   // 문서 유형 선택 시 자동 결재선 생성 (기타 문서는 제외)
   useEffect(() => {
@@ -153,53 +382,38 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     } else if (docType === 'overtime') {
       approvalType = 'overtime'
     }
-    // annual_leave, half_day, reward_leave, condolence 등은 모두 'leave'로 처리
 
     const result = await generateDefaultApprovers(approvalType)
     if (result.success && result.data) {
-      const defaultSteps: EditorApprovalStep[] = result.data.map((approver) => ({
-        id: approver.id,
-        name: approver.name,
-        email: approver.email || '',
-        role: approver.role.name,
-        department: approver.department?.name || '',
+      const defaultSteps: ApprovalStep[] = result.data.map((approver, index) => ({
+        id: `step-${Date.now()}-${index}`,
+        order: index + 1,
+        approverId: approver.id,
+        approverName: approver.name,
+        approverPosition: approver.role.name,
+        role: 'approver' as const,
       }))
       setApprovalSteps(defaultSteps)
-      // toast.success('자동 결재선이 설정되었습니다')
     }
-  }
-
-  function handleLoadTemplate(template: {
-    approvers: Array<{
-      id: string
-      name: string
-      email: string
-      role: string
-      department: string
-      step_order?: number
-      approval_type?: string
-    }>
-  }) {
-    // 템플릿 데이터를 EditorApprovalStep 형식으로 변환
-    const loadedSteps: EditorApprovalStep[] = template.approvers.map((approver) => ({
-      id: approver.id,
-      name: approver.name,
-      email: approver.email,
-      role: approver.role,
-      department: approver.department,
-      order: approver.step_order || 1,
-      approverRole: approver.approval_type === 'agreement' ? 'reviewer' : 'approver',
-    }))
-    setApprovalSteps(loadedSteps)
-    toast.success('템플릿을 불러왔습니다')
-    setShowLoadModal(false)
   }
 
   // 연차 관련 문서 여부
   const isLeaveType = documentType === 'annual_leave' || documentType === 'half_day' || documentType === 'reward_leave'
 
-  // 일수 계산
+  // 일수 계산 (dateDetails 기반)
   const calculateDays = () => {
+    if (documentType === 'annual_leave' && Object.keys(dateDetails).length > 0) {
+      let total = 0
+      Object.values(dateDetails).forEach(type => {
+        if (type === 'full') {
+          total += 1
+        } else if (type === 'morning' || type === 'afternoon') {
+          total += 0.5
+        }
+      })
+      return total
+    }
+
     if (!startDate || !endDate) return 0
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
@@ -272,8 +486,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
     // 지출결의서 검증
     if (documentType === 'expense') {
-      if (!expenseItem || !expenseAmount || !paymentMethod) {
-        toast.error('지출 정보를 모두 입력해주세요')
+      if (expenseItems.some(item => !item.item.trim() || !item.amount.trim())) {
+        toast.error('모든 지출 항목과 금액을 입력해주세요')
+        return false
+      }
+      if (!paymentMethod) {
+        toast.error('결제수단을 선택해주세요')
         return false
       }
     }
@@ -286,6 +504,144 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     return true
   }
 
+  // 결재자 추가 다이얼로그 열기
+  const openAddApproverDialog = () => {
+    setEditingStepIndex(null)
+    setIsDelegating(false)
+    setSelectedApproverId('')
+    setSelectedRole('approver')
+
+    // Calculate next order
+    const maxOrder = approvalSteps.length > 0 ? Math.max(...approvalSteps.map(s => s.order)) : 0
+    setSelectedOrder(maxOrder + 1)
+
+    setIsApprovalDialogOpen(true)
+  }
+
+  // 결재자 변경 다이얼로그 열기
+  const openApprovalDialog = (stepIndex: number, delegating: boolean = false) => {
+    setEditingStepIndex(stepIndex)
+    setIsDelegating(delegating)
+    setSelectedApproverId('')
+    setSelectedDelegateId('')
+
+    if (delegating) {
+      // 대결자 지정 모드
+      setIsApprovalDialogOpen(true)
+    } else {
+      // 결재자 변경 모드
+      setIsApprovalDialogOpen(true)
+    }
+  }
+
+  // 결재자 변경/대결자 지정/추가
+  const handleApprovalChange = () => {
+    if (editingStepIndex === null) {
+      // 결재선 추가
+      if (!selectedApproverId) {
+        toast.error('구성원을 선택해주세요')
+        return
+      }
+
+      const approver = members.find(m => m.id === selectedApproverId)
+      if (!approver) return
+
+      const newStep: ApprovalStep = {
+        id: `step-${Date.now()}`,
+        order: selectedOrder,
+        approverId: approver.id,
+        approverName: approver.name,
+        approverPosition: approver.position || '',
+        role: selectedRole,
+      }
+
+      setApprovalSteps([...approvalSteps, newStep])
+
+      const roleLabel = selectedRole === 'approver' ? '결재자' : '합의자'
+      toast.success(`${roleLabel} 추가 완료`, {
+        description: `${approver.name}님이 추가되었습니다.`,
+      })
+
+      setIsApprovalDialogOpen(false)
+      return
+    }
+
+    if (isDelegating) {
+      // 대결자 지정
+      if (!selectedDelegateId) {
+        toast.error('대결자를 선택해주세요')
+        return
+      }
+
+      const delegate = members.find(m => m.id === selectedDelegateId)
+      if (!delegate) return
+
+      const updatedSteps = [...approvalSteps]
+      updatedSteps[editingStepIndex] = {
+        ...updatedSteps[editingStepIndex],
+        isDelegated: true,
+        delegateId: delegate.id,
+        delegateName: delegate.name,
+      }
+      setApprovalSteps(updatedSteps)
+
+      toast.success('대결자 지정 완료', {
+        description: `${delegate.name}님을 대결자로 지정했습니다.`,
+      })
+    } else {
+      // 결재자 교체
+      if (!selectedApproverId) {
+        toast.error('결재자를 선택해주세요')
+        return
+      }
+
+      const approver = members.find(m => m.id === selectedApproverId)
+      if (!approver) return
+
+      const updatedSteps = [...approvalSteps]
+      updatedSteps[editingStepIndex] = {
+        ...updatedSteps[editingStepIndex],
+        approverId: approver.id,
+        approverName: approver.name,
+        approverPosition: approver.position || '',
+        isDelegated: false,
+        delegateId: undefined,
+        delegateName: undefined,
+      }
+      setApprovalSteps(updatedSteps)
+
+      toast.success('결재자 변경 완료', {
+        description: `${approver.name}님으로 변경했습니다.`,
+      })
+    }
+
+    setIsApprovalDialogOpen(false)
+    setEditingStepIndex(null)
+  }
+
+  // 순번 그룹 이동 (드래그 앤 드롭용)
+  const moveOrderGroup = (dragOrder: number, hoverOrder: number) => {
+    if (dragOrder === hoverOrder) return
+
+    const newSteps = approvalSteps.map(step => {
+      if (step.order === dragOrder) {
+        return { ...step, order: hoverOrder }
+      } else if (step.order === hoverOrder) {
+        return { ...step, order: dragOrder }
+      }
+      return step
+    })
+
+    setApprovalSteps(newSteps)
+  }
+
+  // 결재자 삭제
+  const removeApprover = (stepId: string) => {
+    const newSteps = approvalSteps.filter(step => step.id !== stepId)
+    setApprovalSteps(newSteps)
+    toast.success('제거되었습니다')
+  }
+
   // 제출 처리
   const handleSubmit = async () => {
     if (!validateForm()) return
@@ -295,11 +651,14 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     try {
       // 결재선을 서버 형식으로 변환
       const serverApprovalSteps: ServerApprovalStep[] = approvalSteps.map((step) => ({
-        order: step.order || 1,  // 실제 순번 사용
-        approverId: step.id,
-        approverName: step.name,
-        approverPosition: step.role,
-        approvalType: step.approverRole === 'reviewer' ? 'agreement' : 'single',  // 합의자는 agreement
+        order: step.order,
+        approverId: step.approverId,
+        approverName: step.approverName,
+        approverPosition: step.approverPosition,
+        approvalType: step.role === 'reviewer' ? 'agreement' : 'single',
+        isDelegated: step.isDelegated,
+        delegateId: step.delegateId,
+        delegateName: step.delegateName,
       }))
 
       // 폼 데이터 구성
@@ -313,6 +672,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         formData.requested_days = calculatedDays
         formData.start_date = startDate?.toISOString().split('T')[0]
         formData.end_date = endDate?.toISOString().split('T')[0]
+        if (documentType === 'annual_leave') {
+          formData.date_details = dateDetails
+        }
         if (documentType === 'half_day') {
           formData.half_day_slot = halfDaySlot
         }
@@ -330,9 +692,15 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
 
       if (documentType === 'expense') {
-        formData.expense_item = expenseItem
-        formData.expense_amount = parseFloat(expenseAmount)
+        formData.expense_items = expenseItems.map(item => ({
+          item: item.item,
+          amount: parseFloat(item.amount),
+        }))
         formData.payment_method = paymentMethod
+      }
+
+      if (selectedExistingDocs.length > 0) {
+        formData.attached_documents = selectedExistingDocs
       }
 
       const result = await submitDocumentRequest({
@@ -370,8 +738,78 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     setAttachments(attachments.filter((_, i) => i !== index))
   }
 
+  // 기존 문서 첨부 다이얼로그 열기
+  const openExistingDocDialog = () => {
+    setTempSelectedDocs([...selectedExistingDocs])
+    setDocSearchQuery('')
+    setIsExistingDocDialogOpen(true)
+  }
+
+  // 기존 문서 선택 토글
+  const toggleExistingDoc = (docId: string) => {
+    setTempSelectedDocs(prev =>
+      prev.includes(docId)
+        ? prev.filter(id => id !== docId)
+        : [...prev, docId]
+    )
+  }
+
+  // 기존 문서 첨부 확인
+  const confirmExistingDocs = () => {
+    setSelectedExistingDocs(tempSelectedDocs)
+    setIsExistingDocDialogOpen(false)
+    toast.success('기존 문서가 첨부되었습니다', {
+      description: `${tempSelectedDocs.length}개 문서가 선택되었습니다.`,
+    })
+  }
+
+  // 기존 문서 첨부 삭제
+  const removeExistingDoc = (docId: string) => {
+    setSelectedExistingDocs(prev => prev.filter(id => id !== docId))
+  }
+
   const handleCancel = () => {
     router.back()
+  }
+
+  // 지출 항목 추가
+  const addExpenseItem = () => {
+    setExpenseItems([...expenseItems, { item: '', amount: '' }])
+  }
+
+  // 지출 항목 삭제
+  const removeExpenseItem = (index: number) => {
+    if (expenseItems.length > 1) {
+      setExpenseItems(expenseItems.filter((_, i) => i !== index))
+    }
+  }
+
+  // 지출 항목 업데이트
+  const updateExpenseItem = (index: number, field: 'item' | 'amount', value: string) => {
+    const newItems = [...expenseItems]
+    newItems[index][field] = value
+    setExpenseItems(newItems)
+  }
+
+  // 상태 색상 및 라벨
+  const statusColors: Record<string, { bg: string; color: string }> = {
+    pending: { bg: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B' },
+    approved: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22C55E' },
+    rejected: { bg: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' },
+  }
+  const statusLabels: Record<string, string> = {
+    pending: '대기중',
+    approved: '승인됨',
+    rejected: '반려됨',
+  }
+  const documentTypeLabels: Record<string, string> = {
+    'annual_leave': '연차',
+    'half_day': '반차',
+    'reward_leave': '포상휴가',
+    'condolence': '경조사비',
+    'overtime': '야근수당',
+    'expense': '지출결의서',
+    'other': '기타',
   }
 
   return (
@@ -386,6 +824,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setReason('')
           setStartDate(undefined)
           setEndDate(undefined)
+          setDateDetails({})
+          setExpenseItems([{ item: '', amount: '' }])
         }}
       />
 
@@ -431,7 +871,107 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
               </div>
 
               {/* 문서별 동적 필드 */}
-              {(documentType === 'annual_leave' || documentType === 'reward_leave') && (
+              {documentType === 'annual_leave' && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>시작일 *</Label>
+                      <DatePicker
+                        date={startDate}
+                        onDateChange={setStartDate}
+                        placeholder="시작일 선택"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>종료일 *</Label>
+                      <DatePicker
+                        date={endDate}
+                        onDateChange={setEndDate}
+                        placeholder="종료일 선택"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 일자별 유형 선택 */}
+                  {Object.keys(dateDetails).length > 0 && (
+                    <div className="space-y-2">
+                      <Label>일자별 유형 *</Label>
+                      <div className="space-y-2">
+                        {Object.keys(dateDetails).sort().map((date) => {
+                          const dateObj = new Date(date)
+                          const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+                          const formattedDate = `${dateObj.getFullYear()}년 ${String(dateObj.getMonth() + 1).padStart(2, '0')}월 ${String(dateObj.getDate()).padStart(2, '0')}일 (${dayNames[dateObj.getDay()]})`
+
+                          return (
+                            <div
+                              key={date}
+                              className="flex items-center justify-between p-3 gap-3"
+                              style={{
+                                backgroundColor: 'var(--muted)',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: 'var(--font-size-caption)',
+                                color: 'var(--foreground)',
+                                fontWeight: 500,
+                              }}>
+                                {formattedDate}
+                              </span>
+                              <Select
+                                value={dateDetails[date]}
+                                onValueChange={(value) => {
+                                  setDateDetails({
+                                    ...dateDetails,
+                                    [date]: value as 'full' | 'morning' | 'afternoon'
+                                  })
+                                }}
+                              >
+                                <SelectTrigger style={{ width: '140px', height: '42px' }}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="full">종일</SelectItem>
+                                  <SelectItem value="morning">오전반차</SelectItem>
+                                  <SelectItem value="afternoon">오후반차</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {calculatedDays > 0 && (
+                    <div
+                      className="p-4 rounded-lg flex items-center gap-3"
+                      style={{ backgroundColor: 'rgba(99, 91, 255, 0.05)' }}
+                    >
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
+                      <div>
+                        <p style={{
+                          fontSize: 'var(--font-size-body)',
+                          fontWeight: 600,
+                          color: 'var(--card-foreground)',
+                          lineHeight: 1.5
+                        }}>
+                          사용 일수: {calculatedDays}일
+                        </p>
+                        <p style={{
+                          fontSize: 'var(--font-size-caption)',
+                          color: 'var(--muted-foreground)',
+                          lineHeight: 1.4
+                        }}>
+                          신청 후 잔여 연차: {(balance?.remaining_days || 0) - calculatedDays}일
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {documentType === 'reward_leave' && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -455,9 +995,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   {calculatedDays > 0 && (
                     <div
                       className="p-4 rounded-lg flex items-center gap-3"
-                      style={{ backgroundColor: documentType === 'reward_leave' ? 'rgba(255, 102, 146, 0.05)' : 'rgba(99, 91, 255, 0.05)' }}
+                      style={{ backgroundColor: 'rgba(255, 102, 146, 0.05)' }}
                     >
-                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: documentType === 'reward_leave' ? '#FF6692' : 'var(--primary)' }} />
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#FF6692' }} />
                       <div>
                         <p style={{
                           fontSize: 'var(--font-size-body)',
@@ -472,11 +1012,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                           color: 'var(--muted-foreground)',
                           lineHeight: 1.4
                         }}>
-                          신청 후 잔여 {documentType === 'reward_leave' ? '포상휴가' : '연차'}: {
-                            documentType === 'reward_leave'
-                              ? (balance?.reward_remaining || 0) - calculatedDays
-                              : (balance?.remaining_days || 0) - calculatedDays
-                          }일
+                          신청 후 잔여 포상휴가: {(balance?.reward_remaining || 0) - calculatedDays}일
                         </p>
                       </div>
                     </div>
@@ -499,37 +1035,17 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   </div>
 
                   <div className="space-y-2">
-                    <Label>유형 *</Label>
-                    <RadioGroup value={leaveType} onValueChange={(value: 'full' | 'half' | 'quarter') => setLeaveType(value)}>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="full" id="full" />
-                        <Label htmlFor="full">종일 (1일)</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="half" id="half" />
-                        <Label htmlFor="half">반차 (0.5일)</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="quarter" id="quarter" />
-                        <Label htmlFor="quarter">시간차 (0.25일)</Label>
-                      </div>
-                    </RadioGroup>
+                    <Label>반차 구분 *</Label>
+                    <Select value={halfDaySlot} onValueChange={(value: 'morning' | 'afternoon') => setHalfDaySlot(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="morning">오전 반차</SelectItem>
+                        <SelectItem value="afternoon">오후 반차</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  {leaveType === 'half' && (
-                    <div className="space-y-2">
-                      <Label>반차 구분 *</Label>
-                      <Select value={halfDaySlot} onValueChange={(value: 'morning' | 'afternoon') => setHalfDaySlot(value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="morning">오전 반차</SelectItem>
-                          <SelectItem value="afternoon">오후 반차</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </>
               )}
 
@@ -548,33 +1064,31 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="targetName">대상자 이름 *</Label>
-                    <Input
-                      id="targetName"
-                      value={targetName}
-                      onChange={(e) => setTargetName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="relationship">관계 *</Label>
-                    <Select value={relationship} onValueChange={setRelationship}>
-                      <SelectTrigger id="relationship">
-                        <SelectValue placeholder="관계 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="self">본인</SelectItem>
-                        <SelectItem value="parent">부모</SelectItem>
-                        <SelectItem value="child">자녀</SelectItem>
-                        <SelectItem value="spouse">배우자</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="targetName">대상자 이름 *</Label>
+                      <Input
+                        id="targetName"
+                        placeholder="이름"
+                        value={targetName}
+                        onChange={(e) => setTargetName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="relationship">관계 *</Label>
+                      <Input
+                        id="relationship"
+                        placeholder="예: 본인, 부모, 자녀"
+                        value={relationship}
+                        onChange={(e) => setRelationship(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </>
               )}
 
               {documentType === 'overtime' && (
-                <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>야근 날짜 *</Label>
                     <DatePicker
@@ -593,30 +1107,53 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       onChange={(e) => setOvertimeHours(e.target.value)}
                     />
                   </div>
-                </>
+                </div>
               )}
 
               {documentType === 'expense' && (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="expenseItem">지출 항목 *</Label>
-                    <Input
-                      id="expenseItem"
-                      placeholder="지출 항목 입력"
-                      value={expenseItem}
-                      onChange={(e) => setExpenseItem(e.target.value)}
-                    />
+                  <div className="space-y-3">
+                    <Label>지출 항목 *</Label>
+                    {expenseItems.map((item, index) => (
+                      <div key={index} className="flex gap-3 items-start">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            placeholder="예: 사무용품 구매"
+                            value={item.item}
+                            onChange={(e) => updateExpenseItem(index, 'item', e.target.value)}
+                          />
+                          <Input
+                            type="number"
+                            placeholder="금액"
+                            value={item.amount}
+                            onChange={(e) => updateExpenseItem(index, 'amount', e.target.value)}
+                          />
+                        </div>
+                        {expenseItems.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeExpenseItem(index)}
+                            style={{ height: '42px', width: '42px' }}
+                          >
+                            <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addExpenseItem}
+                      className="w-full"
+                      style={{ height: '42px' }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      지출 항목 추가
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expenseAmount">금액 *</Label>
-                    <Input
-                      id="expenseAmount"
-                      type="number"
-                      placeholder="금액 입력"
-                      value={expenseAmount}
-                      onChange={(e) => setExpenseAmount(e.target.value)}
-                    />
-                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="paymentMethod">결제수단 *</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -694,6 +1231,88 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   )}
                 </div>
               </div>
+
+              {/* 기존 문서 첨부 */}
+              <div className="space-y-2">
+                <Label>기존 문서 첨부</Label>
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={openExistingDocDialog}
+                    className="w-full"
+                    disabled={existingDocuments.length === 0}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    이전 문서 선택
+                  </Button>
+
+                  {selectedExistingDocs.length > 0 && (
+                    <div className="space-y-2">
+                      {selectedExistingDocs.map((docId) => {
+                        const doc = existingDocuments.find(d => d.id === docId)
+                        if (!doc) return null
+
+                        return (
+                          <div
+                            key={docId}
+                            className="flex items-center justify-between p-3 rounded-lg"
+                            style={{ backgroundColor: 'var(--muted)' }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span style={{
+                                  fontSize: 'var(--font-size-caption)',
+                                  color: 'var(--foreground)',
+                                  lineHeight: 1.4
+                                }}>
+                                  {doc.title}
+                                </span>
+                                <span
+                                  className="px-2 py-0.5 rounded text-xs"
+                                  style={{
+                                    backgroundColor: statusColors[doc.status]?.bg,
+                                    color: statusColors[doc.status]?.color,
+                                  }}
+                                >
+                                  {statusLabels[doc.status]}
+                                </span>
+                              </div>
+                              <p style={{
+                                fontSize: 'var(--font-size-caption)',
+                                color: 'var(--muted-foreground)',
+                                lineHeight: 1.4,
+                                marginTop: '2px',
+                              }}>
+                                {new Date(doc.submittedAt).toLocaleDateString('ko-KR')}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeExistingDoc(docId)}
+                              className="p-1 rounded transition-colors flex-shrink-0 hover:bg-gray-200"
+                            >
+                              <X className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {existingDocuments.length === 0 && (
+                    <p style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: 1.4,
+                      textAlign: 'center',
+                      padding: '8px 0',
+                    }}>
+                      이전에 제출한 문서가 없습니다
+                    </p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -702,8 +1321,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
             borderRadius: 'var(--radius)',
             boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
           }}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
+            <CardContent className="pt-6 space-y-6">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -720,35 +1339,189 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                     결재선 지정
                   </h3>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowAddApproverDialog(true)}>
+                <Button variant="outline" size="sm" onClick={openAddApproverDialog}>
                   <Plus className="w-4 h-4 mr-2" />
                   결재선 추가
                 </Button>
               </div>
-              <ApprovalLineEditor
-                approvers={approvalSteps}
-                onApproversChange={setApprovalSteps}
-                onLoadTemplate={() => setShowLoadModal(true)}
-                onSaveTemplate={() => setShowSaveModal(true)}
-                showTemplateButtons={true}
-                currentUser={{
-                  id: currentUser.id,
-                  name: currentUser.name,
-                  position: currentUser.position,
-                }}
-                showAddDialogExternal={showAddApproverDialog}
-                onAddDialogChange={setShowAddApproverDialog}
-                hideAddButton={true}
-              />
+
+              {approvalSteps.length === 0 ? (
+                <div className="text-center py-8">
+                  <p style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--muted-foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    결재선이 설정되지 않았습니다
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* 신청자 */}
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: 'var(--muted)' }}
+                    >
+                      <User className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+                    </div>
+                    <div className="flex-1">
+                      <p style={{
+                        fontSize: 'var(--font-size-body)',
+                        fontWeight: 600,
+                        color: 'var(--foreground)',
+                        lineHeight: 1.5
+                      }}>
+                        {currentUser.name}
+                      </p>
+                      <p style={{
+                        fontSize: 'var(--font-size-caption)',
+                        color: 'var(--muted-foreground)',
+                        lineHeight: 1.4
+                      }}>
+                        신청자 · {currentUser.position}
+                      </p>
+                    </div>
+                    <Badge style={{
+                      backgroundColor: 'rgba(99, 91, 255, 0.1)',
+                      color: 'var(--primary)',
+                      fontSize: 'var(--font-size-caption)',
+                    }}>
+                      작성 중
+                    </Badge>
+                  </div>
+
+                  {/* 결재선 - 순번별로 그룹화 (드래그 앤 드롭) */}
+                  <DndProvider backend={HTML5Backend}>
+                    {(() => {
+                      // Group steps by order
+                      const groupedSteps: { [key: number]: ApprovalStep[] } = {}
+                      approvalSteps.forEach(step => {
+                        if (!groupedSteps[step.order]) {
+                          groupedSteps[step.order] = []
+                        }
+                        groupedSteps[step.order].push(step)
+                      })
+
+                      const orders = Object.keys(groupedSteps).map(Number).sort((a, b) => a - b)
+
+                      return orders.map((order) => {
+                        const stepsInOrder = groupedSteps[order]
+
+                        return (
+                          <DraggableApprovalGroup
+                            key={order}
+                            order={order}
+                            stepsInOrder={stepsInOrder}
+                            approvalSteps={approvalSteps}
+                            openApprovalDialog={openApprovalDialog}
+                            removeApprover={removeApprover}
+                            moveOrderGroup={moveOrderGroup}
+                          />
+                        )
+                      })
+                    })()}
+                  </DndProvider>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Step 4: 참조자 지정 */}
-          <ReferenceSelector
-            referenceSteps={referenceSteps}
-            setReferenceSteps={setReferenceSteps}
-            members={members}
-          />
+          <Card className="rounded-2xl" style={{
+            borderRadius: 'var(--radius)',
+            boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)'
+          }}>
+            <CardContent className="pt-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)' }}
+                  >
+                    <User className="w-4 h-4" />
+                  </div>
+                  <h3 style={{
+                    fontSize: '16px',
+                    fontWeight: 500,
+                    color: 'var(--card-foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    참조자 지정 (선택)
+                  </h3>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setIsReferenceDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  참조자 추가
+                </Button>
+              </div>
+
+              {referenceSteps.length === 0 ? (
+                <div className="text-center py-8">
+                  <p style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--muted-foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    지정된 참조자가 없습니다
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {referenceSteps.map((reference) => (
+                    <div
+                      key={reference.id}
+                      className="rounded-lg p-3"
+                      style={{ backgroundColor: 'var(--muted)' }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: 'rgba(99, 91, 255, 0.1)' }}
+                          >
+                            <User className="w-5 h-5" style={{ color: 'var(--secondary)' }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p style={{
+                              fontSize: 'var(--font-size-body)',
+                              fontWeight: 600,
+                              color: 'var(--foreground)',
+                              lineHeight: 1.5
+                            }}>
+                              {reference.memberName}
+                            </p>
+                            <p style={{
+                              fontSize: 'var(--font-size-caption)',
+                              color: 'var(--muted-foreground)',
+                              lineHeight: 1.4
+                            }}>
+                              참조자 · {reference.memberPosition}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setReferenceSteps(referenceSteps.filter(r => r.id !== reference.id))
+                              toast.success('제거 완료')
+                            }}
+                            className="h-8 w-9 p-0"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* 하단 고정 버튼 */}
           <style>{`
@@ -797,25 +1570,413 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         </>
       )}
 
-      {/* 템플릿 불러오기 모달 */}
-      <ApprovalTemplateLoadModal
-        open={showLoadModal}
-        onOpenChange={setShowLoadModal}
-        requestType="leave"
-        onSelectTemplate={handleLoadTemplate}
-      />
+      {/* 결재자 추가/수정/대결자 지정 다이얼로그 */}
+      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
+        <DialogContent
+          className="!p-4 !border-0"
+          style={{ backgroundColor: 'var(--background)' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{
+              fontSize: 'var(--font-size-h4)',
+              fontWeight: 600,
+              lineHeight: 1.25,
+              color: 'var(--foreground)',
+            }}>
+              {editingStepIndex === null ? '결재선 추가' : (isDelegating ? '대결자 지정' : '결재자 변경')}
+            </DialogTitle>
+            <DialogDescription style={{
+              fontSize: 'var(--font-size-caption)',
+              lineHeight: 1.4,
+              color: 'var(--muted-foreground)',
+            }}>
+              {editingStepIndex === null
+                ? '역할과 순번을 선택하고 구성원을 추가하세요'
+                : (isDelegating
+                  ? '결재를 대신 처리할 대결자를 선택하세요'
+                  : '새로운 결재자를 선택하세요')
+              }
+            </DialogDescription>
+          </DialogHeader>
 
-      {/* 템플릿 저장 모달 */}
-      <ApprovalTemplateSaveModal
-        open={showSaveModal}
-        onOpenChange={setShowSaveModal}
-        requestType="leave"
-        approvalSteps={approvalSteps.map(step => ({
-          id: step.id,
-          order: step.order,
-          approverRole: step.approverRole,
-        }))}
-      />
+          <div className="space-y-4 py-4">
+            {editingStepIndex === null && (
+              <>
+                <div className="space-y-2">
+                  <Label style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    역할
+                  </Label>
+                  <Select value={selectedRole} onValueChange={(value: 'approver' | 'reviewer') => setSelectedRole(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approver">결재자</SelectItem>
+                      <SelectItem value="reviewer">합의자</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--foreground)',
+                    lineHeight: 1.5
+                  }}>
+                    결재 순번
+                  </Label>
+                  <Select
+                    value={selectedOrder.toString()}
+                    onValueChange={(value) => setSelectedOrder(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const maxOrder = approvalSteps.length > 0 ? Math.max(...approvalSteps.map(s => s.order)) : 0
+                        const uniqueOrders = [...new Set(approvalSteps.map(s => s.order))].sort((a, b) => a - b)
+                        const newOrder = maxOrder + 1
+                        const options = approvalSteps.length > 0 ? [...uniqueOrders, newOrder] : [1]
+                        return options.map(order => (
+                          <SelectItem key={order} value={order.toString()}>
+                            {order}순위{uniqueOrders.includes(order) ? ' (기존 순번에 추가)' : ' (새 순번)'}
+                          </SelectItem>
+                        ))
+                      })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            <div className="space-y-2">
+              <Label style={{
+                fontSize: 'var(--font-size-body)',
+                color: 'var(--foreground)',
+                lineHeight: 1.5
+              }}>
+                구성원
+              </Label>
+              <Select
+                value={isDelegating ? selectedDelegateId : selectedApproverId}
+                onValueChange={isDelegating ? setSelectedDelegateId : setSelectedApproverId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="구성원 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members
+                    .filter(m => m.id !== currentUser.id)
+                    .map(member => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name} ({member.position})
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={handleApprovalChange}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+              }}
+            >
+              확인
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 참조자 추가 다이얼로그 */}
+      <Dialog open={isReferenceDialogOpen} onOpenChange={setIsReferenceDialogOpen}>
+        <DialogContent
+          className="!p-4 !border-0"
+          style={{ backgroundColor: 'var(--background)' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{
+              fontSize: 'var(--font-size-h4)',
+              fontWeight: 600,
+              lineHeight: 1.25,
+              color: 'var(--foreground)',
+            }}>
+              참조자 추가
+            </DialogTitle>
+            <DialogDescription style={{
+              fontSize: 'var(--font-size-caption)',
+              lineHeight: 1.4,
+              color: 'var(--muted-foreground)',
+            }}>
+              참조자로 추가할 구성원을 선택하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Select
+              value={selectedReferenceId}
+              onValueChange={setSelectedReferenceId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="구성원 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {members
+                  .filter(m => m.id !== currentUser.id)
+                  .map(member => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name} ({member.position})
+                    </SelectItem>
+                  ))
+                }
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (!selectedReferenceId) {
+                  toast.error('구성원을 선택해주세요')
+                  return
+                }
+
+                const referenceMember = members.find(m => m.id === selectedReferenceId)
+                if (!referenceMember) return
+
+                const newReferenceStep: ReferenceStep = {
+                  id: `ref-${Date.now()}`,
+                  memberId: referenceMember.id,
+                  memberName: referenceMember.name,
+                  memberPosition: referenceMember.position || '',
+                }
+
+                setReferenceSteps([...referenceSteps, newReferenceStep])
+
+                toast.success('참조자 추가 완료', {
+                  description: `${referenceMember.name}님이 추가되었습니다.`,
+                })
+
+                setIsReferenceDialogOpen(false)
+                setSelectedReferenceId('')
+              }}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+              }}
+            >
+              확인
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 기존 문서 선택 다이얼로그 */}
+      <Dialog open={isExistingDocDialogOpen} onOpenChange={setIsExistingDocDialogOpen}>
+        <DialogContent
+          className="!p-4 !border-0 max-w-4xl"
+          style={{ backgroundColor: 'var(--background)' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{
+              fontSize: 'var(--font-size-h4)',
+              fontWeight: 600,
+              lineHeight: 1.25,
+              color: 'var(--foreground)',
+            }}>
+              기존 문서 선택
+            </DialogTitle>
+            <DialogDescription style={{
+              fontSize: 'var(--font-size-caption)',
+              lineHeight: 1.4,
+              color: 'var(--muted-foreground)',
+            }}>
+              참고 자료로 첨부할 이전 제출 문서를 선택하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            className="py-4"
+            style={{
+              maxHeight: '500px',
+              overflowY: 'auto',
+            }}
+          >
+            {/* 검색 */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+                <Input
+                  placeholder="문서 제목으로 검색..."
+                  value={docSearchQuery}
+                  onChange={(e) => setDocSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {existingDocuments.length === 0 ? (
+              <div className="text-center py-8">
+                <p style={{
+                  fontSize: 'var(--font-size-body)',
+                  color: 'var(--muted-foreground)',
+                  lineHeight: 1.5
+                }}>
+                  이전에 제출한 문서가 없습니다
+                </p>
+              </div>
+            ) : (
+              (() => {
+                // 검색 필터링
+                const filteredDocs = existingDocuments.filter((doc) =>
+                  doc.title.toLowerCase().includes(docSearchQuery.toLowerCase())
+                )
+
+                return (
+                  <>
+                    <div className="mb-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+                      전체 {filteredDocs.length}건
+                    </div>
+
+                    {filteredDocs.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p style={{
+                          fontSize: 'var(--font-size-body)',
+                          color: 'var(--muted-foreground)',
+                          lineHeight: 1.5
+                        }}>
+                          검색 결과가 없습니다
+                        </p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow style={{ borderBottom: '2px solid var(--border)' }}>
+                            <TableHead className="text-center p-3 w-12" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              선택
+                            </TableHead>
+                            <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              문서 종류
+                            </TableHead>
+                            <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              문서 제목
+                            </TableHead>
+                            <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              제출일
+                            </TableHead>
+                            <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              상태
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredDocs.map((doc) => {
+                            const isSelected = tempSelectedDocs.includes(doc.id)
+
+                            return (
+                              <TableRow
+                                key={doc.id}
+                                onClick={() => toggleExistingDoc(doc.id)}
+                                className="cursor-pointer transition-all hover:bg-muted"
+                                style={{
+                                  borderBottom: '1px solid var(--border)',
+                                  backgroundColor: isSelected ? 'rgba(99, 91, 255, 0.05)' : 'transparent',
+                                }}
+                              >
+                                <TableCell className="text-center p-3">
+                                  <div className="flex items-center justify-center">
+                                    <div
+                                      className="w-5 h-5 rounded flex items-center justify-center"
+                                      style={{
+                                        border: isSelected ? '2px solid var(--primary)' : '2px solid var(--border)',
+                                        backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
+                                      }}
+                                    >
+                                      {isSelected && (
+                                        <Check className="w-3 h-3" style={{ color: 'var(--primary-foreground)' }} />
+                                      )}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="p-3">
+                                  <Badge
+                                    style={{
+                                      backgroundColor: 'var(--muted)',
+                                      color: 'var(--muted-foreground)',
+                                      fontSize: '12px',
+                                      lineHeight: 1.4,
+                                      fontWeight: 600,
+                                      border: 'none',
+                                    }}
+                                  >
+                                    {documentTypeLabels[doc.type] || doc.type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
+                                  {doc.title}
+                                </TableCell>
+                                <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
+                                  {new Date(doc.submittedAt).toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                  })}
+                                </TableCell>
+                                <TableCell className="p-3">
+                                  <Badge
+                                    style={{
+                                      backgroundColor: statusColors[doc.status]?.bg,
+                                      color: statusColors[doc.status]?.color,
+                                      fontSize: '12px',
+                                      lineHeight: 1.4,
+                                      fontWeight: 600,
+                                      border: 'none',
+                                    }}
+                                  >
+                                    {statusLabels[doc.status]}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </>
+                )
+              })()
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsExistingDocDialogOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={confirmExistingDocs}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+              }}
+              disabled={tempSelectedDocs.length === 0}
+            >
+              선택 완료 ({tempSelectedDocs.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
