@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Member, LeaveRequest } from '@/lib/leave-management/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,7 +58,7 @@ interface LeaveManagementDialogsProps {
   setIsDetailDialogOpen: (open: boolean) => void
   selectedMember: Member | null
   getMemberLeaveHistory: (memberId: string) => LeaveRequest[]
-  getStatusBadge: (status: string) => JSX.Element | null
+  getStatusBadge: (status: string) => React.ReactNode
 
   // Manual Dialog
   isManualDialogOpen: boolean
@@ -265,69 +265,60 @@ export function LeaveManagementDialogs({
 
       {/* 상세 연차 내역 모달 */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh]">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: '#29363D' }}>
+            <DialogTitle style={{ fontSize: 'var(--font-size-h4)', fontWeight: 'var(--font-weight-h4)', lineHeight: 'var(--line-height-h1)', color: 'var(--foreground)' }}>
               연차 상세 내역
             </DialogTitle>
-            <DialogDescription style={{ fontSize: '16px', lineHeight: 1.5, color: '#5B6A72' }}>
+            <DialogDescription style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--muted-foreground)' }}>
               구성원의 연차 현황과 사용 이력을 확인합니다
             </DialogDescription>
           </DialogHeader>
 
-          <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
-            <div className="p-6">
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
             {selectedMember && (
               <div className="space-y-4">
                 {/* 사용자 정보 */}
-                <div className="flex items-center gap-4 p-4 rounded-lg" style={{ backgroundColor: '#F6F8F9' }}>
+                <div className="flex items-center gap-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--muted)' }}>
                   <Avatar className="h-16 w-16">
                     <AvatarFallback
-                      style={{ backgroundColor: 'var(--primary)', color: 'white', fontSize: '20px', fontWeight: 600 }}
+                      style={{ backgroundColor: 'var(--primary)', color: 'white', fontSize: '18px', fontWeight: 600 }}
                     >
                       {selectedMember.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#29363D', lineHeight: 1.5 }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 500, color: 'var(--foreground)', lineHeight: 1.5 }}>
                       {selectedMember.name}
                     </h3>
-                    <p style={{ fontSize: '16px', color: '#5B6A72', lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '14px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
                       {selectedMember.team} · {selectedMember.position}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p style={{ fontSize: '14px', color: '#5B6A72', lineHeight: 1.5 }}>잔여 연차</p>
-                    <p style={{ fontSize: '24px', fontWeight: 700, color: 'var(--primary)', lineHeight: 1.2 }}>
+                    <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>잔여 연차</p>
+                    <p style={{ fontSize: '20px', fontWeight: 700, color: 'var(--primary)', lineHeight: 1.2 }}>
                       {selectedMember.annualLeave - selectedMember.usedAnnualLeave}일
                     </p>
                   </div>
                 </div>
 
                 {/* 연차 통계 */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(41, 54, 61, 0.05)' }}>
-                    <p style={{ fontSize: '14px', color: '#5B6A72', lineHeight: 1.5 }}>총 연차</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--muted)' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>총 연차</p>
                     <p
-                      style={{ fontSize: '20px', fontWeight: 700, color: '#29363D', lineHeight: 1.2, marginTop: '4px' }}
+                      style={{ fontSize: '18px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.2, marginTop: '4px' }}
                     >
                       {selectedMember.annualLeave}일
                     </p>
                   </div>
-                  <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(91, 106, 114, 0.05)' }}>
-                    <p style={{ fontSize: '14px', color: '#5B6A72', lineHeight: 1.5 }}>사용 연차</p>
+                  <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--muted)' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>사용 연차</p>
                     <p
-                      style={{ fontSize: '20px', fontWeight: 700, color: '#5B6A72', lineHeight: 1.2, marginTop: '4px' }}
+                      style={{ fontSize: '18px', fontWeight: 700, color: 'var(--muted-foreground)', lineHeight: 1.2, marginTop: '4px' }}
                     >
                       {selectedMember.usedAnnualLeave}일
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg text-center" style={{ backgroundColor: '#FFE5EC' }}>
-                    <p style={{ fontSize: '14px', color: '#FF6692', lineHeight: 1.5 }}>포상 휴가</p>
-                    <p
-                      style={{ fontSize: '20px', fontWeight: 700, color: '#FF6692', lineHeight: 1.2, marginTop: '4px' }}
-                    >
-                      {selectedMember.rewardLeave - selectedMember.usedRewardLeave}일
                     </p>
                   </div>
                 </div>
@@ -336,9 +327,9 @@ export function LeaveManagementDialogs({
                 <div>
                   <h4
                     style={{
-                      fontSize: '16px',
+                      fontSize: '14px',
                       fontWeight: 500,
-                      color: '#29363D',
+                      color: 'var(--foreground)',
                       lineHeight: 1.5,
                       marginBottom: '16px',
                     }}
@@ -347,15 +338,15 @@ export function LeaveManagementDialogs({
                   </h4>
                   <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                     {getMemberLeaveHistory(selectedMember.id).length === 0 ? (
-                      <p className="text-center py-8" style={{ color: '#5B6A72', fontSize: '16px', lineHeight: 1.5 }}>
+                      <p className="text-center py-8" style={{ color: 'var(--muted-foreground)', fontSize: '14px', lineHeight: 1.5 }}>
                         사용 이력이 없습니다
                       </p>
                     ) : (
                       getMemberLeaveHistory(selectedMember.id).map(leave => (
-                        <div key={leave.id} className="p-3 rounded-lg" style={{ backgroundColor: '#F6F8F9' }}>
+                        <div key={leave.id} className="p-3 rounded-lg" style={{ backgroundColor: 'var(--muted)' }}>
                           <div className="flex items-start justify-between mb-1">
                             <div>
-                              <p style={{ fontSize: '16px', fontWeight: 600, color: '#29363D', lineHeight: 1.5 }}>
+                              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.5 }}>
                                 {leave.leaveType === 'annual'
                                   ? '연차'
                                   : leave.leaveType === 'reward'
@@ -365,8 +356,8 @@ export function LeaveManagementDialogs({
                               </p>
                               <p
                                 style={{
-                                  fontSize: '14px',
-                                  color: '#5B6A72',
+                                  fontSize: '12px',
+                                  color: 'var(--muted-foreground)',
                                   lineHeight: 1.5,
                                   marginTop: '4px',
                                 }}
@@ -378,7 +369,7 @@ export function LeaveManagementDialogs({
                             {getStatusBadge(leave.status)}
                           </div>
                           {leave.reason && (
-                            <p style={{ fontSize: '14px', color: '#5B6A72', lineHeight: 1.5, marginTop: '8px' }}>
+                            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: 1.5, marginTop: '8px' }}>
                               사유: {leave.reason}
                             </p>
                           )}
@@ -389,8 +380,7 @@ export function LeaveManagementDialogs({
                 </div>
               </div>
             )}
-            </div>
-          </Card>
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
