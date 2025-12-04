@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useTransition } from 'react'
 import {
   Search,
   Filter,
@@ -8,6 +8,7 @@ import {
   X,
   Eye,
 } from 'lucide-react'
+import { markApprovalCCAsRead } from '@/app/actions/approval'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -83,6 +84,24 @@ interface ApprovalStep {
   }[] | null
 }
 
+interface ReferenceDocument {
+  id: number
+  employee_id: string
+  leave_type: LeaveType
+  requested_days: number
+  start_date: string
+  end_date: string
+  reason: string | null
+  status: LeaveStatus
+  requested_at: string
+  approved_at: string | null
+  current_step: number | null
+  employee: EmployeeInfo | EmployeeInfo[] | null
+  cc_id?: string
+  read_at?: string | null
+  readStatus: 'read' | 'unread'
+}
+
 interface ApprovalDocumentsClientProps {
   documents: ApprovalDocument[]
   userId: string
@@ -90,6 +109,7 @@ interface ApprovalDocumentsClientProps {
   myApprovalRequestIds: number[]
   myApprovalStatusMap: Record<number, string>
   approvalStepsMap: Record<number, ApprovalStep[]>
+  referenceDocuments: ReferenceDocument[]
 }
 
 export function ApprovalDocumentsClient({
@@ -99,6 +119,7 @@ export function ApprovalDocumentsClient({
   myApprovalRequestIds,
   myApprovalStatusMap,
   approvalStepsMap,
+  referenceDocuments: initialReferenceDocuments,
 }: ApprovalDocumentsClientProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed' | 'reference'>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -107,39 +128,8 @@ export function ApprovalDocumentsClient({
   const [filterReadStatus, setFilterReadStatus] = useState<'all' | 'read' | 'unread'>('all')
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Mock 참조 문서 데이터
-  const [referenceDocuments] = useState([
-    {
-      id: 'ref-001',
-      employee_id: 'emp-001',
-      memberName: '홍길동',
-      department: '개발팀',
-      role: '과장',
-      leave_type: 'annual' as LeaveType,
-      start_date: '2024-12-01',
-      end_date: '2024-12-03',
-      requested_days: 3,
-      reason: '개인 사유',
-      status: 'approved' as LeaveStatus,
-      requested_at: '2024-11-25T09:00:00',
-      readStatus: 'unread' as const,
-    },
-    {
-      id: 'ref-002',
-      employee_id: 'emp-002',
-      memberName: '김철수',
-      department: '마케팅팀',
-      role: '부장',
-      leave_type: 'half_day' as LeaveType,
-      start_date: '2024-11-26',
-      end_date: '2024-11-26',
-      requested_days: 0.5,
-      reason: '프로젝트 마감',
-      status: 'pending' as LeaveStatus,
-      requested_at: '2024-11-26T14:30:00',
-      readStatus: 'read' as const,
-    },
-  ])
+  // 참조 문서 데이터 (서버에서 전달받음)
+  const [referenceDocuments, setReferenceDocuments] = useState<ReferenceDocument[]>(initialReferenceDocuments)
   const itemsPerPage = 10
 
   const [selectedDocument, setSelectedDocument] = useState<ApprovalDocument | null>(null)
@@ -177,9 +167,13 @@ export function ApprovalDocumentsClient({
   // 참조 문서 필터링
   const filteredReferenceDocuments = useMemo(() => {
     return referenceDocuments.filter((doc) => {
+      const employee = getEmployee(doc.employee)
+      const employeeName = employee?.name || ''
+      const departmentName = getDepartmentName(employee?.department)
+
       const matchesSearch =
-        doc.memberName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.department.toLowerCase().includes(searchQuery.toLowerCase())
+        employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        departmentName.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesReadStatus = filterReadStatus === 'all' || doc.readStatus === filterReadStatus
 
@@ -195,9 +189,35 @@ export function ApprovalDocumentsClient({
   )
   const totalPages = Math.ceil(displayDocuments.length / itemsPerPage)
 
+  const [isPending, startTransition] = useTransition()
+
   // 상세 보기
   const handleViewDetail = (document: ApprovalDocument) => {
     setSelectedDocument(document)
+    setIsDetailDialogOpen(true)
+  }
+
+  // 참조 문서 상세 보기 (열람 처리 포함)
+  const handleViewReferenceDetail = async (document: ReferenceDocument) => {
+    // 미열람 상태인 경우 열람 처리
+    if (document.readStatus === 'unread') {
+      startTransition(async () => {
+        const result = await markApprovalCCAsRead('leave', document.id)
+        if (result.success) {
+          // 로컬 상태 업데이트
+          setReferenceDocuments(prev =>
+            prev.map(doc =>
+              doc.id === document.id
+                ? { ...doc, readStatus: 'read' as const, read_at: new Date().toISOString() }
+                : doc
+            )
+          )
+        }
+      })
+    }
+
+    // 상세 모달 열기 (ApprovalDocument 형식으로 변환)
+    setSelectedDocument(document as unknown as ApprovalDocument)
     setIsDetailDialogOpen(true)
   }
 
@@ -519,62 +539,65 @@ export function ApprovalDocumentsClient({
                   </TableRow>
                 ) : activeTab === 'reference' ? (
                   // 참조 문서 테이블
-                  (paginatedDocuments as any[]).map((doc) => (
-                    <TableRow
-                      key={doc.id}
-                      style={{ transition: 'background-color 150ms ease-in-out', borderBottom: '1px solid var(--border)' }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--muted)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
-                      <TableCell className="p-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', fontSize: 'var(--font-size-copyright)', fontWeight: 'var(--font-weight-medium)' }}>
-                              {doc.memberName.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
-                              {doc.memberName}
-                            </p>
-                            <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)' }}>
-                              {doc.role}
-                            </p>
+                  (paginatedDocuments as ReferenceDocument[]).map((doc) => {
+                    const employee = getEmployee(doc.employee)
+                    return (
+                      <TableRow
+                        key={doc.id}
+                        style={{ transition: 'background-color 150ms ease-in-out', borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--muted)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
+                        <TableCell className="p-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', fontSize: 'var(--font-size-copyright)', fontWeight: 'var(--font-weight-medium)' }}>
+                                {employee?.name?.charAt(0) || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
+                                {employee?.name || '알 수 없음'}
+                              </p>
+                              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)' }}>
+                                {getRoleName(employee?.role)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
-                        {doc.department}
-                      </TableCell>
-                      <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
-                        {new Date(doc.requested_at).toLocaleString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </TableCell>
-                      <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
-                        {getReadStatusBadge(doc.readStatus)}
-                      </TableCell>
-                      <TableCell className="text-center p-3" style={{ width: '60px', minWidth: '60px' }}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(doc as any)}
-                          style={{ color: 'var(--card-foreground)', padding: '4px 8px', transition: 'all 150ms ease-in-out' }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
+                          {getDepartmentName(employee?.department)}
+                        </TableCell>
+                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
+                          {new Date(doc.requested_at).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </TableCell>
+                        <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
+                          {getReadStatusBadge(doc.readStatus)}
+                        </TableCell>
+                        <TableCell className="text-center p-3" style={{ width: '60px', minWidth: '60px' }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewReferenceDetail(doc)}
+                            style={{ color: 'var(--card-foreground)', padding: '4px 8px', transition: 'all 150ms ease-in-out' }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 ) : (
                   // 일반 결재 문서 테이블
                   paginatedDocuments.map((doc) => {

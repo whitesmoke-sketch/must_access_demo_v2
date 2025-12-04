@@ -16,7 +16,8 @@ export default async function DocumentsPage() {
     allDocumentsResult,
     myCurrentApprovalStepsResult,
     myApprovalStepsResult,
-    allApprovalStepsResult
+    allApprovalStepsResult,
+    myCCRequestsResult
   ] = await Promise.all([
     // 사용자 역할 확인
     supabase
@@ -95,7 +96,14 @@ export default async function DocumentsPage() {
         )
       `)
       .eq('request_type', 'leave')
-      .order('step_order', { ascending: true })
+      .order('step_order', { ascending: true }),
+    // 내가 참조로 지정된 결재 요청 조회
+    supabase
+      .from('approval_cc')
+      .select('*')
+      .eq('employee_id', user.id)
+      .eq('request_type', 'leave')
+      .order('created_at', { ascending: false })
   ])
 
   const employeeRole = employeeRoleResult.data
@@ -138,6 +146,53 @@ export default async function DocumentsPage() {
     approvalStepsMap.set(step.request_id, [...existing, step])
   })
 
+  // 참조 문서 데이터 준비
+  const myCCRequests = myCCRequestsResult.data || []
+  const ccRequestIds = myCCRequests.map(cc => cc.request_id)
+
+  // 참조 문서의 상세 정보 조회 (leave_request와 조인)
+  let referenceDocuments: any[] = []
+  if (ccRequestIds.length > 0) {
+    const { data: refDocs } = await supabase
+      .from('leave_request')
+      .select(`
+        id,
+        employee_id,
+        leave_type,
+        requested_days,
+        start_date,
+        end_date,
+        reason,
+        status,
+        requested_at,
+        approved_at,
+        current_step,
+        employee:employee_id (
+          id,
+          name,
+          department:department_id (
+            name
+          ),
+          role:role_id (
+            name
+          )
+        )
+      `)
+      .in('id', ccRequestIds)
+      .order('requested_at', { ascending: false })
+
+    // 참조 문서에 열람 상태 추가
+    referenceDocuments = (refDocs || []).map(doc => {
+      const ccRecord = myCCRequests.find(cc => cc.request_id === doc.id)
+      return {
+        ...doc,
+        cc_id: ccRecord?.id,
+        read_at: ccRecord?.read_at,
+        readStatus: ccRecord?.read_at ? 'read' : 'unread'
+      }
+    })
+  }
+
   return (
     <div className="space-y-6">
       <ApprovalDocumentsClient
@@ -147,6 +202,7 @@ export default async function DocumentsPage() {
         myApprovalRequestIds={Array.from(myApprovalRequestIds)}
         myApprovalStatusMap={Object.fromEntries(myApprovalStatusMap)}
         approvalStepsMap={Object.fromEntries(approvalStepsMap)}
+        referenceDocuments={referenceDocuments}
       />
     </div>
   )

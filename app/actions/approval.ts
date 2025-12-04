@@ -756,10 +756,32 @@ export async function processApproval(
     // 반려인 경우, 요청 상태를 rejected로 변경
     if (action === 'rejected') {
       if (step.request_type === 'leave') {
+        // 연차 신청 상태 변경
         await supabase
           .from('leave_request')
           .update({ status: 'rejected', rejected_at: new Date().toISOString() })
           .eq('id', step.request_id)
+
+        // 기안자 정보 조회 후 알림 발송
+        const { data: leaveRequest } = await supabase
+          .from('leave_request')
+          .select('employee_id')
+          .eq('id', step.request_id)
+          .single()
+
+        if (leaveRequest) {
+          await createNotification({
+            recipient_id: leaveRequest.employee_id,
+            type: 'approval_rejected',
+            title: '[반려] 연차 신청서',
+            message: comment.trim() ? `연차 신청이 반려되었습니다. 사유: ${comment.trim()}` : '연차 신청이 반려되었습니다.',
+            metadata: {
+              request_type: 'leave',
+              request_id: step.request_id,
+            },
+            action_url: '/documents/my-documents',
+          })
+        }
       }
 
       revalidatePath('/leave/my-leave')
@@ -949,13 +971,20 @@ async function completeApproval(
       }
     }
 
-    // 4. 참조자에게 완료 알림 발송
-    await supabase
-      .from('approval_cc')
-      .update({ completed_notified_at: new Date().toISOString() })
-      .eq('request_type', requestType)
-      .eq('request_id', requestId)
-      .is('completed_notified_at', null)
+    // 4. 기안자에게 결재 완료 알림 발송
+    if (leaveRequest) {
+      await createNotification({
+        recipient_id: leaveRequest.employee_id,
+        type: 'approval_completed',
+        title: '[결재완료] 연차 신청서',
+        message: '연차 신청이 최종 승인되었습니다.',
+        metadata: {
+          request_type: 'leave',
+          request_id: requestId,
+        },
+        action_url: '/documents/my-documents',
+      })
+    }
   }
 }
 
