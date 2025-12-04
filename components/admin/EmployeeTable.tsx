@@ -13,21 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { Search, Edit, Trash2 } from 'lucide-react'
+import { Search, Edit } from 'lucide-react'
 import { EmployeeModal } from './EmployeeModal'
 import { toast } from 'sonner'
-import { getEmployees, deleteEmployee } from '@/app/actions/employee'
+import { getEmployees } from '@/app/actions/employee'
 import { createClient } from '@/lib/supabase/client'
 
 interface Department {
@@ -96,17 +85,6 @@ export function EmployeeTable() {
     )
   })
 
-  async function handleDelete(employeeId: string, employeeName: string) {
-    const result = await deleteEmployee(employeeId)
-
-    if (result.success) {
-      toast.success(`${employeeName} 구성원이 삭제되었습니다`)
-      loadData()
-    } else {
-      toast.error(result.error || '삭제에 실패했습니다')
-    }
-  }
-
   if (loading) {
     return (
       <Card>
@@ -148,7 +126,6 @@ export function EmployeeTable() {
                 <TableHead>역할</TableHead>
                 <TableHead>입사일</TableHead>
                 <TableHead className="text-center">잔여 연차</TableHead>
-                <TableHead className="text-center">포상휴가</TableHead>
                 <TableHead className="text-right">작업</TableHead>
               </TableRow>
             </TableHeader>
@@ -158,7 +135,6 @@ export function EmployeeTable() {
                   const balance = employee.annual_leave_balance?.[0]
                   const remainingDays = balance?.remaining_days || 0
                   const totalDays = balance?.total_days || 0
-                  const awardLeaveDays = employee.award_leave_balance || 0
                   const topDepartment = getTopLevelDepartment(employee.department_id)
 
                   return (
@@ -181,49 +157,19 @@ export function EmployeeTable() {
                       <TableCell className="text-center">
                         {remainingDays}/{totalDays}일
                       </TableCell>
-                      <TableCell className="text-center text-pink-600 font-medium">
-                        {awardLeaveDays}일
-                      </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <EmployeeModal mode="edit" employee={employee} onSuccess={loadData}>
-                            <Button variant="ghost" size="icon">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </EmployeeModal>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>구성원 삭제</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  <strong>{employee.name}</strong> 구성원을 삭제하시겠습니까?
-                                  <br />이 작업은 되돌릴 수 없습니다.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>취소</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(employee.id, employee.name)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  삭제
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                        <EmployeeModal mode="edit" employee={employee} onSuccess={loadData}>
+                          <Button variant="ghost" size="icon">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </EmployeeModal>
                       </TableCell>
                     </TableRow>
                   )
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <p className="text-muted-foreground">
                       {searchQuery
                         ? '검색 결과가 없습니다'
