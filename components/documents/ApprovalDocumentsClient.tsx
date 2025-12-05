@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useTransition } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Search,
   Filter,
@@ -215,7 +215,6 @@ export function ApprovalDocumentsClient({
   )
   const totalPages = Math.ceil(displayDocuments.length / itemsPerPage)
 
-  const [isPending, startTransition] = useTransition()
 
   // 상세 보기
   const handleViewDetail = (document: ApprovalDocument) => {
