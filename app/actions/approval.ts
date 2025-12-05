@@ -1361,24 +1361,32 @@ export async function markApprovalCCAsRead(
 ) {
   try {
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return { success: false, error: '인증이 필요합니다' }
     }
 
-    const { error } = await supabase
+    // adminSupabase 사용하여 RLS 우회 (서버 사이드에서 인증 확인 후 자신의 레코드만 업데이트)
+    const { data, error } = await adminSupabase
       .from('approval_cc')
       .update({ read_at: new Date().toISOString() })
       .eq('request_type', requestType)
       .eq('request_id', requestId)
       .eq('employee_id', user.id)
       .is('read_at', null)
+      .select()
 
     if (error) {
       console.error('Mark approval CC as read error:', error)
       return { success: false, error: error.message }
     }
+
+    console.log('Mark approval CC as read result:', data)
+
+    // 페이지 데이터 갱신
+    revalidatePath('/documents')
 
     return { success: true }
   } catch (error: unknown) {
