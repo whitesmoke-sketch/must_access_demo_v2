@@ -727,25 +727,6 @@ export function MyDocumentsClient({
                     const eventInfo = getHistoryEventInfo(step.status)
                     const EventIcon = eventInfo.icon
 
-                    // approver가 배열일 수 있으므로 안전하게 처리
-                    const approverData = step.approver
-                      ? Array.isArray(step.approver)
-                        ? step.approver[0]
-                        : step.approver
-                      : null
-
-                    const approverName = approverData?.name || '알 수 없음'
-                    const departmentName = approverData?.department
-                      ? Array.isArray(approverData.department)
-                        ? approverData.department[0]?.name
-                        : approverData.department.name
-                      : ''
-                    const roleName = approverData?.role
-                      ? Array.isArray(approverData.role)
-                        ? approverData.role[0]?.name
-                        : approverData.role.name
-                      : ''
-
                     return (
                       <div
                         key={`${step.request_id}-${step.step_order}`}
@@ -789,14 +770,14 @@ export function MyDocumentsClient({
                               color: 'var(--foreground)',
                               lineHeight: 1.5,
                             }}>
-                              {approverName}
+                              {step.approver.name}
                             </p>
                             <p style={{
                               fontSize: 'var(--font-size-caption)',
                               color: 'var(--muted-foreground)',
                               lineHeight: 1.4,
                             }}>
-                              {departmentName} · {roleName}
+                              {step.approver.department?.name} · {step.approver.role?.name}
                             </p>
                           </div>
                         </div>

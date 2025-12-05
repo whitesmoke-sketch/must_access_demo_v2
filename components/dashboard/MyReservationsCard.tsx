@@ -7,46 +7,12 @@ interface MyReservationsCardProps {
 
 export async function MyReservationsCard({ employeeId }: MyReservationsCardProps) {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
 
-  // 현재 사용 중인 좌석 조회
-  let seatNumber: string | null = null
-  try {
-    const { data: seatReservation } = await supabase
-      .from('seat_reservation')
-      .select(`
-        *,
-        seat:seat_id (seat_number)
-      `)
-      .eq('employee_id', employeeId)
-      .eq('reservation_date', today)
-      .in('status', ['reserved', 'in_use'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  // TODO: 좌석 예약 기능 구현 필요
+  const seatNumber = null
 
-    if (seatReservation?.seat) {
-      seatNumber = (seatReservation.seat as any).seat_number
-    }
-  } catch (error) {
-    console.error('Failed to fetch seat reservation:', error)
-  }
-
-  // 현재 배정된 사물함 조회
-  let lockerNumber: string | null = null
-  try {
-    const { data: locker } = await supabase
-      .from('locker')
-      .select('locker_number')
-      .eq('assigned_employee_id', employeeId)
-      .maybeSingle()
-
-    if (locker) {
-      lockerNumber = locker.locker_number
-    }
-  } catch (error) {
-    console.error('Failed to fetch locker:', error)
-  }
+  // TODO: 사물함 예약 기능 구현 필요
+  const lockerNumber = null
 
   // 회의실 예약 조회 (내가 예약한 것 + 내가 참석자인 것, Edge Function 사용)
   let bookings: any[] = []
