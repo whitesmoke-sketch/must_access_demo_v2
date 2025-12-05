@@ -227,8 +227,10 @@ export function ApprovalDocumentsClient({
   const handleViewReferenceDetail = async (document: ReferenceDocument) => {
     // 미열람 상태인 경우 열람 처리
     if (document.readStatus === 'unread') {
-      startTransition(async () => {
+      console.log('[참조문서] 열람 처리 시작:', document.id)
+      try {
         const result = await markApprovalCCAsRead('leave', document.id)
+        console.log('[참조문서] 열람 처리 결과:', result)
         if (result.success) {
           // 로컬 상태 업데이트
           setReferenceDocuments(prev =>
@@ -238,8 +240,13 @@ export function ApprovalDocumentsClient({
                 : doc
             )
           )
+          console.log('[참조문서] 로컬 상태 업데이트 완료')
+        } else {
+          console.error('[참조문서] 열람 처리 실패:', result.error)
         }
-      })
+      } catch (error) {
+        console.error('[참조문서] 열람 처리 에러:', error)
+      }
     }
 
     // 상세 모달 열기 (ApprovalDocument 형식으로 변환)
