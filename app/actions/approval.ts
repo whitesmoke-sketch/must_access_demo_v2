@@ -1379,11 +1379,8 @@ export async function markApprovalCCAsRead(
       .select()
 
     if (error) {
-      console.error('Mark approval CC as read error:', error)
       return { success: false, error: error.message }
     }
-
-    console.log('Mark approval CC as read result:', data)
 
     // 페이지 데이터 갱신
     revalidatePath('/documents')

@@ -216,38 +216,35 @@ export function ApprovalDocumentsClient({
   const totalPages = Math.ceil(displayDocuments.length / itemsPerPage)
 
 
-  // 상세 보기
-  const handleViewDetail = (document: ApprovalDocument) => {
+  // 참조 문서 열람 처리 (공통 함수)
+  const markAsReadIfReference = async (documentId: number) => {
+    const refDoc = referenceDocuments.find(doc => doc.id === documentId)
+    if (refDoc && refDoc.readStatus === 'unread') {
+      const result = await markApprovalCCAsRead('leave', documentId)
+      if (result.success) {
+        setReferenceDocuments(prev =>
+          prev.map(doc =>
+            doc.id === documentId
+              ? { ...doc, readStatus: 'read' as const, read_at: new Date().toISOString() }
+              : doc
+          )
+        )
+      }
+    }
+  }
+
+  // 상세 보기 (전체/진행중/완료 탭)
+  const handleViewDetail = async (document: ApprovalDocument) => {
+    // 참조 문서인 경우 열람 처리
+    await markAsReadIfReference(document.id)
     setSelectedDocument(document)
     setIsDetailDialogOpen(true)
   }
 
-  // 참조 문서 상세 보기 (열람 처리 포함)
+  // 참조 문서 상세 보기 (참조 탭)
   const handleViewReferenceDetail = async (document: ReferenceDocument) => {
     // 미열람 상태인 경우 열람 처리
-    if (document.readStatus === 'unread') {
-      console.log('[참조문서] 열람 처리 시작:', document.id)
-      try {
-        const result = await markApprovalCCAsRead('leave', document.id)
-        console.log('[참조문서] 열람 처리 결과:', result)
-        if (result.success) {
-          // 로컬 상태 업데이트
-          setReferenceDocuments(prev =>
-            prev.map(doc =>
-              doc.id === document.id
-                ? { ...doc, readStatus: 'read' as const, read_at: new Date().toISOString() }
-                : doc
-            )
-          )
-          console.log('[참조문서] 로컬 상태 업데이트 완료')
-        } else {
-          console.error('[참조문서] 열람 처리 실패:', result.error)
-        }
-      } catch (error) {
-        console.error('[참조문서] 열람 처리 에러:', error)
-      }
-    }
-
+    await markAsReadIfReference(document.id)
     // 상세 모달 열기 (ApprovalDocument 형식으로 변환)
     setSelectedDocument(document as unknown as ApprovalDocument)
     setIsDetailDialogOpen(true)
