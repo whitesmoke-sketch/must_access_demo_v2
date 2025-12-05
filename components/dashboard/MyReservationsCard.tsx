@@ -14,7 +14,7 @@ export async function MyReservationsCard({ employeeId }: MyReservationsCardProps
   try {
     const currentSeat = await getCurrentUserSeat()
     if (currentSeat && currentSeat.seat) {
-      seatNumber = `${currentSeat.seat.floor}층 ${currentSeat.seat.area || 'A'}구역 ${currentSeat.seat.seat_number}`
+      seatNumber = `${currentSeat.seat.floor}층 ${currentSeat.seat.area || 'A구역'} ${currentSeat.seat.seat_number}`
     }
   } catch (error) {
     console.error('Failed to fetch current seat:', error)

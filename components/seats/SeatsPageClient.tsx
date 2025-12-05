@@ -24,7 +24,7 @@ function convertSeat(seat: SeatWithReservation) {
   return {
     id: seat.id,
     name: seat.seat_number,
-    location: `${seat.floor}층 ${seat.area || 'A'}구역`,
+    location: `${seat.floor}층 ${seat.area || 'A구역'}`,
     status: seat.status,
     currentUserId: seat.current_user_id,
     startTime: seat.start_time,
@@ -53,7 +53,7 @@ export function SeatsPageClient({
       return {
         id: currentUserSeat.seat_id,
         name: currentUserSeat.seat.seat_number,
-        location: `${currentUserSeat.seat.floor}층 ${currentUserSeat.seat.area || 'A'}구역`,
+        location: `${currentUserSeat.seat.floor}층 ${currentUserSeat.seat.area || 'A구역'}`,
         status: 'in_use' as const,
         currentUserId: currentUserSeat.employee_id,
         startTime: currentUserSeat.start_time || undefined,
