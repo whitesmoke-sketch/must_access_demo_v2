@@ -66,12 +66,31 @@ interface ApprovalStep {
   } | { id: string; name: string }[] | null
 }
 
+interface CCPerson {
+  id: string
+  employee_id: string
+  employee?: {
+    id: string
+    name: string
+    department?: { name: string } | { name: string }[] | null
+    role?: { name: string } | { name: string }[] | null
+  } | {
+    id: string
+    name: string
+    department?: { name: string } | { name: string }[] | null
+    role?: { name: string } | { name: string }[] | null
+  }[] | null
+  read_at: string | null
+  created_at: string
+}
+
 interface ApprovalDocumentDetailModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   document: ApprovalDocument | null
   userId: string
   initialApprovalSteps?: ApprovalStep[]
+  ccList?: CCPerson[]
 }
 
 const getStatusBadge = (status: LeaveStatus) => {
@@ -136,6 +155,7 @@ export function ApprovalDocumentDetailModal({
   document,
   userId,
   initialApprovalSteps,
+  ccList = [],
 }: ApprovalDocumentDetailModalProps) {
   const router = useRouter()
   const [approvalSteps, setApprovalSteps] = useState<ApprovalStep[]>(initialApprovalSteps || [])
@@ -518,6 +538,104 @@ export function ApprovalDocumentDetailModal({
                               </p>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 참조자 목록 */}
+            {ccList.length > 0 && (
+              <div className="space-y-3 pt-5" style={{ borderTop: '1px solid #E5E8EB' }}>
+                <p style={{ fontSize: '16px', fontWeight: 500, lineHeight: '24px', color: '#29363D' }}>
+                  참조자 ({ccList.length}명)
+                </p>
+                <div className="space-y-2">
+                  {ccList.map((cc) => {
+                    const ccEmployee = cc.employee
+                      ? Array.isArray(cc.employee) ? cc.employee[0] : cc.employee
+                      : null
+                    const ccName = ccEmployee?.name || '알 수 없음'
+                    const ccDept = ccEmployee?.department
+                      ? Array.isArray(ccEmployee.department)
+                        ? ccEmployee.department[0]?.name
+                        : ccEmployee.department.name
+                      : ''
+                    const ccRole = ccEmployee?.role
+                      ? Array.isArray(ccEmployee.role)
+                        ? ccEmployee.role[0]?.name
+                        : ccEmployee.role.name
+                      : ''
+
+                    return (
+                      <div
+                        key={cc.id}
+                        className="flex items-center justify-between p-3 rounded-lg"
+                        style={{ backgroundColor: '#F6F8F9' }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex items-center justify-center shrink-0"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '16px',
+                              backgroundColor: cc.read_at ? 'rgba(76, 212, 113, 0.1)' : '#E5E8EB',
+                            }}
+                          >
+                            {cc.read_at ? (
+                              <CheckCircle className="w-4 h-4" style={{ color: '#4CD471' }} />
+                            ) : (
+                              <ClockIcon className="w-4 h-4" style={{ color: '#5B6A72' }} />
+                            )}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '21px', color: '#29363D' }}>
+                              {ccName}
+                            </p>
+                            {(ccDept || ccRole) && (
+                              <p style={{ fontSize: '12px', lineHeight: '18px', color: '#5B6A72' }}>
+                                {ccDept}{ccDept && ccRole ? ' · ' : ''}{ccRole}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {cc.read_at ? (
+                            <>
+                              <Badge style={{
+                                backgroundColor: 'rgba(76, 212, 113, 0.1)',
+                                color: '#4CD471',
+                                fontSize: '12px',
+                                lineHeight: '16px',
+                                fontWeight: 600,
+                                padding: '2px 8px'
+                              }}>
+                                열람완료
+                              </Badge>
+                              <p style={{ fontSize: '11px', lineHeight: '16px', color: '#5B6A72', marginTop: '4px' }}>
+                                {new Date(cc.read_at).toLocaleString('ko-KR', {
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            </>
+                          ) : (
+                            <Badge style={{
+                              backgroundColor: '#E5E8EB',
+                              color: '#5B6A72',
+                              fontSize: '12px',
+                              lineHeight: '16px',
+                              fontWeight: 600,
+                              padding: '2px 8px'
+                            }}>
+                              미열람
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     )

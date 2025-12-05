@@ -17,7 +17,8 @@ export default async function DocumentsPage() {
     myCurrentApprovalStepsResult,
     myApprovalStepsResult,
     allApprovalStepsResult,
-    myCCRequestsResult
+    myCCRequestsResult,
+    allCCListResult
   ] = await Promise.all([
     // 사용자 역할 확인
     supabase
@@ -103,7 +104,29 @@ export default async function DocumentsPage() {
       .select('*')
       .eq('employee_id', user.id)
       .eq('request_type', 'leave')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }),
+    // 모든 문서의 참조자 목록 조회 (상세 모달용)
+    adminSupabase
+      .from('approval_cc')
+      .select(`
+        id,
+        request_id,
+        employee_id,
+        read_at,
+        created_at,
+        employee:employee_id (
+          id,
+          name,
+          department:department_id (
+            name
+          ),
+          role:role_id (
+            name
+          )
+        )
+      `)
+      .eq('request_type', 'leave')
+      .order('created_at', { ascending: true })
   ])
 
   const employeeRole = employeeRoleResult.data
@@ -144,6 +167,14 @@ export default async function DocumentsPage() {
   allApprovalSteps?.forEach(step => {
     const existing = approvalStepsMap.get(step.request_id) || []
     approvalStepsMap.set(step.request_id, [...existing, step])
+  })
+
+  // 문서별로 참조자 목록을 매핑 (request_id -> cc_list[])
+  const allCCList = allCCListResult.data || []
+  const ccListMap = new Map<number, any[]>()
+  allCCList.forEach(cc => {
+    const existing = ccListMap.get(cc.request_id) || []
+    ccListMap.set(cc.request_id, [...existing, cc])
   })
 
   // 참조 문서 데이터 준비
@@ -203,6 +234,7 @@ export default async function DocumentsPage() {
         myApprovalStatusMap={Object.fromEntries(myApprovalStatusMap)}
         approvalStepsMap={Object.fromEntries(approvalStepsMap)}
         referenceDocuments={referenceDocuments}
+        ccListMap={Object.fromEntries(ccListMap)}
       />
     </div>
   )

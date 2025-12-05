@@ -62,6 +62,8 @@ interface ApprovalDocument {
   status: LeaveStatus
   requested_at: string
   approved_at: string | null
+  rejected_at?: string | null
+  retrieved_at?: string | null
   current_step: number | null
   employee: EmployeeInfo | EmployeeInfo[] | null
 }
@@ -102,6 +104,24 @@ interface ReferenceDocument {
   readStatus: 'read' | 'unread'
 }
 
+interface CCPerson {
+  id: string
+  employee_id: string
+  employee?: {
+    id: string
+    name: string
+    department?: { name: string } | { name: string }[] | null
+    role?: { name: string } | { name: string }[] | null
+  } | {
+    id: string
+    name: string
+    department?: { name: string } | { name: string }[] | null
+    role?: { name: string } | { name: string }[] | null
+  }[] | null
+  read_at: string | null
+  created_at: string
+}
+
 interface ApprovalDocumentsClientProps {
   documents: ApprovalDocument[]
   userId: string
@@ -110,6 +130,7 @@ interface ApprovalDocumentsClientProps {
   myApprovalStatusMap: Record<number, string>
   approvalStepsMap: Record<number, ApprovalStep[]>
   referenceDocuments: ReferenceDocument[]
+  ccListMap?: Record<number, CCPerson[]>
 }
 
 export function ApprovalDocumentsClient({
@@ -120,6 +141,7 @@ export function ApprovalDocumentsClient({
   myApprovalStatusMap,
   approvalStepsMap,
   referenceDocuments: initialReferenceDocuments,
+  ccListMap = {},
 }: ApprovalDocumentsClientProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'in-progress' | 'completed' | 'reference'>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -774,6 +796,7 @@ export function ApprovalDocumentsClient({
         document={selectedDocument}
         userId={userId}
         initialApprovalSteps={selectedDocument ? approvalStepsMap[selectedDocument.id] : undefined}
+        ccList={selectedDocument ? ccListMap[selectedDocument.id] : undefined}
       />
     </div>
   )
