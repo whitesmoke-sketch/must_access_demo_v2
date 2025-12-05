@@ -86,7 +86,7 @@ export async function getSeats(): Promise<SeatWithReservation[]> {
   const reservationMap = new Map<string, any>()
   if (reservations) {
     for (const r of reservations) {
-      reservationMap.set(r.seat_id, r)
+      reservationMap.set(r.seat_id.toString(), r)
     }
   }
 
