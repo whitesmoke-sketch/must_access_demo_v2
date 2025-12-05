@@ -57,6 +57,7 @@ interface DepartmentFormData {
 interface TreeNode extends Department {
   children: TreeNode[]
   level: number
+  totalMemberCount: number // 하위 부서 포함 전체 인원수
 }
 
 const ItemType = 'DEPARTMENT'
@@ -190,7 +191,7 @@ const DepartmentTreeItem: React.FC<DepartmentTreeItemProps> = ({
             <div className="flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
               <Users className="w-4 h-4" />
               <span style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4 }}>
-                {node.memberCount || 0}명
+                {node.totalMemberCount || 0}명
               </span>
             </div>
           </div>
@@ -376,6 +377,7 @@ export default function OrganizationManagementClient() {
         memberCount: dept.memberCount || 0,
         children: [],
         level: 0,
+        totalMemberCount: 0, // 나중에 계산
       }
     })
 
@@ -401,6 +403,18 @@ export default function OrganizationManagementClient() {
     }
 
     sortByOrder(roots)
+
+    // 하위 부서 포함 전체 인원수 계산 (bottom-up)
+    const calculateTotalMemberCount = (node: TreeNode): number => {
+      let total = node.memberCount || 0
+      node.children.forEach((child) => {
+        total += calculateTotalMemberCount(child)
+      })
+      node.totalMemberCount = total
+      return total
+    }
+
+    roots.forEach((root) => calculateTotalMemberCount(root))
 
     return roots
   }
