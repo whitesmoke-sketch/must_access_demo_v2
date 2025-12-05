@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   Search,
   Filter,
-  Gift,
   Check,
   X,
   Eye,
@@ -445,12 +444,13 @@ export function LeaveManagementClient({
                 구성원의 연차 상태를 조회하고 관리합니다
               </p>
             </div>
-            <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
+            <div className="flex gap-3">
               <Button
-                variant="outline"
                 onClick={() => setIsManualDialogOpen(true)}
                 className="w-full sm:w-auto"
                 style={{
+                  backgroundColor: 'var(--primary)',
+                  color: 'var(--primary-foreground)',
                   fontSize: 'var(--font-size-body)',
                   fontWeight: 500,
                   lineHeight: 1.5,
@@ -460,20 +460,6 @@ export function LeaveManagementClient({
                 <span className="hidden sm:inline">연차 수동 관리</span>
                 <span className="sm:hidden">수동 관리</span>
               </Button>
-              <Button
-                onClick={() => setIsRewardGrantDialogOpen(true)}
-                className="col-span-2 sm:col-span-1 w-full sm:w-auto"
-                style={{
-                  backgroundColor: 'var(--primary)',
-                  color: 'var(--primary-foreground)',
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5,
-                }}
-              >
-                <Gift className="w-4 h-4 mr-2" />
-                포상휴가 부여
-              </Button>
             </div>
           </div>
 
@@ -481,15 +467,16 @@ export function LeaveManagementClient({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             <Card
               className="rounded-2xl"
-              style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}
+              style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p
                       style={{
-                        fontSize: 'var(--font-size-caption)',
-                        color: 'var(--muted-foreground)',
+                        fontSize: '16px',
+                        color: 'var(--foreground)',
+                        fontWeight: 500,
                         lineHeight: 1.4,
                       }}
                     >
@@ -514,15 +501,16 @@ export function LeaveManagementClient({
 
             <Card
               className="rounded-2xl"
-              style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}
+              style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p
                       style={{
-                        fontSize: 'var(--font-size-caption)',
-                        color: 'var(--muted-foreground)',
+                        fontSize: '16px',
+                        color: 'var(--foreground)',
+                        fontWeight: 500,
                         lineHeight: 1.4,
                       }}
                     >
@@ -550,15 +538,16 @@ export function LeaveManagementClient({
 
             <Card
               className="rounded-2xl"
-              style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}
+              style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p
                       style={{
-                        fontSize: 'var(--font-size-caption)',
-                        color: 'var(--muted-foreground)',
+                        fontSize: '16px',
+                        color: 'var(--foreground)',
+                        fontWeight: 500,
                         lineHeight: 1.4,
                       }}
                     >
@@ -568,7 +557,7 @@ export function LeaveManagementClient({
                       style={{
                         fontSize: '24px',
                         fontWeight: 700,
-                        color: 'var(--accent)',
+                        color: 'var(--warning)',
                         lineHeight: 1.2,
                         marginTop: '8px',
                       }}
@@ -576,22 +565,23 @@ export function LeaveManagementClient({
                       {pendingRequestsCount}건
                     </div>
                   </div>
-                  <Clock className="w-10 h-10 hidden md:block" style={{ color: 'var(--accent)', opacity: 0.5 }} />
+                  <Clock className="w-10 h-10 hidden md:block" style={{ color: 'var(--warning)', opacity: 0.5 }} />
                 </div>
               </CardContent>
             </Card>
 
             <Card
               className="rounded-2xl"
-              style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}
+              style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p
                       style={{
-                        fontSize: 'var(--font-size-caption)',
-                        color: 'var(--muted-foreground)',
+                        fontSize: '16px',
+                        color: 'var(--foreground)',
+                        fontWeight: 500,
                         lineHeight: 1.4,
                       }}
                     >
@@ -614,7 +604,7 @@ export function LeaveManagementClient({
             {/* 승인 대기 목록 위젯 */}
             <Card
               className="rounded-2xl"
-              style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}
+              style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)' }}
             >
               <CardHeader>
                 <div className="flex items-center justify-between">
