@@ -337,9 +337,17 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [isReferenceDialogOpen, setIsReferenceDialogOpen] = useState(false)
   const [selectedReferenceId, setSelectedReferenceId] = useState('')
 
-  // 주말 여부 확인 함수
+  // 로컬 시간대(KST) 기준 날짜 문자열 반환 (YYYY-MM-DD)
+  const getLocalDateString = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // 주말 여부 확인 함수 (로컬 시간대 기준)
   const isWeekend = (date: Date) => {
-    const day = date.getDay()
+    const day = date.getDay() // 로컬 시간대 기준 요일 반환
     return day === 0 || day === 6 // 0=일요일, 6=토요일
   }
 
@@ -353,9 +361,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       const dateList: string[] = []
       const current = new Date(start)
       while (current <= end) {
-        // 주말(토,일)은 제외
+        // 주말(토,일)은 제외 - 로컬(KST) 시간대 기준
         if (!isWeekend(current)) {
-          dateList.push(current.toISOString().split('T')[0])
+          dateList.push(getLocalDateString(current))
         }
         current.setDate(current.getDate() + 1)
       }
