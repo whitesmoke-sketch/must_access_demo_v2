@@ -2,51 +2,21 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AdminDashboardClient } from '@/components/admin/AdminDashboardClient';
 
-// Mock 층별 데이터
-const floorData = [
-  { floor: '2F', usedSeats: 45, totalSeats: 50, meetingRoomUsage: 75, status: 'busy' as const },
-  { floor: '3F', usedSeats: 30, totalSeats: 50, meetingRoomUsage: 50, status: 'moderate' as const },
-  { floor: '4F', usedSeats: 15, totalSeats: 50, meetingRoomUsage: 25, status: 'available' as const },
-  { floor: '5F', usedSeats: 40, totalSeats: 50, meetingRoomUsage: 60, status: 'moderate' as const },
-];
+// 오늘 날짜 문자열 반환
+function getTodayString(): string {
+  return new Date().toISOString().split('T')[0];
+}
 
-// 근무 현황 카테고리별 데이터 (6개 카테고리)
-const workStatusData = {
-  '휴가': [
-    { id: 'v1', name: '홍길동', department: '인사팀', status: '연차' },
-    { id: 'v2', name: '김민지', department: '재무팀', status: '반차' },
-    { id: 'v3', name: '이준호', department: '총무팀', status: '포상휴가' },
-    { id: 'v4', name: '박서준', department: '인사팀', status: '연차' },
-    { id: 'v5', name: '정유미', department: '재무팀', status: '반차' },
-    { id: 'v6', name: '조인성', department: '총무팀', status: '연차' },
-  ],
-  '사외 근무': [
-    { id: 'f1', name: '김철수', department: '영업팀', status: '외근' },
-    { id: 'f2', name: '이영희', department: '마케팅팀', status: '출장' },
-    { id: 'f3', name: '박민수', department: '영업팀', status: '외근' },
-  ],
-  '휴직': [
-    { id: 'l1', name: '최지우', department: '개발팀', status: '휴직' },
-    { id: 'l2', name: '한지민', department: '기획팀', status: '휴직' },
-  ],
-  '근무 변경': [
-    { id: 'r1', name: '최동욱', department: '개발팀', status: '재택' },
-    { id: 'r2', name: '강서연', department: '디자인팀', status: '재택' },
-    { id: 'r3', name: '윤재호', department: '개발팀', status: '재택' },
-    { id: 'r4', name: '임하늘', department: '개발팀', status: '재택' },
-  ],
-  '출산/육아': [
-    { id: 'p1', name: '송민정', department: '기획팀', status: '육아휴직' },
-    { id: 'p2', name: '배수지', department: '디자인팀', status: '출산전후 휴가' },
-  ],
-  '기타': [
-    { id: 'o1', name: '김태희', department: '개발팀', status: '경조사 휴가' },
-    { id: 'o2', name: '정우성', department: '마케팅팀', status: '공가 휴가' },
-  ],
-};
+// 층별 상태 결정
+function getFloorStatus(occupancyRate: number): 'busy' | 'moderate' | 'available' {
+  if (occupancyRate >= 70) return 'busy';
+  if (occupancyRate >= 40) return 'moderate';
+  return 'available';
+}
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
+  const today = getTodayString();
 
   // 인증 및 권한 확인
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -69,17 +39,195 @@ export default async function AdminDashboardPage() {
     redirect('/dashboard');
   }
 
-  // 자원 사용 현황 (좌석)
+  // ========== 층별 좌석 데이터 조회 ==========
+  const { data: seats } = await supabase
+    .from('seat')
+    .select('id, floor, is_available')
+    .eq('is_available', true);
+
+  const { data: todayReservations } = await supabase
+    .from('seat_reservation')
+    .select('seat_id, seat:seat_id(floor)')
+    .eq('reservation_date', today)
+    .in('status', ['reserved', 'in_use']);
+
+  // 층별 좌석 수 계산
+  const floorSeatCounts: Record<number, { total: number; used: number }> = {};
+
+  seats?.forEach(seat => {
+    if (!floorSeatCounts[seat.floor]) {
+      floorSeatCounts[seat.floor] = { total: 0, used: 0 };
+    }
+    floorSeatCounts[seat.floor].total++;
+  });
+
+  todayReservations?.forEach(res => {
+    const floor = (res.seat as any)?.floor;
+    if (floor && floorSeatCounts[floor]) {
+      floorSeatCounts[floor].used++;
+    }
+  });
+
+  // ========== 층별 회의실 사용률 조회 ==========
+  const { data: meetingRooms } = await supabase
+    .from('meeting_room')
+    .select('id, floor')
+    .eq('is_active', true);
+
+  const { data: todayBookings } = await supabase
+    .from('meeting_room_booking')
+    .select('room_id, start_time, end_time, meeting_room:room_id(floor)')
+    .eq('booking_date', today)
+    .eq('status', 'confirmed');
+
+  // 층별 회의실 사용률 계산 (9시~18시 기준, 9시간)
+  const WORK_HOURS = 9;
+  const floorMeetingUsage: Record<number, { totalMinutes: number; usedMinutes: number }> = {};
+
+  meetingRooms?.forEach(room => {
+    if (!floorMeetingUsage[room.floor]) {
+      floorMeetingUsage[room.floor] = { totalMinutes: 0, usedMinutes: 0 };
+    }
+    floorMeetingUsage[room.floor].totalMinutes += WORK_HOURS * 60;
+  });
+
+  todayBookings?.forEach(booking => {
+    const floor = (booking.meeting_room as any)?.floor;
+    if (floor && floorMeetingUsage[floor]) {
+      const start = booking.start_time?.split(':').map(Number) || [0, 0];
+      const end = booking.end_time?.split(':').map(Number) || [0, 0];
+      const minutes = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
+      if (minutes > 0) {
+        floorMeetingUsage[floor].usedMinutes += minutes;
+      }
+    }
+  });
+
+  // floorData 생성 (2층~5층 기본)
+  const floors = [2, 3, 4, 5];
+  const floorData = floors.map(floor => {
+    const seatData = floorSeatCounts[floor] || { total: 0, used: 0 };
+    const meetingData = floorMeetingUsage[floor] || { totalMinutes: 1, usedMinutes: 0 };
+    const occupancyRate = seatData.total > 0 ? Math.round((seatData.used / seatData.total) * 100) : 0;
+    const meetingUsage = meetingData.totalMinutes > 0
+      ? Math.round((meetingData.usedMinutes / meetingData.totalMinutes) * 100)
+      : 0;
+
+    return {
+      floor: `${floor}F`,
+      usedSeats: seatData.used,
+      totalSeats: seatData.total,
+      meetingRoomUsage: meetingUsage,
+      status: getFloorStatus(occupancyRate) as 'busy' | 'moderate' | 'available',
+    };
+  });
+
+  // 전체 좌석 통계
   const totalSeats = floorData.reduce((sum, floor) => sum + floor.totalSeats, 0);
   const totalUsedSeats = floorData.reduce((sum, floor) => sum + floor.usedSeats, 0);
-  const overallOccupancyRate = Math.round((totalUsedSeats / totalSeats) * 100);
+  const overallOccupancyRate = totalSeats > 0 ? Math.round((totalUsedSeats / totalSeats) * 100) : 0;
 
-  // 전체 회의실 사용률 계산 (평균)
-  const overallMeetingRoomUsage = Math.round(
-    floorData.reduce((sum, floor) => sum + floor.meetingRoomUsage, 0) / floorData.length
-  );
+  // 전체 회의실 사용률
+  const overallMeetingRoomUsage = floorData.length > 0
+    ? Math.round(floorData.reduce((sum, floor) => sum + floor.meetingRoomUsage, 0) / floorData.length)
+    : 0;
 
-  // 스튜디오 출입 상태 조회
+  // ========== 근무 현황 데이터 조회 ==========
+
+  // 1. 휴가 (leave_request - annual, half_day, award)
+  const { data: vacationRequests } = await supabase
+    .from('leave_request')
+    .select(`
+      id,
+      leave_type,
+      employee:employee_id (
+        id,
+        name,
+        department:department_id (name)
+      )
+    `)
+    .eq('status', 'approved')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .in('leave_type', ['annual', 'half_day', 'award']);
+
+  const vacationMembers = vacationRequests?.map(req => ({
+    id: req.id.toString(),
+    name: (req.employee as any)?.name || '알 수 없음',
+    department: (req.employee as any)?.department?.name || '',
+    status: req.leave_type === 'annual' ? '연차' : req.leave_type === 'half_day' ? '반차' : '포상휴가',
+  })) || [];
+
+  // 2. 사외 근무 (work_request - field_work, business_trip)
+  const { data: fieldWorkRequests } = await supabase
+    .from('work_request')
+    .select(`
+      id,
+      work_type,
+      employee:employee_id (
+        id,
+        name,
+        department:department_id (name)
+      )
+    `)
+    .eq('status', 'approved')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .in('work_type', ['field_work', 'business_trip']);
+
+  const fieldWorkMembers = fieldWorkRequests?.map(req => ({
+    id: req.id.toString(),
+    name: (req.employee as any)?.name || '알 수 없음',
+    department: (req.employee as any)?.department?.name || '',
+    status: req.work_type === 'field_work' ? '외근' : '출장',
+  })) || [];
+
+  // 3. 휴직 (향후 별도 테이블 또는 employee 상태로 관리 예정)
+  // 현재는 빈 배열
+  const leaveOfAbsenceMembers: { id: string; name: string; department: string; status: string }[] = [];
+
+  // 4. 근무 변경 (work_request - remote)
+  const { data: remoteWorkRequests } = await supabase
+    .from('work_request')
+    .select(`
+      id,
+      work_type,
+      employee:employee_id (
+        id,
+        name,
+        department:department_id (name)
+      )
+    `)
+    .eq('status', 'approved')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .eq('work_type', 'remote');
+
+  const remoteWorkMembers = remoteWorkRequests?.map(req => ({
+    id: req.id.toString(),
+    name: (req.employee as any)?.name || '알 수 없음',
+    department: (req.employee as any)?.department?.name || '',
+    status: '재택',
+  })) || [];
+
+  // 5. 출산/육아 (향후 별도 테이블로 관리 예정)
+  // 현재는 빈 배열
+  const parentalLeaveMembers: { id: string; name: string; department: string; status: string }[] = [];
+
+  // 6. 기타 (향후 확장 예정)
+  // 현재는 빈 배열
+  const etcMembers: { id: string; name: string; department: string; status: string }[] = [];
+
+  const workStatusData = {
+    '휴가': vacationMembers,
+    '사외 근무': fieldWorkMembers,
+    '휴직': leaveOfAbsenceMembers,
+    '근무 변경': remoteWorkMembers,
+    '출산/육아': parentalLeaveMembers,
+    '기타': etcMembers,
+  };
+
+  // ========== 스튜디오 출입 상태 조회 ==========
   const { data: studioAccess } = await supabase
     .from('studio_access')
     .select('*')
@@ -96,7 +244,7 @@ export default async function AdminDashboardPage() {
     status: 'available',
   };
 
-  // 승인 대기 목록
+  // ========== 승인 대기 목록 ==========
   const { data: pendingRequests } = await supabase
     .from('leave_request')
     .select('*, employee:employee_id(name)')
@@ -106,12 +254,12 @@ export default async function AdminDashboardPage() {
 
   const approvalQueue = pendingRequests?.map(request => ({
     id: request.id,
-    userName: request.employee?.name || '알 수 없음',
+    userName: (request.employee as any)?.name || '알 수 없음',
     type: request.leave_type === 'annual' ? '연차' : request.leave_type === 'half_day' ? '반차' : '포상휴가',
     requestDate: request.created_at,
     startDate: request.start_date,
     endDate: request.end_date,
-    days: request.days_count || 1,
+    days: request.requested_days || 1,
   })) || [];
 
   return (
