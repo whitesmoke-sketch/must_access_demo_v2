@@ -6,13 +6,23 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Clock, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { Seat } from '@/lib/demo-data/seats'
+
+// Updated Seat interface to support DB data
+export interface SeatForListView {
+  id: string
+  name: string
+  location: string
+  status: 'available' | 'in_use' | 'maintenance'
+  currentUserId?: string
+  startTime?: string
+  reservationId?: string
+}
 
 interface SeatListViewProps {
-  seats: Seat[]
+  seats: SeatForListView[]
   onStartUsing: (seatId: string) => void
-  onEndUsing: (seatId: string) => void
-  myCurrentSeat?: Seat
+  onEndUsing: (reservationId: string) => void
+  myCurrentSeat?: SeatForListView
   currentUserId?: string
 }
 
@@ -32,7 +42,7 @@ export function SeatListView({
     return { mySeats: my, otherSeats: others }
   }, [seats, currentUserId])
 
-  const getSeatStatusColor = (seat: Seat): { bg: string; text: string; border: string } => {
+  const getSeatStatusColor = (seat: SeatForListView): { bg: string; text: string; border: string } => {
     if (seat.status === 'maintenance') {
       return { bg: 'var(--destructive-bg)', text: 'var(--destructive)', border: 'var(--destructive)' }
     }
@@ -45,7 +55,7 @@ export function SeatListView({
     return { bg: 'var(--muted)', text: 'var(--muted-foreground)', border: 'var(--border)' }
   }
 
-  const getSeatStatusLabel = (seat: Seat): string => {
+  const getSeatStatusLabel = (seat: SeatForListView): string => {
     if (seat.status === 'maintenance') return '사용 불가'
     if (seat.status === 'in_use') {
       if (seat.currentUserId === currentUserId) return '내 좌석'
@@ -54,7 +64,7 @@ export function SeatListView({
     return '사용 가능'
   }
 
-  const handleStartClick = (seat: Seat) => {
+  const handleStartClick = (seat: SeatForListView) => {
     if (myCurrentSeat && myCurrentSeat.id !== seat.id) {
       toast.error('이미 사용 중인 좌석이 있습니다', {
         description: `현재 ${myCurrentSeat.name} 좌석을 사용 중입니다. 먼저 반납해주세요.`,
@@ -64,7 +74,7 @@ export function SeatListView({
     onStartUsing(seat.id)
   }
 
-  const renderSeatRow = (seat: Seat, isPinned: boolean = false) => {
+  const renderSeatRow = (seat: SeatForListView, isPinned: boolean = false) => {
     const colors = getSeatStatusColor(seat)
     const isMyCurrentSeat = seat.currentUserId === currentUserId
     const canStartUsing = seat.status === 'available' && !myCurrentSeat
@@ -149,11 +159,14 @@ export function SeatListView({
                 </div>
               </div>
 
-              {isMyCurrentSeat && (
+              {isMyCurrentSeat && seat.reservationId && (
                 <div className="flex-shrink-0">
                   <Button
                     variant="outline"
-                    onClick={() => onEndUsing(seat.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEndUsing(seat.reservationId!)
+                    }}
                     style={{
                       borderColor: 'var(--secondary)',
                       color: 'var(--secondary)',

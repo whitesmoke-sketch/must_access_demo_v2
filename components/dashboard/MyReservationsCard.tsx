@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { MyReservationsClient } from './MyReservationsClient'
+import { getCurrentUserSeat } from '@/app/actions/seat'
 
 interface MyReservationsCardProps {
   employeeId: string
@@ -8,8 +9,16 @@ interface MyReservationsCardProps {
 export async function MyReservationsCard({ employeeId }: MyReservationsCardProps) {
   const supabase = await createClient()
 
-  // TODO: 좌석 예약 기능 구현 필요
-  const seatNumber = null
+  // 현재 좌석 예약 조회
+  let seatNumber: string | null = null
+  try {
+    const currentSeat = await getCurrentUserSeat()
+    if (currentSeat && currentSeat.seat) {
+      seatNumber = `${currentSeat.seat.floor}층 ${currentSeat.seat.area || 'A'}구역 ${currentSeat.seat.seat_number}`
+    }
+  } catch (error) {
+    console.error('Failed to fetch current seat:', error)
+  }
 
   // TODO: 사물함 예약 기능 구현 필요
   const lockerNumber = null
