@@ -167,9 +167,13 @@ export function ApprovalDocumentsClient({
   // 참조 문서 필터링
   const filteredReferenceDocuments = useMemo(() => {
     return referenceDocuments.filter((doc) => {
-      const employee = getEmployee(doc.employee)
+      const employee = doc.employee ? (Array.isArray(doc.employee) ? doc.employee[0] : doc.employee) : null
       const employeeName = employee?.name || ''
-      const departmentName = getDepartmentName(employee?.department)
+      const departmentName = employee?.department
+        ? Array.isArray(employee.department)
+          ? employee.department[0]?.name || ''
+          : employee.department.name
+        : ''
 
       const matchesSearch =
         employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
