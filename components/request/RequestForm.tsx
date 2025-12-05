@@ -337,25 +337,74 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [isReferenceDialogOpen, setIsReferenceDialogOpen] = useState(false)
   const [selectedReferenceId, setSelectedReferenceId] = useState('')
 
+  // 주말 여부 확인 함수
+  const isWeekend = (date: Date) => {
+    const day = date.getDay()
+    return day === 0 || day === 6 // 0=일요일, 6=토요일
+  }
+
   // 날짜 변경 시 일자별 상세 초기화 (연차 신청일 경우)
   useEffect(() => {
     if (startDate && endDate && documentType === 'annual_leave') {
       const start = new Date(startDate)
       const end = new Date(endDate)
 
-      // 날짜 범위의 모든 날짜 생성
+      // 날짜 범위의 모든 날짜 생성 (주말 제외)
       const dateList: string[] = []
       const current = new Date(start)
       while (current <= end) {
-        dateList.push(current.toISOString().split('T')[0])
+        // 주말(토,일)은 제외
+        if (!isWeekend(current)) {
+          dateList.push(current.toISOString().split('T')[0])
+        }
         current.setDate(current.getDate() + 1)
       }
 
       // 기존 dateDetails를 유지하면서 새로운 날짜는 'full'로 초기화
+      // 단, 위치에 맞지 않는 선택은 'full'로 리셋
       const newDateDetails: { [date: string]: 'full' | 'morning' | 'afternoon' } = {}
-      dateList.forEach(date => {
-        newDateDetails[date] = dateDetails[date] || 'full'
+      const totalDays = dateList.length
+
+      dateList.forEach((date, index) => {
+        const existingValue = dateDetails[date]
+        const isFirst = index === 0
+        const isLast = index === totalDays - 1
+        const isMiddle = !isFirst && !isLast
+        const isOnly = totalDays === 1
+
+        // 기본값 또는 기존값
+        let value: 'full' | 'morning' | 'afternoon' = existingValue || 'full'
+
+        // 위치에 맞지 않는 선택은 'full'로 리셋
+        if (!isOnly) {
+          // 시작일인데 오전반차 선택되어 있으면 리셋
+          if (isFirst && value === 'morning') {
+            value = 'full'
+          }
+          // 종료일인데 오후반차 선택되어 있으면 리셋
+          if (isLast && value === 'afternoon') {
+            value = 'full'
+          }
+          // 중간일인데 반차 선택되어 있으면 리셋
+          if (isMiddle && value !== 'full') {
+            value = 'full'
+          }
+        }
+
+        newDateDetails[date] = value
       })
+
+      // 2일 연속 신청 시 오후반차+오전반차 조합 체크
+      if (totalDays === 2) {
+        const firstDate = dateList[0]
+        const lastDate = dateList[1]
+        if (newDateDetails[firstDate] === 'afternoon' && newDateDetails[lastDate] === 'morning') {
+          // 둘 다 full로 리셋
+          newDateDetails[firstDate] = 'full'
+          newDateDetails[lastDate] = 'full'
+        }
+      }
+
       setDateDetails(newDateDetails)
     } else {
       setDateDetails({})
@@ -896,49 +945,126 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   {Object.keys(dateDetails).length > 0 && (
                     <div className="space-y-2">
                       <Label>일자별 유형 *</Label>
+                      <p style={{
+                        fontSize: 'var(--font-size-caption)',
+                        color: 'var(--muted-foreground)',
+                        lineHeight: 1.4,
+                        marginBottom: '8px',
+                      }}>
+                        시작일: 종일/오후반차 | 종료일: 종일/오전반차 | 중간일: 종일만 가능
+                      </p>
                       <div className="space-y-2">
-                        {Object.keys(dateDetails).sort().map((date) => {
-                          const dateObj = new Date(date)
-                          const dayNames = ['일', '월', '화', '수', '목', '금', '토']
-                          const formattedDate = `${dateObj.getFullYear()}년 ${String(dateObj.getMonth() + 1).padStart(2, '0')}월 ${String(dateObj.getDate()).padStart(2, '0')}일 (${dayNames[dateObj.getDay()]})`
+                        {(() => {
+                          const sortedDates = Object.keys(dateDetails).sort()
+                          const totalDays = sortedDates.length
 
-                          return (
-                            <div
-                              key={date}
-                              className="flex items-center justify-between p-3 gap-3"
-                              style={{
-                                backgroundColor: 'var(--muted)',
-                                borderRadius: '8px',
-                              }}
-                            >
-                              <span style={{
-                                fontSize: 'var(--font-size-caption)',
-                                color: 'var(--foreground)',
-                                fontWeight: 500,
-                              }}>
-                                {formattedDate}
-                              </span>
-                              <Select
-                                value={dateDetails[date]}
-                                onValueChange={(value) => {
-                                  setDateDetails({
-                                    ...dateDetails,
-                                    [date]: value as 'full' | 'morning' | 'afternoon'
-                                  })
+                          return sortedDates.map((date, index) => {
+                            const dateObj = new Date(date)
+                            const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+                            const formattedDate = `${dateObj.getFullYear()}년 ${String(dateObj.getMonth() + 1).padStart(2, '0')}월 ${String(dateObj.getDate()).padStart(2, '0')}일 (${dayNames[dateObj.getDay()]})`
+
+                            // 위치 판단
+                            const isFirst = index === 0
+                            const isLast = index === totalDays - 1
+                            const isMiddle = !isFirst && !isLast
+                            const isOnly = totalDays === 1
+
+                            // 2일 연속 신청 시 오후반차+오전반차 조합 체크
+                            const isTwoDays = totalDays === 2
+                            const firstDateType = isTwoDays ? dateDetails[sortedDates[0]] : null
+                            const lastDateType = isTwoDays ? dateDetails[sortedDates[1]] : null
+
+                            // 위치별 라벨
+                            let positionLabel = ''
+                            if (isOnly) positionLabel = ''
+                            else if (isFirst) positionLabel = '[시작일]'
+                            else if (isLast) positionLabel = '[종료일]'
+                            else positionLabel = '[중간일]'
+
+                            // 선택 가능한 옵션 결정
+                            // - 1일만: 모든 옵션 가능
+                            // - 시작일: 종일, 오후반차 가능 (오전반차 X)
+                            // - 종료일: 종일, 오전반차 가능 (오후반차 X)
+                            // - 중간일: 종일만 가능
+                            const canSelectMorning = isOnly || isLast  // 종료일 또는 1일만
+                            const canSelectAfternoon = isOnly || isFirst  // 시작일 또는 1일만
+
+                            // 2일 연속: 오후반차(시작)+오전반차(종료) 조합 불가
+                            // 시작일이 오후반차면 종료일 오전반차 비활성화
+                            // 종료일이 오전반차면 시작일 오후반차 비활성화
+                            let disableAfternoonForTwoDays = false
+                            let disableMorningForTwoDays = false
+
+                            if (isTwoDays) {
+                              if (isFirst && lastDateType === 'morning') {
+                                disableAfternoonForTwoDays = true
+                              }
+                              if (isLast && firstDateType === 'afternoon') {
+                                disableMorningForTwoDays = true
+                              }
+                            }
+
+                            return (
+                              <div
+                                key={date}
+                                className="flex items-center justify-between p-3 gap-3"
+                                style={{
+                                  backgroundColor: 'var(--muted)',
+                                  borderRadius: '8px',
                                 }}
                               >
-                                <SelectTrigger style={{ width: '140px', height: '42px' }}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="full">종일</SelectItem>
-                                  <SelectItem value="morning">오전반차</SelectItem>
-                                  <SelectItem value="afternoon">오후반차</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )
-                        })}
+                                <div className="flex flex-col">
+                                  <span style={{
+                                    fontSize: 'var(--font-size-caption)',
+                                    color: 'var(--foreground)',
+                                    fontWeight: 500,
+                                  }}>
+                                    {formattedDate}
+                                  </span>
+                                  {positionLabel && (
+                                    <span style={{
+                                      fontSize: '11px',
+                                      color: 'var(--primary)',
+                                      fontWeight: 600,
+                                    }}>
+                                      {positionLabel}
+                                    </span>
+                                  )}
+                                </div>
+                                <Select
+                                  value={dateDetails[date]}
+                                  onValueChange={(value) => {
+                                    setDateDetails({
+                                      ...dateDetails,
+                                      [date]: value as 'full' | 'morning' | 'afternoon'
+                                    })
+                                  }}
+                                >
+                                  <SelectTrigger style={{ width: '140px', height: '42px' }}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="full">종일</SelectItem>
+                                    <SelectItem
+                                      value="morning"
+                                      disabled={isMiddle || (!canSelectMorning) || disableMorningForTwoDays}
+                                    >
+                                      오전반차 {!canSelectMorning && !isMiddle && '(시작일 불가)'}
+                                      {disableMorningForTwoDays && '(연속X)'}
+                                    </SelectItem>
+                                    <SelectItem
+                                      value="afternoon"
+                                      disabled={isMiddle || (!canSelectAfternoon) || disableAfternoonForTwoDays}
+                                    >
+                                      오후반차 {!canSelectAfternoon && !isMiddle && '(종료일 불가)'}
+                                      {disableAfternoonForTwoDays && '(연속X)'}
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )
+                          })
+                        })()}
                       </div>
                     </div>
                   )}
