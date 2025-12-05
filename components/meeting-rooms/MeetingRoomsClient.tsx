@@ -22,7 +22,6 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -41,6 +40,8 @@ import {
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Label } from '@/components/ui/label'
 
 interface Equipment {
   whiteboard: boolean
@@ -80,10 +81,11 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
   initialBookings
 }) => {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState('')
   const [capacityFilter, setCapacityFilter] = useState<string>('all')
   const [equipmentFilter, setEquipmentFilter] = useState<string[]>([])
   const [selectedFloor] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<Date | undefined>()
+  const [timeFilter, setTimeFilter] = useState<string>('all')
   const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null)
   const [bookingModalOpen, setBookingModalOpen] = useState(false)
 
@@ -218,8 +220,6 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
   // Filtered rooms
   const filteredRooms = useMemo(() => {
     return meetingRooms.filter((room) => {
-      const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase())
-
       const matchesCapacity =
         capacityFilter === 'all' ||
         (capacityFilter === '1-4' && room.capacity <= 4) ||
@@ -246,9 +246,9 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           }
         })
 
-      return matchesSearch && matchesCapacity && matchesFloor && matchesEquipment
+      return matchesCapacity && matchesFloor && matchesEquipment
     })
-  }, [meetingRooms, searchQuery, capacityFilter, selectedFloor, equipmentFilter])
+  }, [meetingRooms, capacityFilter, selectedFloor, equipmentFilter])
 
   // Group by floor
   const roomsByFloor = useMemo(() => {
@@ -449,12 +449,14 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
     }
   }
 
-  // Time slots (00:00 ~ 23:30, 30min intervals) - 24 hour availability
+  // Time slots (09:00 ~ 18:00, 30min intervals)
   const timeSlots = useMemo(() => {
     const slots = []
-    for (let hour = 0; hour < 24; hour++) {
+    for (let hour = 9; hour <= 18; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      slots.push(`${hour.toString().padStart(2, '0')}:30`)
+      if (hour < 18) {
+        slots.push(`${hour.toString().padStart(2, '0')}:30`)
+      }
     }
     return slots
   }, [])
@@ -484,7 +486,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             color: 'var(--foreground)',
           }}
         >
-          회의실 예약 현황
+          공간 예약
         </h1>
         <p
           style={{
@@ -502,48 +504,18 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
       <Card style={{ borderRadius: 'var(--radius)', boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)' }}>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="space-y-2">
-              <label
-                style={{
-                  fontSize: 'var(--font-size-caption)',
-                  fontWeight: 500,
-                  lineHeight: 1.4,
-                  color: 'var(--foreground)',
-                }}
-              >
-                회의실 검색
-              </label>
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  style={{ color: 'var(--color-gray-500)' }}
-                />
-                <Input
-                  placeholder="회의실 이름 입력"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  style={{
-                    fontSize: 'var(--font-size-body)',
-                    lineHeight: 1.5,
-                  }}
-                />
-              </div>
-            </div>
-
             {/* Capacity filter */}
             <div className="space-y-2">
-              <label
+              <Label
+                htmlFor="capacity-filter"
                 style={{
                   fontSize: 'var(--font-size-caption)',
                   fontWeight: 500,
-                  lineHeight: 1.4,
-                  color: 'var(--foreground)',
+                  lineHeight: 1.5,
                 }}
               >
                 인원 수
-              </label>
+              </Label>
               <Select value={capacityFilter} onValueChange={setCapacityFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="전체" />
@@ -557,18 +529,80 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
               </Select>
             </div>
 
-            {/* Equipment filter */}
+            {/* Date filter */}
             <div className="space-y-2">
-              <label
+              <Label
+                htmlFor="date-filter"
                 style={{
                   fontSize: 'var(--font-size-caption)',
                   fontWeight: 500,
-                  lineHeight: 1.4,
-                  color: 'var(--foreground)',
+                  lineHeight: 1.5,
+                }}
+              >
+                날짜
+              </Label>
+              <DatePicker
+                date={dateFilter}
+                onDateChange={setDateFilter}
+                placeholder="날짜 선택"
+              />
+            </div>
+
+            {/* Time filter */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="time-filter"
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 500,
+                  lineHeight: 1.5,
+                }}
+              >
+                시간
+              </Label>
+              <Select value={timeFilter} onValueChange={setTimeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="전체" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {(() => {
+                    const times = []
+                    for (let hour = 9; hour < 18; hour++) {
+                      times.push(
+                        <SelectItem key={`${hour}:00`} value={`${hour}:00-${hour}:30`}>
+                          {`${hour.toString().padStart(2, '0')}:00~${hour.toString().padStart(2, '0')}:30`}
+                        </SelectItem>
+                      )
+                      times.push(
+                        <SelectItem key={`${hour}:30`} value={`${hour}:30-${hour + 1}:00`}>
+                          {`${hour.toString().padStart(2, '0')}:30~${(hour + 1).toString().padStart(2, '0')}:00`}
+                        </SelectItem>
+                      )
+                    }
+                    times.push(
+                      <SelectItem key="18:00" value="18:00-18:30">
+                        18:00~18:30
+                      </SelectItem>
+                    )
+                    return times
+                  })()}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Equipment filter */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="equipment-filter"
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 500,
+                  lineHeight: 1.5,
                 }}
               >
                 장비
-              </label>
+              </Label>
               <div className="flex flex-wrap gap-2">
                 {['whiteboard', 'monitor', 'camera', 'hdmi'].map((eq) => {
                   const isSelected = equipmentFilter.includes(eq)
@@ -602,25 +636,24 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           </div>
 
           {/* Active filters */}
-          {(searchQuery || capacityFilter !== 'all' || selectedFloor !== 'all' || equipmentFilter.length > 0) && (
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t" style={{ borderColor: '#E5E8EB' }}>
-              <Filter className="w-4 h-4" style={{ color: '#5B6A72' }} />
-              <span style={{ fontSize: 'var(--font-size-caption)', color: '#5B6A72' }}>
+          {(capacityFilter !== 'all' || selectedFloor !== 'all' || dateFilter || timeFilter !== 'all' || equipmentFilter.length > 0) && (
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <Filter className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+              <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
                 활성 필터:
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setSearchQuery('')
                   setCapacityFilter('all')
-                  setSelectedFloor('all')
+                  setDateFilter(undefined)
+                  setTimeFilter('all')
                   setEquipmentFilter([])
                 }}
                 style={{
                   fontSize: 'var(--font-size-caption)',
                   color: 'var(--primary)',
-                  border: 'none',
                 }}
               >
                 모두 초기화
@@ -664,39 +697,25 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           <TabsList
             className="w-full"
             style={{
-              backgroundColor: 'white',
+              backgroundColor: 'var(--card)',
               height: '48px',
               boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
             }}
           >
-            {[-1, 2, 3, 4, 6].map((floor) => {
-              const floorRooms = meetingRooms.filter((r) => r.floor === floor)
-              const availableCount = floorRooms.filter((r) => !r.currentBooking).length
-              const occupiedCount = floorRooms.filter((r) => r.currentBooking).length
-
+            {[2, 3, 4, 6].map((floor) => {
               return (
                 <TabsTrigger
                   key={floor}
                   value={floor.toString()}
                   className="flex-1"
                 >
-                  <div className="flex items-center gap-2 justify-center flex-wrap">
-                    <span>{floor === -1 ? 'B1' : `${floor}층`}</span>
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--success)' }} />
-                      <span>{availableCount}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--error)' }} />
-                      <span>{occupiedCount}</span>
-                    </div>
-                  </div>
+                  <span>{floor}층</span>
                 </TabsTrigger>
               )
             })}
           </TabsList>
 
-          {[-1, 2, 3, 4, 6].map((floor) => {
+          {[2, 3, 4, 6].map((floor) => {
             const floorRooms = roomsByFloor[floor] || []
 
             return (
