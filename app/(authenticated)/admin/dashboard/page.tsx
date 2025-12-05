@@ -10,35 +10,40 @@ const floorData = [
   { floor: '5F', usedSeats: 40, totalSeats: 50, meetingRoomUsage: 60, status: 'moderate' as const },
 ];
 
-// Mock 근무 현황 데이터
-const fieldWorkMembers = [
-  { id: '1', name: '김철수', department: '영업팀' },
-  { id: '2', name: '이영희', department: '마케팅팀' },
-  { id: '3', name: '박민수', department: '영업팀' },
-  { id: '4', name: '정수진', department: '기획팀' },
-  { id: '5', name: '한지민', department: '영업팀' },
-  { id: '6', name: '오세훈', department: '기획팀' },
-  { id: '7', name: '류현진', department: '마케팅팀' },
-];
-
-const remoteMembers = [
-  { id: '5', name: '최동욱', department: '개발팀' },
-  { id: '6', name: '강서연', department: '디자인팀' },
-  { id: '7', name: '윤재호', department: '개발팀' },
-  { id: '8', name: '임하늘', department: '개발팀' },
-  { id: '9', name: '송민정', department: '기획팀' },
-  { id: '10', name: '배수지', department: '디자인팀' },
-  { id: '11', name: '김태희', department: '개발팀' },
-];
-
-const vacationMembers = [
-  { id: '10', name: '홍길동', department: '인사팀' },
-  { id: '11', name: '김민지', department: '재무팀' },
-  { id: '12', name: '이준호', department: '총무팀' },
-  { id: '13', name: '박서준', department: '인사팀' },
-  { id: '14', name: '정유미', department: '재무팀' },
-  { id: '15', name: '조인성', department: '총무팀' },
-];
+// 근무 현황 카테고리별 데이터 (6개 카테고리)
+const workStatusData = {
+  '휴가': [
+    { id: 'v1', name: '홍길동', department: '인사팀', status: '연차' },
+    { id: 'v2', name: '김민지', department: '재무팀', status: '반차' },
+    { id: 'v3', name: '이준호', department: '총무팀', status: '포상휴가' },
+    { id: 'v4', name: '박서준', department: '인사팀', status: '연차' },
+    { id: 'v5', name: '정유미', department: '재무팀', status: '반차' },
+    { id: 'v6', name: '조인성', department: '총무팀', status: '연차' },
+  ],
+  '사외 근무': [
+    { id: 'f1', name: '김철수', department: '영업팀', status: '외근' },
+    { id: 'f2', name: '이영희', department: '마케팅팀', status: '출장' },
+    { id: 'f3', name: '박민수', department: '영업팀', status: '외근' },
+  ],
+  '휴직': [
+    { id: 'l1', name: '최지우', department: '개발팀', status: '휴직' },
+    { id: 'l2', name: '한지민', department: '기획팀', status: '휴직' },
+  ],
+  '근무 변경': [
+    { id: 'r1', name: '최동욱', department: '개발팀', status: '재택' },
+    { id: 'r2', name: '강서연', department: '디자인팀', status: '재택' },
+    { id: 'r3', name: '윤재호', department: '개발팀', status: '재택' },
+    { id: 'r4', name: '임하늘', department: '개발팀', status: '재택' },
+  ],
+  '출산/육아': [
+    { id: 'p1', name: '송민정', department: '기획팀', status: '육아휴직' },
+    { id: 'p2', name: '배수지', department: '디자인팀', status: '출산전후 휴가' },
+  ],
+  '기타': [
+    { id: 'o1', name: '김태희', department: '개발팀', status: '경조사 휴가' },
+    { id: 'o2', name: '정우성', department: '마케팅팀', status: '공가 휴가' },
+  ],
+};
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -74,6 +79,23 @@ export default async function AdminDashboardPage() {
     floorData.reduce((sum, floor) => sum + floor.meetingRoomUsage, 0) / floorData.length
   );
 
+  // 스튜디오 출입 상태 조회
+  const { data: studioAccess } = await supabase
+    .from('studio_access')
+    .select('*')
+    .eq('location', 'B1F_STUDIO')
+    .single();
+
+  const studioAccessStatus: {
+    status: 'available' | 'restricted';
+    reason?: string;
+  } = studioAccess ? {
+    status: studioAccess.status as 'available' | 'restricted',
+    reason: studioAccess.reason || undefined,
+  } : {
+    status: 'available',
+  };
+
   // 승인 대기 목록
   const { data: pendingRequests } = await supabase
     .from('leave_request')
@@ -94,9 +116,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminDashboardClient
-      fieldWorkMembers={fieldWorkMembers}
-      remoteMembers={remoteMembers}
-      vacationMembers={vacationMembers}
+      workStatusData={workStatusData}
+      studioAccessStatus={studioAccessStatus}
       approvalQueue={approvalQueue}
       floorData={floorData}
       totalSeats={totalSeats}

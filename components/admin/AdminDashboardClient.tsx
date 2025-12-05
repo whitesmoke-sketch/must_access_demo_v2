@@ -7,22 +7,30 @@ import {
   AlertTriangle,
   Armchair,
   Calendar,
-  Home,
   UserX,
   QrCode,
   ChevronRight,
-  Briefcase,
-  Palmtree
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { WorkStatusModal } from './WorkStatusModal'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 
-interface Member {
+interface WorkStatusMember {
   id: string
   name: string
   department: string
+  status: string
+}
+
+interface WorkStatusData {
+  '휴가': WorkStatusMember[]
+  '사외 근무': WorkStatusMember[]
+  '휴직': WorkStatusMember[]
+  '근무 변경': WorkStatusMember[]
+  '출산/육아': WorkStatusMember[]
+  '기타': WorkStatusMember[]
 }
 
 interface ApprovalRequest {
@@ -43,10 +51,14 @@ interface FloorData {
   status: 'busy' | 'moderate' | 'available'
 }
 
+interface StudioAccessStatus {
+  status: 'available' | 'restricted'
+  reason?: string
+}
+
 interface AdminDashboardClientProps {
-  fieldWorkMembers: Member[]
-  remoteMembers: Member[]
-  vacationMembers: Member[]
+  workStatusData: WorkStatusData
+  studioAccessStatus: StudioAccessStatus
   approvalQueue: ApprovalRequest[]
   floorData: FloorData[]
   totalSeats: number
@@ -55,10 +67,19 @@ interface AdminDashboardClientProps {
   overallMeetingRoomUsage: number
 }
 
+// 차트 색상 정의
+const CHART_COLORS = {
+  '휴가': '#635BFF',      // Primary purple
+  '사외 근무': '#16CDC7', // Teal
+  '휴직': '#F8C653',      // Yellow/Orange
+  '근무 변경': '#FF6B6B', // Red
+  '출산/육아': '#4CD471', // Green
+  '기타': '#5B6A72',      // Gray
+}
+
 export function AdminDashboardClient({
-  fieldWorkMembers,
-  remoteMembers,
-  vacationMembers,
+  workStatusData,
+  studioAccessStatus,
   approvalQueue,
   floorData,
   totalSeats,
@@ -66,9 +87,20 @@ export function AdminDashboardClient({
   overallOccupancyRate,
   overallMeetingRoomUsage,
 }: AdminDashboardClientProps) {
-  const [showFieldWorkModal, setShowFieldWorkModal] = useState(false)
-  const [showRemoteModal, setShowRemoteModal] = useState(false)
-  const [showVacationModal, setShowVacationModal] = useState(false)
+  // 모달 상태 관리
+  const [showCategoryDetailModal, setShowCategoryDetailModal] = useState(false)
+
+  // 근무 현황 카테고리 선택 상태 - 기본적으로 '휴가' 카테고리 열림
+  const [selectedWorkCategory, setSelectedWorkCategory] = useState<keyof WorkStatusData | null>('휴가')
+
+  // 도넛 차트 데이터
+  const workStatusChartData = Object.entries(workStatusData).map(([name, members]) => ({
+    name,
+    value: members.length,
+    color: CHART_COLORS[name as keyof typeof CHART_COLORS],
+  }))
+
+  const totalWorkStatusCount = workStatusChartData.reduce((sum, item) => sum + item.value, 0)
 
   // 이상 상황 알림 (Client Component 내부에서 정의)
   const alerts = [
@@ -156,7 +188,7 @@ export function AdminDashboardClient({
         {/* Main Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {/* 1. 오늘의 근무 현황 */}
+          {/* 1. 오늘의 근무 현황 - 도넛 차트 + 6개 카테고리 */}
           <Card
             className="rounded-2xl md:col-span-2 lg:col-span-2"
             style={{
@@ -175,207 +207,220 @@ export function AdminDashboardClient({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* 외근 인원 */}
-                <div
-                  className="md:border-r md:pr-6"
-                  style={{ borderColor: '#E5E8EB' }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Briefcase className="w-4 h-4" style={{ color: '#635BFF' }} />
-                    <h3 style={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#29363D'
-                    }}>
-                      외근 인원 ({fieldWorkMembers.length}명)
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    {fieldWorkMembers.slice(0, 5).map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-3 p-3"
-                        style={{
-                          backgroundColor: '#F6F8F9',
-                          borderRadius: '8px',
-                        }}
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* 좌측: 도넛 차트 */}
+                <div className="flex-shrink-0 relative self-center" style={{ width: '200px', height: '200px', margin: '0 auto' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={workStatusChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                        cornerRadius={5}
+                        strokeWidth={3}
+                        stroke="#FFFFFF"
                       >
-                        <div
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: '#635BFF',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {member.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
-                            {member.name}
-                          </p>
-                          <p style={{ fontSize: '12px', color: '#5B6A72', marginTop: '2px' }}>
-                            {member.department}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {fieldWorkMembers.length > 5 && (
-                      <button
-                        onClick={() => setShowFieldWorkModal(true)}
-                        className="w-full py-2 transition-all hover:text-[#635BFF]"
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          color: '#5B6A72',
-                          backgroundColor: 'transparent',
+                        {workStatusChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        wrapperStyle={{ zIndex: 1000 }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0]
+                            return (
+                              <div
+                                style={{
+                                  backgroundColor: '#29363D',
+                                  color: '#FFFFFF',
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '14px',
+                                  fontWeight: 600,
+                                  boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+                                }}
+                              >
+                                {data.name} {data.value}명
+                              </div>
+                            )
+                          }
+                          return null
                         }}
-                      >
-                        전체보기
-                      </button>
-                    )}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <p style={{ fontSize: '32px', fontWeight: 700, color: '#29363D', lineHeight: 1 }}>
+                      {totalWorkStatusCount}
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#5B6A72', marginTop: '4px' }}>
+                      총 인원
+                    </p>
                   </div>
                 </div>
 
-                {/* 재택 인원 */}
-                <div
-                  className="md:border-r md:pr-6"
-                  style={{ borderColor: '#E5E8EB' }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Home className="w-4 h-4" style={{ color: '#16CDC7' }} />
-                    <h3 style={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#29363D'
-                    }}>
-                      재택 인원 ({remoteMembers.length}명)
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    {remoteMembers.slice(0, 5).map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-3 p-3"
-                        style={{
-                          backgroundColor: '#F6F8F9',
-                          borderRadius: '8px',
-                        }}
-                      >
+                {/* 중앙: 범례 (6개 카테고리 버튼) */}
+                <div className="flex-1 grid grid-cols-2 gap-3">
+                  {workStatusChartData.map((category) => (
+                    <button
+                      key={category.name}
+                      onClick={() => setSelectedWorkCategory(
+                        selectedWorkCategory === category.name ? null : category.name as keyof WorkStatusData
+                      )}
+                      className="p-3 text-left transition-all"
+                      style={{
+                        backgroundColor: selectedWorkCategory === category.name ? '#F6F8F9' : 'transparent',
+                        borderRadius: '8px',
+                        border: selectedWorkCategory === category.name ? `2px solid ${category.color}` : '1px solid #E5E8EB',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
                         <div
                           style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '12px',
+                            height: '12px',
                             borderRadius: '50%',
-                            backgroundColor: '#16CDC7',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '14px',
-                            fontWeight: 600,
+                            backgroundColor: category.color,
+                            flexShrink: 0
                           }}
-                        >
-                          {member.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
-                            {member.name}
-                          </p>
-                          <p style={{ fontSize: '12px', color: '#5B6A72', marginTop: '2px' }}>
-                            {member.department}
-                          </p>
-                        </div>
+                        />
+                        <p style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: '#29363D'
+                        }}>
+                          {category.name}
+                        </p>
                       </div>
-                    ))}
-                    {remoteMembers.length > 5 && (
-                      <button
-                        onClick={() => setShowRemoteModal(true)}
-                        className="w-full py-2 transition-all hover:text-[#16CDC7]"
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          color: '#5B6A72',
-                          backgroundColor: 'transparent',
-                        }}
-                      >
-                        전체보기
-                      </button>
-                    )}
-                  </div>
+                      <p style={{
+                        fontSize: '20px',
+                        fontWeight: 700,
+                        color: category.color,
+                        marginLeft: '20px'
+                      }}>
+                        {category.value}명
+                      </p>
+                    </button>
+                  ))}
                 </div>
 
-                {/* 연차 인원 */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Palmtree className="w-4 h-4" style={{ color: '#F8C653' }} />
-                    <h3 style={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#29363D'
-                    }}>
-                      연차 인원 ({vacationMembers.length}명)
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    {vacationMembers.slice(0, 5).map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-3 p-3"
+                {/* 우측: 선택된 카테고리 인원 리스트 */}
+                {selectedWorkCategory && (
+                  <div
+                    className="flex-1 md:border-l md:pl-6 flex flex-col"
+                    style={{ borderColor: '#E5E8EB', minWidth: '250px', maxHeight: '400px' }}
+                  >
+                    <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                      <h3 style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#29363D'
+                      }}>
+                        {selectedWorkCategory} ({workStatusData[selectedWorkCategory].length}명)
+                      </h3>
+                    </div>
+                    <div className="space-y-2 overflow-y-auto flex-1">
+                      {workStatusData[selectedWorkCategory].slice(0, 5).map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between p-2 transition-all"
+                          style={{
+                            backgroundColor: '#F6F8F9',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: CHART_COLORS[selectedWorkCategory],
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                flexShrink: 0
+                              }}
+                            >
+                              {member.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                color: '#29363D',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {member.name}
+                              </p>
+                              <p style={{
+                                fontSize: '12px',
+                                color: '#5B6A72',
+                                marginTop: '2px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {member.department}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge
+                            style={{
+                              backgroundColor: 'rgba(99, 91, 255, 0.1)',
+                              color: '#635BFF',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              border: 'none',
+                              padding: '2px 8px',
+                              flexShrink: 0,
+                              marginLeft: '8px'
+                            }}
+                          >
+                            {member.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 전체보기 버튼 */}
+                    {workStatusData[selectedWorkCategory].length > 5 && (
+                      <button
+                        className="w-full mt-3 text-center transition-all flex-shrink-0"
                         style={{
                           backgroundColor: '#F6F8F9',
                           borderRadius: '8px',
+                          border: '1px solid #E5E8EB',
+                          cursor: 'pointer',
+                          height: '42px',
                         }}
+                        onClick={() => setShowCategoryDetailModal(true)}
                       >
-                        <div
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: '#F8C653',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {member.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p style={{ fontSize: '14px', fontWeight: 500, color: '#29363D' }}>
-                            {member.name}
-                          </p>
-                          <p style={{ fontSize: '12px', color: '#5B6A72', marginTop: '2px' }}>
-                            {member.department}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {vacationMembers.length > 5 && (
-                      <button
-                        onClick={() => setShowVacationModal(true)}
-                        className="w-full py-2 transition-all hover:text-[#F8C653]"
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          color: '#5B6A72',
-                          backgroundColor: 'transparent',
-                        }}
-                      >
-                        전체보기
+                        <span style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: '#5B6A72'
+                        }}>
+                          전체보기
+                        </span>
                       </button>
                     )}
                   </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -410,7 +455,7 @@ export function AdminDashboardClient({
                     <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
                       좌석 점유율
                     </p>
-                    <p className="mt-2" style={{ fontSize: '32px', fontWeight: 700, lineHeight: '41.6px', color: '#635BFF' }}>
+                    <p className="mt-2" style={{ fontSize: '20px', fontWeight: 700, lineHeight: '26px', color: '#635BFF' }}>
                       {overallOccupancyRate}%
                     </p>
                     <p className="mt-1" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
@@ -428,7 +473,7 @@ export function AdminDashboardClient({
                     <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
                       회의실 사용률
                     </p>
-                    <p className="mt-2" style={{ fontSize: '32px', fontWeight: 700, lineHeight: '41.6px', color: '#16CDC7' }}>
+                    <p className="mt-2" style={{ fontSize: '20px', fontWeight: 700, lineHeight: '26px', color: '#16CDC7' }}>
                       {overallMeetingRoomUsage}%
                     </p>
                     <p className="mt-1" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
@@ -520,6 +565,50 @@ export function AdminDashboardClient({
                     })}
                   </div>
                 </div>
+
+                <div style={{ borderTop: '1px solid #E5E8EB' }} />
+
+                {/* 지하1층 스튜디오 출입 상태 */}
+                <div
+                  className="p-3"
+                  style={{
+                    backgroundColor: '#F6F8F9',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <p style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: '#29363D'
+                    }}>
+                      지하1층 스튜디오
+                    </p>
+                    <Badge
+                      style={{
+                        backgroundColor: studioAccessStatus.status === 'available' ? 'rgba(76, 212, 113, 0.1)' : '#FFF0ED',
+                        color: studioAccessStatus.status === 'available' ? '#4CD471' : '#FF6B6B',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: 'none',
+                        padding: '4px 12px',
+                      }}
+                    >
+                      {studioAccessStatus.status === 'available' ? '출입 가능' : '출입 제한'}
+                    </Badge>
+                  </div>
+                  {studioAccessStatus.status === 'restricted' && studioAccessStatus.reason && (
+                    <p style={{
+                      fontSize: '12px',
+                      color: '#5B6A72',
+                      marginTop: '8px',
+                      paddingTop: '8px',
+                      borderTop: '1px solid #E5E8EB',
+                    }}>
+                      {studioAccessStatus.reason}
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -567,73 +656,92 @@ export function AdminDashboardClient({
                   </p>
                 </div>
               ) : (
-                <div className="divide-y" style={{ borderColor: '#E5E8EB' }}>
-                  {approvalQueue.map((request) => (
-                    <div
-                      key={request.id}
-                      className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                              {request.userName}
-                            </p>
-                            <Badge style={{
-                              backgroundColor: 'rgba(99, 91, 255, 0.1)',
-                              color: '#635BFF',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              border: 'none',
-                            }}>
-                              {request.type}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 mt-2">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
-                              <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-                                {request.startDate} ~ {request.endDate}
+                <>
+                  <div className="divide-y" style={{ borderColor: '#E5E8EB' }}>
+                    {approvalQueue.map((request) => (
+                      <div
+                        key={request.id}
+                        className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                                {request.userName}
+                              </p>
+                              <Badge style={{
+                                backgroundColor: 'rgba(99, 91, 255, 0.1)',
+                                color: '#635BFF',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                border: 'none',
+                              }}>
+                                {request.type}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 mt-2">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
+                                <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                                  {request.startDate} ~ {request.endDate}
+                                </p>
+                              </div>
+                              <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#16CDC7' }}>
+                                {request.days}일
                               </p>
                             </div>
-                            <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#16CDC7' }}>
-                              {request.days}일
+                            <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
+                              신청일: {new Date(request.requestDate).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
-                          <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
-                            신청일: {new Date(request.requestDate).toLocaleDateString('ko-KR')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <button
-                            className="px-3 py-1.5 transition-all hover:bg-[#059669]"
-                            style={{
-                              backgroundColor: '#10B981',
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '14px',
-                              borderRadius: '8px',
-                            }}
-                          >
-                            승인
-                          </button>
-                          <button
-                            className="px-3 py-1.5 transition-all hover:bg-[#DC2626]"
-                            style={{
-                              backgroundColor: '#EF4444',
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '14px',
-                              borderRadius: '8px',
-                            }}
-                          >
-                            반려
-                          </button>
+                          <div className="flex items-center gap-2 ml-4">
+                            <button
+                              className="px-3 py-1.5 transition-all hover:bg-[#059669]"
+                              style={{
+                                backgroundColor: '#10B981',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '14px',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              승인
+                            </button>
+                            <button
+                              className="px-3 py-1.5 transition-all hover:bg-[#DC2626]"
+                              style={{
+                                backgroundColor: '#EF4444',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '14px',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              반려
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  {/* 하단 전체보기 버튼 */}
+                  <div className="mt-3 px-4">
+                    <button
+                      className="w-full transition-all"
+                      style={{
+                        backgroundColor: '#F6F8F9',
+                        color: '#5B6A72',
+                        border: '1px solid #E5E8EB',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        height: '42px',
+                      }}
+                    >
+                      전체보기
+                    </button>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -725,30 +833,20 @@ export function AdminDashboardClient({
         </div>
       </div>
 
-      {/* Modals */}
-      <WorkStatusModal
-        isOpen={showFieldWorkModal}
-        onClose={() => setShowFieldWorkModal(false)}
-        title="외근 인원"
-        members={fieldWorkMembers}
-        icon="fieldwork"
-      />
-
-      <WorkStatusModal
-        isOpen={showRemoteModal}
-        onClose={() => setShowRemoteModal(false)}
-        title="재택 인원"
-        members={remoteMembers}
-        icon="remote"
-      />
-
-      <WorkStatusModal
-        isOpen={showVacationModal}
-        onClose={() => setShowVacationModal(false)}
-        title="연차 인원"
-        members={vacationMembers}
-        icon="vacation"
-      />
+      {/* 선택된 카테고리 전체보기 모달 */}
+      {selectedWorkCategory && (
+        <WorkStatusModal
+          isOpen={showCategoryDetailModal}
+          onClose={() => setShowCategoryDetailModal(false)}
+          title={`${selectedWorkCategory} 인원`}
+          members={workStatusData[selectedWorkCategory].map(m => ({
+            id: m.id,
+            name: m.name,
+            department: m.department,
+          }))}
+          icon="vacation"
+        />
+      )}
     </TooltipProvider>
   )
 }
