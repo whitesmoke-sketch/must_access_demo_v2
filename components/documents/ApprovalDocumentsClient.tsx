@@ -374,6 +374,27 @@ export function ApprovalDocumentsClient({
     return Array.isArray(role) ? role[0]?.name || '-' : role.name
   }
 
+  // 문서 제목 생성
+  const getDocumentTitle = (doc: ApprovalDocument | ReferenceDocument): string => {
+    const leaveTypeLabels: Record<string, string> = {
+      annual: '연차',
+      half_day: '반차',
+      half_day_am: '오전 반차',
+      half_day_pm: '오후 반차',
+      quarter_day: '반반차',
+      award: '포상휴가',
+      sick: '병가',
+    }
+    const leaveLabel = leaveTypeLabels[doc.leave_type] || '연차'
+    const startDate = new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
+    const endDate = new Date(doc.end_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
+
+    if (doc.reason) {
+      return `${doc.reason} (${startDate} ~ ${endDate})`
+    }
+    return `${leaveLabel} 신청 (${startDate} ~ ${endDate})`
+  }
+
   // 결재선 정보를 ApprovalProgressBadge 형식으로 변환
   const getApprovalProgress = (docId: number, currentStep: number | null) => {
     const steps = approvalStepsMap[docId]
@@ -550,8 +571,8 @@ export function ApprovalDocumentsClient({
               <TableHeader>
                 <TableRow style={{ borderBottom: '2px solid var(--border)' }}>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>문서 유형</TableHead>
+                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>문서 제목</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청자</TableHead>
-                  <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>소속</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>신청일시</TableHead>
                   <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)', width: '140px', minWidth: '140px' }}>
                     {activeTab === 'reference' ? '열람 상태' : '상태'}
@@ -582,6 +603,9 @@ export function ApprovalDocumentsClient({
                         }}
                       >
                         <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
+                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
+                          {getDocumentTitle(doc)}
+                        </TableCell>
                         <TableCell className="p-3">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
@@ -593,22 +617,17 @@ export function ApprovalDocumentsClient({
                               <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
                                 {employee?.name || '알 수 없음'}
                               </p>
-                              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)' }}>
-                                {getRoleName(employee?.role)}
+                              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+                                {getDepartmentName(employee?.department)} | {getRoleName(employee?.role)}
                               </p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
-                          {getDepartmentName(employee?.department)}
-                        </TableCell>
-                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
-                          {new Date(doc.requested_at).toLocaleString('ko-KR', {
+                          {new Date(doc.requested_at).toLocaleDateString('ko-KR', {
                             year: 'numeric',
                             month: '2-digit',
                             day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
                           })}
                         </TableCell>
                         <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
@@ -635,7 +654,7 @@ export function ApprovalDocumentsClient({
                     return (
                       <TableRow
                         key={doc.id}
-                        style={{ transition: 'background-color 150ms ease-in-out' }}
+                        style={{ transition: 'background-color 150ms ease-in-out', borderBottom: '1px solid var(--border)' }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = 'var(--muted)';
                         }}
@@ -644,6 +663,9 @@ export function ApprovalDocumentsClient({
                         }}
                       >
                         <TableCell className="p-3">{getLeaveTypeBadge(doc.leave_type)}</TableCell>
+                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
+                          {getDocumentTitle(doc)}
+                        </TableCell>
                         <TableCell className="p-3">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
@@ -655,22 +677,17 @@ export function ApprovalDocumentsClient({
                               <p style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'var(--font-weight-medium)', color: 'var(--card-foreground)' }}>
                                 {employee?.name || '알 수 없음'}
                               </p>
-                              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)' }}>
-                                {getRoleName(employee?.role)}
+                              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+                                {getDepartmentName(employee?.department)} | {getRoleName(employee?.role)}
                               </p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
-                          {getDepartmentName(employee?.department)}
-                        </TableCell>
-                        <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--card-foreground)' }}>
-                          {new Date(doc.requested_at).toLocaleString('ko-KR', {
+                          {new Date(doc.requested_at).toLocaleDateString('ko-KR', {
                             year: 'numeric',
                             month: '2-digit',
                             day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
                           })}
                         </TableCell>
                         <TableCell className="p-3" style={{ width: '140px', minWidth: '140px' }}>
