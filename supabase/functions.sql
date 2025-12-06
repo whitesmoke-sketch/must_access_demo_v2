@@ -12,9 +12,29 @@
 -- 1. APPROVAL SYSTEM FUNCTIONS
 -- ================================================================
 
+-- Helper function to check if current user is the document requester
+-- SECURITY DEFINER to avoid infinite recursion in RLS policies
+CREATE OR REPLACE FUNCTION is_document_requester(p_request_id BIGINT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM document_master
+    WHERE id = p_request_id
+    AND requester_id = auth.uid()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION is_document_requester(BIGINT) TO authenticated;
+
+COMMENT ON FUNCTION is_document_requester IS 'SECURITY DEFINER function to check if current user is the document requester (avoids infinite recursion in RLS)';
+
 -- Create approval steps for a request
 -- This function creates approval steps for any type of request (leave, document, etc.)
 -- and sets up the initial approval flow.
+-- 변경: leave_request → document_master 참조
 CREATE OR REPLACE FUNCTION create_approval_steps(
   p_request_type text,
   p_request_id bigint,
@@ -54,12 +74,10 @@ BEGIN
     v_order := v_order + 1;
   END LOOP;
 
-  -- Update leave_request current_step
-  IF p_request_type = 'leave' THEN
-    UPDATE leave_request
-    SET current_step = 1
-    WHERE id = p_request_id;
-  END IF;
+  -- Update document_master current_step (새 시스템)
+  UPDATE document_master
+  SET current_step = 1
+  WHERE id = p_request_id;
 END;
 $$;
 

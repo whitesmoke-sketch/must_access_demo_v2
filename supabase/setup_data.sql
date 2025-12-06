@@ -272,9 +272,10 @@ INSERT INTO employee (
   email = EXCLUDED.email;
 
 -- Annual Leave Balance for Master Admin
-INSERT INTO annual_leave_balance (employee_id, total_days, used_days, remaining_days, year) VALUES
-  ('00000000-0000-0000-0000-000000000000', 25, 0, 25, EXTRACT(YEAR FROM CURRENT_DATE))
-ON CONFLICT (employee_id, year) DO UPDATE SET
+-- 주의: annual_leave_balance 테이블은 year 컬럼 없이 employee_id가 PK임
+INSERT INTO annual_leave_balance (employee_id, total_days, used_days, remaining_days) VALUES
+  ('00000000-0000-0000-0000-000000000000', 25, 0, 25)
+ON CONFLICT (employee_id) DO UPDATE SET
   total_days = EXCLUDED.total_days,
   remaining_days = EXCLUDED.remaining_days;
 

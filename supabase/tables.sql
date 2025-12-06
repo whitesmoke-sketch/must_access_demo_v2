@@ -395,8 +395,8 @@ CREATE TABLE approval_step (
   is_last_step BOOLEAN DEFAULT false NOT NULL,
   created_at timestamptz DEFAULT now(),
 
-  -- Constraint: valid status values
-  CONSTRAINT valid_approval_status CHECK (status IN ('waiting', 'pending', 'approved', 'rejected')),
+  -- Constraint: valid status values (retrieved 추가 - 문서 회수 시)
+  CONSTRAINT valid_approval_status CHECK (status IN ('waiting', 'pending', 'approved', 'rejected', 'retrieved')),
   -- Constraint: step_order must be positive
   CONSTRAINT positive_approval_step_order CHECK (step_order > 0)
 );
@@ -409,7 +409,7 @@ COMMENT ON TABLE approval_step IS 'Actual approval step records for requests';
 COMMENT ON COLUMN approval_step.request_type IS 'Request type: leave, document, etc.';
 COMMENT ON COLUMN approval_step.request_id IS 'Actual request ID (BIGINT - leave_request.id, etc.)';
 COMMENT ON COLUMN approval_step.approval_type IS '결재 유형: single(단독), agreement(합의-전원승인필요)';
-COMMENT ON COLUMN approval_step.status IS 'waiting: pending turn, pending: current turn, approved: approved, rejected: rejected';
+COMMENT ON COLUMN approval_step.status IS 'waiting: 대기, pending: 결재 차례, approved: 승인, rejected: 반려, retrieved: 회수됨';
 COMMENT ON COLUMN approval_step.is_last_step IS 'Indicates if this is the final approval step for the request';
 
 -- Approval CC table (참조자)
@@ -522,80 +522,60 @@ CREATE INDEX idx_grant_type ON annual_leave_grant(grant_type);
 CREATE INDEX idx_grant_date ON annual_leave_grant(granted_date);
 CREATE INDEX idx_grant_expiry ON annual_leave_grant(expiration_date);
 
--- Leave request table
-CREATE TABLE leave_request (
-  id BIGSERIAL PRIMARY KEY,
-  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-
-  -- Leave type
-  leave_type VARCHAR(20) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
-
-  -- Days
-  requested_days DECIMAL(4,1) NOT NULL,
-
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-
-  -- Half day slot
-  half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
-
-  reason TEXT,
-
-  -- Attachment
-  attachment_url VARCHAR(500),
-
-  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'retrieved')),
-  approver_id UUID REFERENCES employee(id),
-  rejection_reason TEXT,
-
-  requested_at TIMESTAMPTZ NOT NULL,
-  approved_at TIMESTAMPTZ,
-  rejected_at TIMESTAMPTZ,
-
-  -- Document connection
-  document_submission_id BIGINT REFERENCES document_submission(id),
-
-  -- Current approval step
-  current_step integer DEFAULT 1,
-
-  -- Google Drive integration
-  drive_file_id TEXT,
-  drive_file_url TEXT,
-  pdf_url TEXT,
-  drive_shared_with JSONB DEFAULT '[]'::jsonb,
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_req_employee ON leave_request(employee_id);
-CREATE INDEX idx_req_status ON leave_request(status);
-CREATE INDEX idx_req_start ON leave_request(start_date);
-CREATE INDEX idx_req_submission ON leave_request(document_submission_id);
-CREATE INDEX idx_leave_request_drive_file_id ON leave_request(drive_file_id) WHERE drive_file_id IS NOT NULL;
-CREATE INDEX idx_leave_request_rejected_at ON leave_request(rejected_at) WHERE rejected_at IS NOT NULL;
-
-COMMENT ON TABLE leave_request IS 'Leave requests (no modification/deletion after submission)';
-COMMENT ON COLUMN leave_request.current_step IS 'Current approval step in progress (1, 2, 3...)';
-COMMENT ON COLUMN leave_request.rejected_at IS 'Timestamp when the leave request was rejected';
-COMMENT ON COLUMN leave_request.drive_file_id IS 'Google Drive file ID';
-COMMENT ON COLUMN leave_request.drive_file_url IS 'Google Drive file web view URL';
-COMMENT ON COLUMN leave_request.pdf_url IS 'PDF URL (synced with drive_file_url for backward compatibility)';
-COMMENT ON COLUMN leave_request.drive_shared_with IS 'Array of email addresses that have access to the Drive file';
+-- ================================================================
+-- [DEPRECATED] leave_request 테이블
+-- 이제 document_master + doc_leave 테이블을 사용합니다.
+-- 기존 코드 호환을 위해 주석으로 유지합니다.
+-- ================================================================
+-- CREATE TABLE leave_request (
+--   id BIGSERIAL PRIMARY KEY,
+--   employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+--   leave_type VARCHAR(20) NOT NULL,
+--   requested_days DECIMAL(4,1) NOT NULL,
+--   start_date DATE NOT NULL,
+--   end_date DATE NOT NULL,
+--   half_day_slot VARCHAR(10),
+--   reason TEXT,
+--   attachment_url VARCHAR(500),
+--   status VARCHAR(20) NOT NULL DEFAULT 'pending',
+--   approver_id UUID REFERENCES employee(id),
+--   rejection_reason TEXT,
+--   requested_at TIMESTAMPTZ NOT NULL,
+--   approved_at TIMESTAMPTZ,
+--   rejected_at TIMESTAMPTZ,
+--   document_submission_id BIGINT REFERENCES document_submission(id),
+--   current_step integer DEFAULT 1,
+--   drive_file_id TEXT,
+--   drive_file_url TEXT,
+--   pdf_url TEXT,
+--   drive_shared_with JSONB DEFAULT '[]'::jsonb,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+--
+-- 새 시스템에서는 document_master + doc_leave 사용:
+-- - document_master.requester_id = leave_request.employee_id
+-- - document_master.status = leave_request.status
+-- - doc_leave.days_count = leave_request.requested_days
+-- - doc_leave.leave_type = leave_request.leave_type
 
 -- Annual leave usage table
+-- 변경: leave_request_id → document_id (document_master 참조)
 CREATE TABLE annual_leave_usage (
   id BIGSERIAL PRIMARY KEY,
-  leave_request_id BIGINT NOT NULL REFERENCES leave_request(id) ON DELETE CASCADE,
+  document_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
   grant_id BIGINT NOT NULL REFERENCES annual_leave_grant(id) ON DELETE CASCADE,
   used_days DECIMAL(4,1) NOT NULL,
   used_date DATE NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_usage_request ON annual_leave_usage(leave_request_id);
+CREATE INDEX idx_usage_document ON annual_leave_usage(document_id);
 CREATE INDEX idx_usage_grant ON annual_leave_usage(grant_id);
 CREATE INDEX idx_usage_date ON annual_leave_usage(used_date);
+
+COMMENT ON TABLE annual_leave_usage IS 'Annual leave usage records - references document_master';
+COMMENT ON COLUMN annual_leave_usage.document_id IS 'References document_master.id (휴가 문서)';
 
 -- Annual leave balance table
 CREATE TABLE annual_leave_balance (

@@ -317,15 +317,19 @@ CREATE TABLE approval_step (
   request_id bigint NOT NULL,
   approver_id uuid REFERENCES employee(id) ON DELETE SET NULL,
   step_order integer NOT NULL,
+  approval_type VARCHAR(20) DEFAULT 'single' CHECK (approval_type IN ('single', 'agreement')),
   status text NOT NULL DEFAULT 'waiting',
   comment text,
   approved_at timestamptz,
   is_last_step BOOLEAN DEFAULT false NOT NULL,
   created_at timestamptz DEFAULT now(),
-  CONSTRAINT valid_approval_status CHECK (status IN ('waiting', 'pending', 'approved', 'rejected')),
-  CONSTRAINT unique_request_step_order UNIQUE (request_type, request_id, step_order),
+  -- retrieved 추가: 문서 회수 시 결재선 상태
+  CONSTRAINT valid_approval_status CHECK (status IN ('waiting', 'pending', 'approved', 'rejected', 'retrieved')),
   CONSTRAINT positive_approval_step_order CHECK (step_order > 0)
 );
+
+COMMENT ON COLUMN approval_step.status IS 'waiting: 대기, pending: 결재 차례, approved: 승인, rejected: 반려, retrieved: 회수됨';
+COMMENT ON COLUMN approval_step.approval_type IS '결재 유형: single(단독), agreement(합의-전원승인필요)';
 
 CREATE INDEX idx_approval_step_request ON approval_step(request_type, request_id);
 CREATE INDEX idx_approval_step_approver ON approval_step(approver_id);
@@ -390,51 +394,58 @@ CREATE INDEX idx_grant_type ON annual_leave_grant(grant_type);
 CREATE INDEX idx_grant_date ON annual_leave_grant(granted_date);
 CREATE INDEX idx_grant_expiry ON annual_leave_grant(expiration_date);
 
-CREATE TABLE leave_request (
-  id BIGSERIAL PRIMARY KEY,
-  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-  leave_type VARCHAR(20) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
-  requested_days DECIMAL(4,1) NOT NULL,
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
-  reason TEXT,
-  attachment_url VARCHAR(500),
-  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'retrieved')),
-  approver_id UUID REFERENCES employee(id),
-  rejection_reason TEXT,
-  requested_at TIMESTAMPTZ NOT NULL,
-  approved_at TIMESTAMPTZ,
-  rejected_at TIMESTAMPTZ,
-  document_submission_id BIGINT REFERENCES document_submission(id),
-  current_step integer DEFAULT 1,
-  drive_file_id TEXT,
-  drive_file_url TEXT,
-  pdf_url TEXT,
-  drive_shared_with JSONB DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- ================================================================
+-- [DEPRECATED] leave_request 테이블
+-- 이제 document_master + doc_leave 테이블을 사용합니다.
+-- ================================================================
+-- CREATE TABLE leave_request (
+--   id BIGSERIAL PRIMARY KEY,
+--   employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+--   leave_type VARCHAR(20) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
+--   requested_days DECIMAL(4,1) NOT NULL,
+--   start_date DATE NOT NULL,
+--   end_date DATE NOT NULL,
+--   half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
+--   reason TEXT,
+--   attachment_url VARCHAR(500),
+--   status VARCHAR(20) NOT NULL DEFAULT 'pending',
+--   approver_id UUID REFERENCES employee(id),
+--   rejection_reason TEXT,
+--   requested_at TIMESTAMPTZ NOT NULL,
+--   approved_at TIMESTAMPTZ,
+--   rejected_at TIMESTAMPTZ,
+--   document_submission_id BIGINT REFERENCES document_submission(id),
+--   current_step integer DEFAULT 1,
+--   drive_file_id TEXT,
+--   drive_file_url TEXT,
+--   pdf_url TEXT,
+--   drive_shared_with JSONB DEFAULT '[]'::jsonb,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+--
+-- 새 시스템에서는 document_master + doc_leave 사용:
+-- - document_master.requester_id = leave_request.employee_id
+-- - document_master.status = leave_request.status
+-- - doc_leave.days_count = leave_request.requested_days
+-- - doc_leave.leave_type = leave_request.leave_type
 
-CREATE INDEX idx_req_employee ON leave_request(employee_id);
-CREATE INDEX idx_req_status ON leave_request(status);
-CREATE INDEX idx_req_start ON leave_request(start_date);
-CREATE INDEX idx_req_submission ON leave_request(document_submission_id);
-CREATE INDEX idx_leave_request_drive_file_id ON leave_request(drive_file_id) WHERE drive_file_id IS NOT NULL;
-CREATE INDEX idx_leave_request_rejected_at ON leave_request(rejected_at) WHERE rejected_at IS NOT NULL;
-
+-- Annual leave usage table (document_master 참조)
 CREATE TABLE annual_leave_usage (
   id BIGSERIAL PRIMARY KEY,
-  leave_request_id BIGINT NOT NULL REFERENCES leave_request(id) ON DELETE CASCADE,
+  document_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
   grant_id BIGINT NOT NULL REFERENCES annual_leave_grant(id) ON DELETE CASCADE,
   used_days DECIMAL(4,1) NOT NULL,
   used_date DATE NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_usage_request ON annual_leave_usage(leave_request_id);
+CREATE INDEX idx_usage_document ON annual_leave_usage(document_id);
 CREATE INDEX idx_usage_grant ON annual_leave_usage(grant_id);
 CREATE INDEX idx_usage_date ON annual_leave_usage(used_date);
+
+COMMENT ON TABLE annual_leave_usage IS 'Annual leave usage records - references document_master';
+COMMENT ON COLUMN annual_leave_usage.document_id IS 'References document_master.id (휴가 문서)';
 
 CREATE TABLE annual_leave_balance (
   employee_id UUID PRIMARY KEY REFERENCES employee(id) ON DELETE CASCADE,
@@ -952,18 +963,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Sync pdf_url with drive_file_url
-CREATE OR REPLACE FUNCTION sync_pdf_url()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.drive_file_url IS DISTINCT FROM OLD.drive_file_url THEN
-    NEW.pdf_url := NEW.drive_file_url;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- [DEPRECATED] sync_pdf_url 함수
+-- leave_request 테이블이 document_master + doc_leave로 대체되어 더 이상 사용하지 않음
+-- CREATE OR REPLACE FUNCTION sync_pdf_url()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--   IF NEW.drive_file_url IS DISTINCT FROM OLD.drive_file_url THEN
+--     NEW.pdf_url := NEW.drive_file_url;
+--   END IF;
+--   RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
--- Create approval steps function
+-- SECURITY DEFINER function to check document requester (avoids RLS recursion)
+CREATE OR REPLACE FUNCTION is_document_requester(p_request_id BIGINT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM document_master
+    WHERE id = p_request_id
+    AND requester_id = auth.uid()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION is_document_requester(BIGINT) TO authenticated;
+
+COMMENT ON FUNCTION is_document_requester IS 'SECURITY DEFINER function to check if current user is the document requester (avoids infinite recursion in RLS)';
+
+-- Create approval steps function (document_master 참조)
 CREATE OR REPLACE FUNCTION create_approval_steps(
   p_request_type text,
   p_request_id bigint,
@@ -999,33 +1029,16 @@ BEGIN
     v_order := v_order + 1;
   END LOOP;
 
-  IF p_request_type = 'leave' THEN
-    UPDATE leave_request
-    SET current_step = 1
-    WHERE id = p_request_id;
-  END IF;
+  -- Update document_master current_step (새 시스템)
+  UPDATE document_master
+  SET current_step = 1
+  WHERE id = p_request_id;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION create_approval_steps(text, bigint, uuid[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION create_approval_steps(text, bigint, uuid[]) TO anon;
 GRANT EXECUTE ON FUNCTION create_approval_steps(text, bigint, uuid[]) TO service_role;
-
--- SECURITY DEFINER function to check leave request ownership (avoids RLS recursion)
-CREATE OR REPLACE FUNCTION is_leave_request_owner(p_request_id BIGINT)
-RETURNS BOOLEAN
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM leave_request
-    WHERE id = p_request_id
-    AND employee_id = auth.uid()
-  )
-$$;
-
-GRANT EXECUTE ON FUNCTION is_leave_request_owner(BIGINT) TO authenticated;
 
 -- Check booking overlap function
 CREATE OR REPLACE FUNCTION check_booking_overlap(
@@ -1068,10 +1081,12 @@ CREATE TRIGGER trigger_update_attendance_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_attendance_updated_at();
 
-CREATE TRIGGER sync_pdf_url_trigger
-  BEFORE INSERT OR UPDATE ON leave_request
-  FOR EACH ROW
-  EXECUTE FUNCTION sync_pdf_url();
+-- [DEPRECATED] sync_pdf_url_trigger
+-- leave_request 테이블이 document_master + doc_leave로 대체되어 더 이상 사용하지 않음
+-- CREATE TRIGGER sync_pdf_url_trigger
+--   BEFORE INSERT OR UPDATE ON leave_request
+--   FOR EACH ROW
+--   EXECUTE FUNCTION sync_pdf_url();
 
 -- ================================================================
 -- 16. VIEWS
@@ -1115,7 +1130,10 @@ GROUP BY d.id, d.name, d.code, d.parent_department_id, d.manager_id, d.display_o
 ALTER TABLE employee ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role ENABLE ROW LEVEL SECURITY;
 ALTER TABLE department ENABLE ROW LEVEL SECURITY;
-ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
+-- [DEPRECATED] leave_request는 document_master + doc_leave로 대체됨
+-- ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_master ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_leave ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_grant ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_balance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_usage ENABLE ROW LEVEL SECURITY;
@@ -1184,36 +1202,87 @@ CREATE POLICY role_select_all ON role FOR SELECT TO authenticated USING (true);
 CREATE POLICY department_select_all ON department FOR SELECT TO authenticated
   USING (deleted_at IS NULL);
 
--- Leave Request Policies
-CREATE POLICY leave_request_select_own ON leave_request FOR SELECT TO authenticated
-  USING (employee_id = auth.uid());
+-- ================================================================
+-- Document Master Policies (replaces leave_request)
+-- ================================================================
 
-CREATE POLICY leave_request_insert_own ON leave_request FOR INSERT TO authenticated
-  WITH CHECK (employee_id = auth.uid());
+-- Users can view their own documents
+CREATE POLICY document_master_select_own ON document_master FOR SELECT TO authenticated
+  USING (requester_id = auth.uid());
 
-CREATE POLICY leave_request_update_own ON leave_request FOR UPDATE TO authenticated
-  USING (employee_id = auth.uid() AND status = 'pending')
-  WITH CHECK (employee_id = auth.uid());
+-- Users can create their own documents
+CREATE POLICY document_master_insert_own ON document_master FOR INSERT TO authenticated
+  WITH CHECK (requester_id = auth.uid());
 
-CREATE POLICY leave_request_select_as_approver ON leave_request FOR SELECT TO authenticated
+-- Users can update their own documents (draft, pending for retrieval, retrieved)
+CREATE POLICY document_master_update_own ON document_master FOR UPDATE TO authenticated
+  USING (requester_id = auth.uid() AND status IN ('draft', 'pending', 'retrieved'))
+  WITH CHECK (requester_id = auth.uid());
+
+-- Approvers can view documents they need to approve
+CREATE POLICY document_master_select_as_approver ON document_master FOR SELECT TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM approval_step
-      WHERE approval_step.request_type = 'leave'
-      AND approval_step.request_id = leave_request.id
+      WHERE approval_step.request_id = document_master.id
       AND approval_step.approver_id = auth.uid()
     )
   );
 
-CREATE POLICY leave_request_update_as_approver ON leave_request FOR UPDATE TO authenticated
+-- Approvers can update documents they are assigned to approve
+CREATE POLICY document_master_update_as_approver ON document_master FOR UPDATE TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM approval_step
-      WHERE approval_step.request_type = 'leave'
-      AND approval_step.request_id = leave_request.id
+      WHERE approval_step.request_id = document_master.id
+      AND approval_step.approver_id = auth.uid()
+      AND approval_step.status = 'pending'
+    )
+  );
+
+-- ================================================================
+-- Doc Leave Policies (document detail for leave)
+-- ================================================================
+
+-- Users can view their own leave documents
+CREATE POLICY doc_leave_select_own ON doc_leave FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM document_master
+      WHERE document_master.id = doc_leave.document_id
+      AND document_master.requester_id = auth.uid()
+    )
+  );
+
+-- Users can create leave documents for their own documents
+CREATE POLICY doc_leave_insert_own ON doc_leave FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM document_master
+      WHERE document_master.id = document_id
+      AND document_master.requester_id = auth.uid()
+    )
+  );
+
+-- Approvers can view leave documents they need to approve
+CREATE POLICY doc_leave_select_as_approver ON doc_leave FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM approval_step
+      WHERE approval_step.request_id = doc_leave.document_id
       AND approval_step.approver_id = auth.uid()
     )
   );
+
+-- ================================================================
+-- [DEPRECATED] LEAVE REQUEST POLICIES
+-- 이제 document_master + doc_leave 정책으로 대체됨
+-- ================================================================
+-- CREATE POLICY leave_request_select_own ON leave_request ...
+-- CREATE POLICY leave_request_insert_own ON leave_request ...
+-- CREATE POLICY leave_request_update_own ON leave_request ...
+-- CREATE POLICY leave_request_select_as_approver ON leave_request ...
+-- CREATE POLICY leave_request_update_as_approver ON leave_request ...
 
 -- Annual Leave Balance Policies
 CREATE POLICY leave_balance_select_own ON annual_leave_balance FOR SELECT TO authenticated
@@ -1250,13 +1319,13 @@ CREATE POLICY "Managers can view all leave balances" ON annual_leave_balance FOR
 CREATE POLICY leave_grant_select_own ON annual_leave_grant FOR SELECT TO authenticated
   USING (employee_id = auth.uid());
 
--- Annual Leave Usage Policies
+-- Annual Leave Usage Policies (document_master 참조)
 CREATE POLICY leave_usage_select_own ON annual_leave_usage FOR SELECT TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM leave_request
-      WHERE leave_request.id = annual_leave_usage.leave_request_id
-      AND leave_request.employee_id = auth.uid()
+      SELECT 1 FROM document_master
+      WHERE document_master.id = annual_leave_usage.document_id
+      AND document_master.requester_id = auth.uid()
     )
   );
 
@@ -1329,8 +1398,8 @@ CREATE POLICY employee_dept_history_insert ON employee_department_history FOR IN
 CREATE POLICY approval_step_audit_insert ON approval_step_audit FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY approval_snapshot_insert ON approval_organization_snapshot FOR INSERT TO authenticated WITH CHECK (true);
 
--- Leave Request: HR 전체 조회/수정 정책
-CREATE POLICY leave_request_select_hr ON leave_request FOR SELECT TO authenticated
+-- Document Master: HR 전체 조회/수정 정책 (replaces leave_request)
+CREATE POLICY document_master_select_hr ON document_master FOR SELECT TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM employee e
@@ -1339,7 +1408,17 @@ CREATE POLICY leave_request_select_hr ON leave_request FOR SELECT TO authenticat
     )
   );
 
-CREATE POLICY leave_request_update_hr ON leave_request FOR UPDATE TO authenticated
+CREATE POLICY document_master_update_hr ON document_master FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM employee e
+      JOIN role r ON e.role_id = r.id
+      WHERE e.id = auth.uid() AND r.level >= 5
+    )
+  );
+
+-- Doc Leave: HR 전체 조회 정책
+CREATE POLICY doc_leave_select_hr ON doc_leave FOR SELECT TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM employee e
@@ -1367,11 +1446,16 @@ CREATE POLICY leave_grant_insert_hr ON annual_leave_grant FOR INSERT TO authenti
     )
   );
 
--- Approval Step: 신청자 조회 정책 (uses SECURITY DEFINER function to avoid RLS recursion)
-CREATE POLICY approval_step_select_requester ON approval_step FOR SELECT TO authenticated
-  USING (
-    (request_type = 'leave' AND is_leave_request_owner(request_id))
-  );
+-- Approval Step: 신청자 조회/INSERT/UPDATE 정책 (uses SECURITY DEFINER function to avoid RLS recursion)
+CREATE POLICY approval_step_select_by_requester ON approval_step FOR SELECT TO authenticated
+  USING (is_document_requester(request_id));
+
+CREATE POLICY approval_step_insert_by_requester ON approval_step FOR INSERT TO authenticated
+  WITH CHECK (is_document_requester(request_id));
+
+CREATE POLICY approval_step_update_by_requester ON approval_step FOR UPDATE TO authenticated
+  USING (is_document_requester(request_id))
+  WITH CHECK (is_document_requester(request_id));
 
 -- Approval Template: 본인 CRUD 정책
 CREATE POLICY approval_template_select_own ON approval_template FOR SELECT TO authenticated

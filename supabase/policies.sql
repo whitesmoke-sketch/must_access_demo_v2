@@ -18,7 +18,10 @@
 ALTER TABLE employee ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role ENABLE ROW LEVEL SECURITY;
 ALTER TABLE department ENABLE ROW LEVEL SECURITY;
-ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
+-- [DEPRECATED] leave_request는 document_master + doc_leave로 대체됨
+-- ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_master ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_leave ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_grant ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_balance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_usage ENABLE ROW LEVEL SECURITY;
@@ -122,61 +125,123 @@ TO authenticated
 USING (true);
 
 -- ================================================================
--- 4. LEAVE REQUEST POLICIES
+-- 4. DOCUMENT MASTER POLICIES (replaces leave_request)
 -- ================================================================
 
--- Users can view their own leave requests
-CREATE POLICY leave_request_select_own
-ON leave_request FOR SELECT
-TO authenticated
-USING (employee_id = auth.uid());
+-- Helper function to check if user is the document requester (SECURITY DEFINER to avoid recursion)
+CREATE OR REPLACE FUNCTION is_document_requester(p_request_id BIGINT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM document_master
+    WHERE id = p_request_id
+    AND requester_id = auth.uid()
+  );
+$$;
 
--- Users can create their own leave requests
-CREATE POLICY leave_request_insert_own
-ON leave_request FOR INSERT
+-- Users can view their own documents
+CREATE POLICY document_master_select_own
+ON document_master FOR SELECT
 TO authenticated
-WITH CHECK (employee_id = auth.uid());
+USING (requester_id = auth.uid());
 
--- Users can update their own pending leave requests
-CREATE POLICY leave_request_update_own
-ON leave_request FOR UPDATE
+-- Users can create their own documents
+CREATE POLICY document_master_insert_own
+ON document_master FOR INSERT
 TO authenticated
-USING (employee_id = auth.uid() AND status = 'pending')
-WITH CHECK (employee_id = auth.uid());
+WITH CHECK (requester_id = auth.uid());
 
--- Approvers can view leave requests they need to approve
-CREATE POLICY leave_request_select_as_approver
-ON leave_request FOR SELECT
+-- Users can update their own documents (draft, pending for retrieval, retrieved)
+CREATE POLICY document_master_update_own
+ON document_master FOR UPDATE
+TO authenticated
+USING (requester_id = auth.uid() AND status IN ('draft', 'pending', 'retrieved'))
+WITH CHECK (requester_id = auth.uid());
+
+-- Approvers can view documents they need to approve
+CREATE POLICY document_master_select_as_approver
+ON document_master FOR SELECT
 TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM approval_step
-    WHERE approval_step.request_type = 'leave'
-    AND approval_step.request_id = leave_request.id
+    WHERE approval_step.request_id = document_master.id
     AND approval_step.approver_id = auth.uid()
   )
 );
 
--- Approvers can update leave requests they are assigned to approve
-CREATE POLICY leave_request_update_as_approver
-ON leave_request FOR UPDATE
+-- Approvers can update documents they are assigned to approve
+CREATE POLICY document_master_update_as_approver
+ON document_master FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM approval_step
-    WHERE approval_step.request_type = 'leave'
-    AND approval_step.request_id = leave_request.id
+    WHERE approval_step.request_id = document_master.id
     AND approval_step.approver_id = auth.uid()
+    AND approval_step.status = 'pending'
   )
 )
 WITH CHECK (
   EXISTS (
     SELECT 1 FROM approval_step
-    WHERE approval_step.request_type = 'leave'
-    AND approval_step.request_id = leave_request.id
+    WHERE approval_step.request_id = document_master.id
     AND approval_step.approver_id = auth.uid()
   )
 );
+
+-- ================================================================
+-- 4-1. DOC_LEAVE POLICIES (document detail for leave)
+-- ================================================================
+
+-- Users can view their own leave documents
+CREATE POLICY doc_leave_select_own
+ON doc_leave FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM document_master
+    WHERE document_master.id = doc_leave.document_id
+    AND document_master.requester_id = auth.uid()
+  )
+);
+
+-- Users can create leave documents for their own documents
+CREATE POLICY doc_leave_insert_own
+ON doc_leave FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM document_master
+    WHERE document_master.id = document_id
+    AND document_master.requester_id = auth.uid()
+  )
+);
+
+-- Approvers can view leave documents they need to approve
+CREATE POLICY doc_leave_select_as_approver
+ON doc_leave FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM approval_step
+    WHERE approval_step.request_id = doc_leave.document_id
+    AND approval_step.approver_id = auth.uid()
+  )
+);
+
+-- ================================================================
+-- [DEPRECATED] LEAVE REQUEST POLICIES
+-- 이제 document_master + doc_leave 정책으로 대체됨
+-- ================================================================
+-- CREATE POLICY leave_request_select_own ON leave_request ...
+-- CREATE POLICY leave_request_insert_own ON leave_request ...
+-- CREATE POLICY leave_request_update_own ON leave_request ...
+-- CREATE POLICY leave_request_select_as_approver ON leave_request ...
+-- CREATE POLICY leave_request_update_as_approver ON leave_request ...
 
 -- ================================================================
 -- 5. ANNUAL LEAVE BALANCE POLICIES
@@ -257,15 +322,15 @@ USING (employee_id = auth.uid());
 -- 7. ANNUAL LEAVE USAGE POLICIES
 -- ================================================================
 
--- Users can view their own leave usage
+-- Users can view their own leave usage (document_master 참조)
 CREATE POLICY leave_usage_select_own
 ON annual_leave_usage FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM leave_request
-    WHERE leave_request.id = annual_leave_usage.leave_request_id
-    AND leave_request.employee_id = auth.uid()
+    SELECT 1 FROM document_master
+    WHERE document_master.id = annual_leave_usage.document_id
+    AND document_master.requester_id = auth.uid()
   )
 );
 
@@ -309,6 +374,25 @@ ON approval_step FOR SELECT
 TO authenticated
 USING (approver_id = auth.uid());
 
+-- Users can view approval steps for their own documents (using SECURITY DEFINER function)
+CREATE POLICY approval_step_select_by_requester
+ON approval_step FOR SELECT
+TO authenticated
+USING (is_document_requester(request_id));
+
+-- Users can insert approval steps for their own documents
+CREATE POLICY approval_step_insert_by_requester
+ON approval_step FOR INSERT
+TO authenticated
+WITH CHECK (is_document_requester(request_id));
+
+-- Users can update approval steps for their own documents (for retrieval)
+CREATE POLICY approval_step_update_by_requester
+ON approval_step FOR UPDATE
+TO authenticated
+USING (is_document_requester(request_id))
+WITH CHECK (is_document_requester(request_id));
+
 -- Users can update approval steps where they are the approver
 -- Only when status is 'pending' (from 20250119000020_lock_requests_after_submission.sql)
 CREATE POLICY approval_step_update_approver
@@ -338,14 +422,16 @@ WITH CHECK (
 COMMENT ON POLICY employee_select_own ON employee IS
 'Users can only view their own employee record';
 
-COMMENT ON POLICY leave_request_select_own ON leave_request IS
-'Users can only view their own leave requests';
+COMMENT ON POLICY document_master_select_own ON document_master IS
+'Users can only view their own documents';
 
 COMMENT ON POLICY leave_balance_select_own ON annual_leave_balance IS
 'Users can only view their own annual leave balance';
 
 COMMENT ON COLUMN approval_step.comment IS 'Approval/rejection reason (required, cannot be changed)';
-COMMENT ON COLUMN approval_step.status IS 'Can only change from pending to approved/rejected (no further changes allowed)';
+COMMENT ON COLUMN approval_step.status IS 'waiting: 대기, pending: 결재 차례, approved: 승인, rejected: 반려, retrieved: 회수됨';
+
+COMMENT ON FUNCTION is_document_requester(BIGINT) IS 'SECURITY DEFINER function to check if current user is the document requester (avoids infinite recursion in RLS)';
 
 -- ================================================================
 -- 12. MEETING ROOM POLICIES
