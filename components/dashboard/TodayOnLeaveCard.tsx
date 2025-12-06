@@ -31,18 +31,16 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
   const displayedMembers = members.slice(0, 2)
 
   const getLeaveTypeLabel = (leaveType: string) => {
-    switch (leaveType) {
-      case 'annual':
-        return '연차'
-      case 'half_day_am':
-        return '오전 반차'
-      case 'half_day_pm':
-        return '오후 반차'
-      case 'reward':
-        return '포상휴가'
-      default:
-        return '휴가'
+    const labels: Record<string, string> = {
+      annual: '연차',
+      half_day: '반차',
+      half_day_am: '오전 반차',
+      half_day_pm: '오후 반차',
+      quarter_day: '반반차',
+      award: '포상휴가',
+      reward: '포상휴가',
     }
+    return labels[leaveType] || '휴가'
   }
 
   return (
