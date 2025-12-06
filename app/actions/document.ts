@@ -37,7 +37,7 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
     const supabase = await createClient()
 
     // 연차 신청의 경우 새로운 승인 시스템 사용
-    if (['annual_leave', 'half_day', 'reward_leave'].includes(data.document_type)) {
+    if (['annual_leave', 'reward_leave'].includes(data.document_type)) {
       // 1. leave_request 생성
       const { data: leaveRequest, error: leaveError } = await supabase
         .from('leave_request')
@@ -94,7 +94,6 @@ export async function submitDocumentRequest(data: DocumentSubmissionData) {
       // 문서 유형 한글명
       const documentTypeLabels: Record<string, string> = {
         annual_leave: '연차',
-        half_day: '반차',
         reward_leave: '포상휴가',
         condolence: '경조사비',
         overtime: '야근수당',

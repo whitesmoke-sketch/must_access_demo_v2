@@ -7,7 +7,6 @@ import { Calendar, Clock, Gift, FileText, DollarSign } from 'lucide-react'
 
 type DocumentType =
   | 'annual_leave'
-  | 'half_day'
   | 'reward_leave'
   | 'condolence'
   | 'overtime'
@@ -22,7 +21,6 @@ interface DocumentTypeSelectorProps {
 export function DocumentTypeSelector({ value, onChange }: DocumentTypeSelectorProps) {
   const documentTypeOptions = [
     { value: 'annual_leave', label: '연차 신청', icon: Calendar },
-    { value: 'half_day', label: '반차 / 시간차 신청', icon: Clock },
     { value: 'reward_leave', label: '포상휴가 사용 신청', icon: Gift },
     { value: 'condolence', label: '경조사비 신청', icon: FileText },
     { value: 'overtime', label: '야근수당 신청', icon: Clock },

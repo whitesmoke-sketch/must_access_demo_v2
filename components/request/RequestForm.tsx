@@ -37,7 +37,6 @@ import { HTML5Backend } from 'react-dnd-html5-backend'
 
 type DocumentType =
   | 'annual_leave'
-  | 'half_day'
   | 'reward_leave'
   | 'condolence'
   | 'overtime'
@@ -279,7 +278,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Validate and set initial document type
-  const validDocumentTypes: DocumentType[] = ['annual_leave', 'half_day', 'reward_leave', 'condolence', 'overtime', 'expense', 'other']
+  const validDocumentTypes: DocumentType[] = ['annual_leave', 'reward_leave', 'condolence', 'overtime', 'expense', 'other']
   const initialType = initialDocumentType && validDocumentTypes.includes(initialDocumentType as DocumentType)
     ? (initialDocumentType as DocumentType)
     : ''
@@ -455,7 +454,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   }
 
   // 연차 관련 문서 여부
-  const isLeaveType = documentType === 'annual_leave' || documentType === 'half_day' || documentType === 'reward_leave'
+  const isLeaveType = documentType === 'annual_leave' || documentType === 'reward_leave'
 
   // 일수 계산 (dateDetails 기반)
   const calculateDays = () => {
@@ -474,10 +473,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     if (!startDate || !endDate) return 0
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-
-    if (documentType === 'half_day') {
-      return leaveType === 'half' ? 0.5 : leaveType === 'quarter' ? 0.25 : diffDays
-    }
 
     return diffDays
   }
@@ -725,15 +720,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
 
       if (isLeaveType) {
-        formData.leave_type = documentType === 'annual_leave' ? 'annual' : documentType === 'half_day' ? 'half_day' : 'award'
+        formData.leave_type = documentType === 'annual_leave' ? 'annual' : 'award'
         formData.requested_days = calculatedDays
         formData.start_date = startDate?.toISOString().split('T')[0]
         formData.end_date = endDate?.toISOString().split('T')[0]
         if (documentType === 'annual_leave') {
           formData.date_details = dateDetails
-        }
-        if (documentType === 'half_day') {
-          formData.half_day_slot = halfDaySlot
         }
       }
 
@@ -861,7 +853,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   }
   const documentTypeLabels: Record<string, string> = {
     'annual_leave': '연차',
-    'half_day': '반차',
     'reward_leave': '포상휴가',
     'condolence': '경조사비',
     'overtime': '야근수당',
@@ -1151,35 +1142,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       </div>
                     </div>
                   )}
-                </>
-              )}
-
-              {documentType === 'half_day' && (
-                <>
-                  <div className="space-y-2">
-                    <Label>날짜 *</Label>
-                    <DatePicker
-                      date={startDate}
-                      onDateChange={(date) => {
-                        setStartDate(date)
-                        setEndDate(date)
-                      }}
-                      placeholder="날짜 선택"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>반차 구분 *</Label>
-                    <Select value={halfDaySlot} onValueChange={(value: 'morning' | 'afternoon') => setHalfDaySlot(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="morning">오전 반차</SelectItem>
-                        <SelectItem value="afternoon">오후 반차</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </>
               )}
 
