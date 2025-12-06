@@ -607,19 +607,17 @@ export async function retrieveDocument(documentId: number) {
       return { success: false, error: updateError.message }
     }
 
-    // 결재선 삭제
+    // 결재선 상태를 'retrieved'로 변경 (기록 유지)
     await supabase
       .from('approval_step')
-      .delete()
+      .update({ status: 'retrieved' })
       .eq('request_id', documentId)
 
-    await supabase
-      .from('approval_cc')
-      .delete()
-      .eq('request_id', documentId)
+    // approval_cc 기록은 유지 (삭제하지 않음)
 
     revalidatePath('/documents')
     revalidatePath('/leave/my-leave')
+    revalidatePath('/dashboard')
 
     return { success: true }
   } catch (error: unknown) {

@@ -292,18 +292,14 @@ export async function withdrawDocument(documentId: number, reason?: string) {
       return { success: false, error: '회수 처리 중 오류가 발생했습니다' }
     }
 
-    // 결재선 삭제
+    // 결재선 상태를 'retrieved'로 변경 (기록 유지)
     await supabase
       .from('approval_step')
-      .delete()
+      .update({ status: 'retrieved' })
       .eq('request_type', document.doc_type)
       .eq('request_id', documentId)
 
-    await supabase
-      .from('approval_cc')
-      .delete()
-      .eq('request_type', document.doc_type)
-      .eq('request_id', documentId)
+    // approval_cc 기록은 유지 (삭제하지 않음)
 
     revalidatePath('/documents')
     revalidatePath('/documents/my-documents')
