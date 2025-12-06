@@ -73,8 +73,27 @@ export default async function DashboardPage() {
   ])
 
   const employee = employeeResult.data
-  const myRequests = myRequestsResult.data || []
+  const myRequestsRaw = myRequestsResult.data || []
   const todayLeaveRequests = todayLeaveResult.data || []
+
+  // document_master + doc_leave → LeaveRequest 형태로 변환
+  const myRequests = myRequestsRaw.map(req => {
+    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+    return {
+      id: req.id,
+      employee_id: req.requester_id,
+      leave_type: docLeave?.leave_type || 'annual',
+      requested_days: docLeave?.days_count || 0,
+      start_date: docLeave?.start_date || '',
+      end_date: docLeave?.end_date || '',
+      reason: docLeave?.reason || null,
+      status: req.status,
+      requested_at: req.created_at,
+      approved_at: req.approved_at,
+      current_step: req.current_step,
+      employee: req.requester,
+    }
+  })
 
   // 오늘 연차인 멤버 데이터 처리 (새 시스템: document_master + doc_leave)
   const todayOnLeaveMembers = todayLeaveRequests
@@ -167,7 +186,24 @@ export default async function DashboardPage() {
           .order('step_order', { ascending: true })
       ])
 
-      pendingRequests = leaveResult.data || []
+      // document_master + doc_leave → LeaveRequest 형태로 변환
+      pendingRequests = (leaveResult.data || []).map(req => {
+        const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+        return {
+          id: req.id,
+          employee_id: req.requester_id,
+          leave_type: docLeave?.leave_type || 'annual',
+          requested_days: docLeave?.days_count || 0,
+          start_date: docLeave?.start_date || '',
+          end_date: docLeave?.end_date || '',
+          reason: docLeave?.reason || null,
+          status: req.status,
+          requested_at: req.created_at,
+          approved_at: req.approved_at,
+          current_step: req.current_step,
+          employee: req.requester,
+        }
+      })
 
       // approval steps를 request_id별로 그룹핑
       if (stepsResult.data) {

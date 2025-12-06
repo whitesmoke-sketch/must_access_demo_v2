@@ -10,7 +10,7 @@ import { approveLeaveRequest, rejectLeaveRequest } from '@/app/(authenticated)/d
 import { useRouter } from 'next/navigation'
 
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retrieved'
-type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'reward' | 'sick'
+type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'quarter_day' | 'reward' | 'award' | 'sick'
 
 interface LeaveRequest {
   id: number
@@ -268,7 +268,7 @@ export function ApprovalStatusClient({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                          {request.leave_type === 'annual' ? '연차' : request.leave_type === 'half_day' ? '반차' : '포상휴가'}
+                          {getLeaveTypeDisplayName(request.leave_type)}
                         </p>
                         <StatusBadge status={request.status} />
                       </div>
@@ -380,10 +380,26 @@ function getLeaveTypeLabel(type: LeaveType): string {
     half_day: '반차 신청서',
     half_day_am: '오전 반차 신청서',
     half_day_pm: '오후 반차 신청서',
+    quarter_day: '반반차 신청서',
     reward: '포상휴가 신청서',
+    award: '포상휴가 신청서',
     sick: '병가 신청서'
   }
   return labels[type] || `${type} 신청서`
+}
+
+function getLeaveTypeDisplayName(type: string): string {
+  const labels: Record<string, string> = {
+    annual: '연차',
+    half_day: '반차',
+    half_day_am: '오전 반차',
+    half_day_pm: '오후 반차',
+    quarter_day: '반반차',
+    reward: '포상휴가',
+    award: '포상휴가',
+    sick: '병가'
+  }
+  return labels[type] || '연차'
 }
 
 function LeaveTypeBadge({ type }: { type: LeaveType }) {
@@ -408,12 +424,22 @@ function LeaveTypeBadge({ type }: { type: LeaveType }) {
       backgroundColor: '#EEF2FF',
       color: '#635BFF'
     },
+    quarter_day: {
+      label: '반반차',
+      backgroundColor: '#EEF2FF',
+      color: '#635BFF'
+    },
     sick: {
       label: '병가',
       backgroundColor: '#FEE2E2',
       color: '#991B1B'
     },
     reward: {
+      label: '포상휴가',
+      backgroundColor: '#FDF2F8',
+      color: '#EC4899'
+    },
+    award: {
       label: '포상휴가',
       backgroundColor: '#FDF2F8',
       color: '#EC4899'
