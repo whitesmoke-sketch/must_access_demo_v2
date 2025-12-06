@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       const { error: usageInsertError } = await supabase
         .from('annual_leave_usage')
         .insert({
-          leave_request_id: documentMaster.id,
+          document_id: documentMaster.id,
           grant_id: grant.id,
           used_days: deductAmount,
           used_date: today,

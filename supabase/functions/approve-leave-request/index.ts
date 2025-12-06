@@ -18,7 +18,7 @@ async function deductLeaveBalance(
     supabase
       .from('annual_leave_usage')
       .select('id')
-      .eq('leave_request_id', documentId)  // document_master.id 참조
+      .eq('document_id', documentId)
       .limit(1),
     supabase
       .from('annual_leave_grant')
@@ -74,7 +74,7 @@ async function deductLeaveBalance(
 
   // 4. Insert usage records and update balance in parallel
   const usageInserts = usageRecords.map(record => ({
-    leave_request_id: documentId,  // document_master.id 참조
+    document_id: documentId,
     grant_id: record.grant_id,
     used_days: record.used_days,
     used_date: new Date().toISOString()

@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     const { data: existingUsage } = await supabase
       .from('annual_leave_usage')
       .select('id')
-      .eq('leave_request_id', requestId)
+      .eq('document_id', requestId)
       .limit(1)
 
     if (existingUsage && existingUsage.length > 0) {
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
 
     // 6. Insert usage records
     const usageInserts = usageRecords.map(record => ({
-      leave_request_id: requestId,
+      document_id: requestId,
       grant_id: record.grant_id,
       used_days: record.used_days,
       used_date: new Date().toISOString()
