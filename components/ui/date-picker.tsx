@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { ko } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
@@ -20,6 +20,8 @@ interface DatePickerProps {
   placeholder?: string
   disabled?: boolean
   className?: string
+  disableWeekends?: boolean
+  disablePastDates?: boolean
 }
 
 export function DatePicker({
@@ -28,7 +30,21 @@ export function DatePicker({
   placeholder = "날짜 선택",
   disabled = false,
   className,
+  disableWeekends = false,
+  disablePastDates = false,
 }: DatePickerProps) {
+  // 날짜 비활성화 로직
+  const isDateDisabled = (dateToCheck: Date) => {
+    // 과거 날짜 비활성화
+    if (disablePastDates && dateToCheck < startOfDay(new Date())) {
+      return true
+    }
+    // 주말 비활성화 (0: 일요일, 6: 토요일)
+    if (disableWeekends && (dateToCheck.getDay() === 0 || dateToCheck.getDay() === 6)) {
+      return true
+    }
+    return false
+  }
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -57,6 +73,7 @@ export function DatePicker({
           onSelect={onDateChange}
           locale={ko}
           initialFocus
+          disabled={isDateDisabled}
         />
       </PopoverContent>
     </Popover>

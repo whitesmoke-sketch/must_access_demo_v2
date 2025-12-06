@@ -928,6 +928,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         date={startDate}
                         onDateChange={setStartDate}
                         placeholder="시작일 선택"
+                        disableWeekends
+                        disablePastDates
                       />
                     </div>
                     <div className="space-y-2">
@@ -936,6 +938,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         date={endDate}
                         onDateChange={setEndDate}
                         placeholder="종료일 선택"
+                        disableWeekends
+                        disablePastDates
                       />
                     </div>
                   </div>
