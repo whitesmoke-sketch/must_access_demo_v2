@@ -134,29 +134,44 @@ export default async function AdminDashboardPage() {
 
   // ========== 근무 현황 데이터 조회 ==========
 
-  // 1. 휴가 (leave_request - annual, half_day, award)
+  // 1. 휴가 (새 시스템: document_master + doc_leave - annual, half_day, award)
   const { data: vacationRequests } = await supabase
-    .from('leave_request')
+    .from('document_master')
     .select(`
       id,
-      leave_type,
-      employee:employee_id (
+      requester:requester_id (
         id,
         name,
         department:department_id (name)
+      ),
+      doc_leave!inner (
+        leave_type,
+        start_date,
+        end_date
       )
     `)
-    .eq('status', 'approved')
-    .lte('start_date', today)
-    .gte('end_date', today)
-    .in('leave_type', ['annual', 'half_day', 'award']);
+    .eq('doc_type', 'leave')
+    .eq('status', 'approved');
 
-  const vacationMembers = vacationRequests?.map(req => ({
-    id: req.id.toString(),
-    name: (req.employee as any)?.name || '알 수 없음',
-    department: (req.employee as any)?.department?.name || '',
-    status: req.leave_type === 'annual' ? '연차' : req.leave_type === 'half_day' ? '반차' : '포상휴가',
-  })) || [];
+  // 오늘 날짜가 연차 기간에 포함되고, leave_type이 annual, half_day, award인 것만 필터링
+  const filteredVacationRequests = vacationRequests?.filter(req => {
+    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave;
+    if (!docLeave) return false;
+    const leaveType = docLeave.leave_type;
+    return docLeave.start_date <= today && docLeave.end_date >= today &&
+           ['annual', 'half_day', 'award'].includes(leaveType);
+  }) || [];
+
+  const vacationMembers = filteredVacationRequests.map(req => {
+    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave;
+    const leaveType = docLeave?.leave_type;
+    return {
+      id: req.id.toString(),
+      name: (req.requester as any)?.name || '알 수 없음',
+      department: (req.requester as any)?.department?.name || '',
+      status: leaveType === 'annual' ? '연차' : leaveType === 'half_day' ? '반차' : '포상휴가',
+    };
+  });
 
   // 2. 사외 근무 (work_request - field_work, business_trip)
   const { data: fieldWorkRequests } = await supabase
@@ -244,23 +259,38 @@ export default async function AdminDashboardPage() {
     status: 'available',
   };
 
-  // ========== 승인 대기 목록 ==========
+  // ========== 승인 대기 목록 (새 시스템: document_master + doc_leave) ==========
   const { data: pendingRequests } = await supabase
-    .from('leave_request')
-    .select('*, employee:employee_id(name)')
+    .from('document_master')
+    .select(`
+      id,
+      created_at,
+      requester:requester_id(name),
+      doc_leave (
+        leave_type,
+        start_date,
+        end_date,
+        days_count
+      )
+    `)
+    .eq('doc_type', 'leave')
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
     .limit(5);
 
-  const approvalQueue = pendingRequests?.map(request => ({
-    id: request.id,
-    userName: (request.employee as any)?.name || '알 수 없음',
-    type: request.leave_type === 'annual' ? '연차' : request.leave_type === 'half_day' ? '반차' : '포상휴가',
-    requestDate: request.created_at,
-    startDate: request.start_date,
-    endDate: request.end_date,
-    days: request.requested_days || 1,
-  })) || [];
+  const approvalQueue = pendingRequests?.map(request => {
+    const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave;
+    const leaveType = docLeave?.leave_type;
+    return {
+      id: request.id,
+      userName: (request.requester as any)?.name || '알 수 없음',
+      type: leaveType === 'annual' ? '연차' : leaveType === 'half_day' ? '반차' : '포상휴가',
+      requestDate: request.created_at,
+      startDate: docLeave?.start_date,
+      endDate: docLeave?.end_date,
+      days: docLeave?.days_count || 1,
+    };
+  }) || [];
 
   return (
     <AdminDashboardClient

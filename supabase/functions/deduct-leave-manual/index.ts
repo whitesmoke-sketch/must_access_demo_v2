@@ -129,28 +129,46 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create a leave_request record for manual deduction
-    const { data: leaveRequest, error: leaveRequestError } = await supabase
-      .from('leave_request')
+    // Create document_master + doc_leave records for manual deduction (새 시스템)
+    // 1. Create document_master
+    const { data: documentMaster, error: docMasterError } = await supabase
+      .from('document_master')
       .insert({
-        employee_id: employeeId,
-        leave_type: 'annual',
-        requested_days: days,
-        start_date: today,
-        end_date: today,
-        reason: `[수동 차감] ${reason}`,
+        requester_id: employeeId,
+        doc_type: 'leave',
+        title: `[수동 차감] ${reason}`,
         status: 'approved',
-        approver_id: user.id,
-        requested_at: new Date().toISOString(),
         approved_at: new Date().toISOString(),
       })
       .select('id')
       .single()
 
-    if (leaveRequestError) {
-      console.error('Leave request creation error:', leaveRequestError)
+    if (docMasterError) {
+      console.error('Document master creation error:', docMasterError)
       return new Response(
-        JSON.stringify({ success: false, error: `연차 신청 생성 실패: ${leaveRequestError.message}` }),
+        JSON.stringify({ success: false, error: `문서 생성 실패: ${docMasterError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 2. Create doc_leave
+    const { error: docLeaveError } = await supabase
+      .from('doc_leave')
+      .insert({
+        document_id: documentMaster.id,
+        leave_type: 'annual',
+        start_date: today,
+        end_date: today,
+        days_count: days,
+        reason: `[수동 차감] ${reason}`,
+      })
+
+    if (docLeaveError) {
+      console.error('Doc leave creation error:', docLeaveError)
+      // Rollback document_master
+      await supabase.from('document_master').delete().eq('id', documentMaster.id)
+      return new Response(
+        JSON.stringify({ success: false, error: `연차 상세 생성 실패: ${docLeaveError.message}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -174,11 +192,11 @@ Deno.serve(async (req) => {
 
       const deductAmount = Math.min(remainingToDeduct, availableFromGrant)
 
-      // Create usage record for deduction
+      // Create usage record for deduction (document_master.id 참조)
       const { error: usageInsertError } = await supabase
         .from('annual_leave_usage')
         .insert({
-          leave_request_id: leaveRequest.id,
+          leave_request_id: documentMaster.id,
           grant_id: grant.id,
           used_days: deductAmount,
           used_date: today,

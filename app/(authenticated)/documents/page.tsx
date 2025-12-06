@@ -26,24 +26,23 @@ export default async function DocumentsPage() {
       .select('role:role_id(code, approval_level)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 모든 결재 문서 조회
+    // 모든 결재 문서 조회 (새 시스템: document_master + doc_leave)
     supabase
-      .from('leave_request')
+      .from('document_master')
       .select(`
         id,
-        employee_id,
-        leave_type,
-        requested_days,
-        start_date,
-        end_date,
-        reason,
+        requester_id,
+        department_id,
+        doc_type,
+        title,
         status,
-        requested_at,
-        approved_at,
-        rejected_at,
-        retrieved_at,
+        visibility,
+        is_confidential,
         current_step,
-        employee:employee_id (
+        created_at,
+        approved_at,
+        retrieved_at,
+        requester:requester_id (
           id,
           name,
           department:department_id (
@@ -52,9 +51,18 @@ export default async function DocumentsPage() {
           role:role_id (
             name
           )
+        ),
+        doc_leave (
+          leave_type,
+          start_date,
+          end_date,
+          days_count,
+          half_day_slot,
+          reason
         )
       `)
-      .order('requested_at', { ascending: false }),
+      .eq('doc_type', 'leave')
+      .order('created_at', { ascending: false }),
     // 내가 승인자로 지정된 문서 중, 현재 내 차례인 것만 조회
     supabase
       .from('approval_step')
@@ -62,7 +70,7 @@ export default async function DocumentsPage() {
         request_id,
         step_order,
         status,
-        leave_request:request_id (
+        document_master:request_id (
           current_step
         )
       `)
@@ -137,18 +145,42 @@ export default async function DocumentsPage() {
       : role?.approval_level ?? 0
     : 0
 
-  const allDocuments = allDocumentsResult.data
+  const allDocumentsRaw = allDocumentsResult.data || []
   const myCurrentApprovalSteps = myCurrentApprovalStepsResult.data
+
+  // document_master 데이터를 기존 인터페이스에 맞게 변환
+  const allDocuments = allDocumentsRaw.map(doc => {
+    const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
+    return {
+      id: doc.id,
+      employee_id: doc.requester_id,
+      leave_type: docLeave?.leave_type || 'annual',
+      requested_days: docLeave?.days_count || 0,
+      start_date: docLeave?.start_date || '',
+      end_date: docLeave?.end_date || '',
+      reason: docLeave?.reason || null,
+      status: doc.status,
+      requested_at: doc.created_at,
+      approved_at: doc.approved_at,
+      rejected_at: null, // document_master에 rejected_at 컬럼 없음 - approval_step에서 조회
+      retrieved_at: doc.retrieved_at,
+      current_step: doc.current_step,
+      employee: doc.requester,
+      // 새 시스템 필드
+      doc_type: doc.doc_type,
+      title: doc.title,
+    }
+  })
 
   // 내 step_order가 현재 current_step과 일치하는 문서만 필터링
   const myApprovalRequestIds = new Set(
     myCurrentApprovalSteps
       ?.filter(step => {
-        const leaveRequest = step.leave_request as { current_step: number | null } | { current_step: number | null }[] | null
-        const currentStep = leaveRequest
-          ? Array.isArray(leaveRequest)
-            ? leaveRequest[0]?.current_step
-            : leaveRequest.current_step
+        const documentMaster = step.document_master as { current_step: number | null } | { current_step: number | null }[] | null
+        const currentStep = documentMaster
+          ? Array.isArray(documentMaster)
+            ? documentMaster[0]?.current_step
+            : documentMaster.current_step
           : null
         return step.step_order === currentStep
       })
@@ -181,24 +213,21 @@ export default async function DocumentsPage() {
   const myCCRequests = myCCRequestsResult.data || []
   const ccRequestIds = myCCRequests.map(cc => cc.request_id)
 
-  // 참조 문서의 상세 정보 조회 (leave_request와 조인)
+  // 참조 문서의 상세 정보 조회 (document_master + doc_leave와 조인)
   let referenceDocuments: any[] = []
   if (ccRequestIds.length > 0) {
     const { data: refDocs } = await supabase
-      .from('leave_request')
+      .from('document_master')
       .select(`
         id,
-        employee_id,
-        leave_type,
-        requested_days,
-        start_date,
-        end_date,
-        reason,
+        requester_id,
+        doc_type,
+        title,
         status,
-        requested_at,
-        approved_at,
         current_step,
-        employee:employee_id (
+        created_at,
+        approved_at,
+        requester:requester_id (
           id,
           name,
           department:department_id (
@@ -207,16 +236,36 @@ export default async function DocumentsPage() {
           role:role_id (
             name
           )
+        ),
+        doc_leave (
+          leave_type,
+          start_date,
+          end_date,
+          days_count,
+          reason
         )
       `)
+      .eq('doc_type', 'leave')
       .in('id', ccRequestIds)
-      .order('requested_at', { ascending: false })
+      .order('created_at', { ascending: false })
 
-    // 참조 문서에 열람 상태 추가
+    // 참조 문서에 열람 상태 추가 및 형식 변환
     referenceDocuments = (refDocs || []).map(doc => {
       const ccRecord = myCCRequests.find(cc => cc.request_id === doc.id)
+      const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
       return {
-        ...doc,
+        id: doc.id,
+        employee_id: doc.requester_id,
+        leave_type: docLeave?.leave_type || 'annual',
+        requested_days: docLeave?.days_count || 0,
+        start_date: docLeave?.start_date || '',
+        end_date: docLeave?.end_date || '',
+        reason: docLeave?.reason || null,
+        status: doc.status,
+        requested_at: doc.created_at,
+        approved_at: doc.approved_at,
+        current_step: doc.current_step,
+        employee: doc.requester,
         cc_id: ccRecord?.id,
         read_at: ccRecord?.read_at,
         readStatus: ccRecord?.read_at ? 'read' : 'unread'

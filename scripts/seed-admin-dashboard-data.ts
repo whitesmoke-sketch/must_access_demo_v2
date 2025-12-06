@@ -65,7 +65,9 @@ async function main() {
   // 최근 데이터만 삭제 (실제 운영 데이터 보호)
   await supabase.from('seat_reservation').delete().gte('reservation_date', weekAgo).lte('reservation_date', weekLater)
   await supabase.from('meeting_room_booking').delete().gte('booking_date', weekAgo).lte('booking_date', weekLater)
-  await supabase.from('leave_request').delete().gte('start_date', weekAgo).lte('start_date', weekLater)
+  // 새 시스템: document_master + doc_leave 삭제 (leave_request 대신)
+  await supabase.from('doc_leave').delete().gte('start_date', weekAgo).lte('start_date', weekLater)
+  await supabase.from('document_master').delete().eq('doc_type', 'leave').gte('created_at', new Date(weekAgo).toISOString())
   await supabase.from('work_request').delete().gte('start_date', weekAgo).lte('start_date', weekLater)
 
   console.log('✅ 기존 데이터 삭제 완료\n')
@@ -145,36 +147,66 @@ async function main() {
   if (bookingError) console.error('회의실 예약 삽입 에러:', bookingError.message)
   else console.log(`✅ 회의실 예약 ${meetingBookings.length}건 삽입 완료`)
 
-  // 5. 휴가 신청 데이터 (leave_request)
+  // 5. 휴가 신청 데이터 (새 시스템: document_master + doc_leave)
   console.log('🏖️  휴가 신청 데이터 삽입 중...')
 
-  const leaveRequests: any[] = []
   const leaveTypes = [
     { type: 'annual', days: 1, name: '연차' },
     { type: 'half_day', days: 0.5, name: '반차' },
     { type: 'award', days: 1, name: '포상휴가' },
   ]
 
-  // 휴가 중인 직원 (5~8명)
+  let leaveInsertCount = 0
+  let approvedCount = 0
+  let pendingCount = 0
+
+  // 휴가 중인 직원 (5~8명) - 승인된 휴가
   const vacationEmployees = [...employees].sort(() => Math.random() - 0.5).slice(0, Math.floor(Math.random() * 4) + 5)
 
   for (const emp of vacationEmployees) {
     const leaveType = leaveTypes[Math.floor(Math.random() * leaveTypes.length)]
     const startOffset = Math.floor(Math.random() * 3) // 0~2일 전부터
     const duration = leaveType.type === 'half_day' ? 1 : Math.floor(Math.random() * 3) + 1
+    const daysCount = leaveType.type === 'half_day' ? 0.5 : duration
 
-    leaveRequests.push({
-      employee_id: emp.id,
-      leave_type: leaveType.type,
-      requested_days: leaveType.type === 'half_day' ? 0.5 : duration,
-      start_date: getDateString(-startOffset),
-      end_date: getDateString(-startOffset + duration - 1),
-      half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
-      reason: `${leaveType.name} 신청`,
-      status: 'approved',
-      requested_at: new Date(Date.now() - (startOffset + 3) * 24 * 60 * 60 * 1000).toISOString(),
-      approved_at: new Date(Date.now() - (startOffset + 2) * 24 * 60 * 60 * 1000).toISOString(),
-    })
+    // 1. document_master 삽입
+    const { data: docMaster, error: docMasterError } = await supabase
+      .from('document_master')
+      .insert({
+        requester_id: emp.id,
+        doc_type: 'leave',
+        status: 'approved',
+        current_step: 1,
+        created_at: new Date(Date.now() - (startOffset + 3) * 24 * 60 * 60 * 1000).toISOString(),
+        approved_at: new Date(Date.now() - (startOffset + 2) * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (docMasterError) {
+      console.error('document_master 삽입 에러:', docMasterError.message)
+      continue
+    }
+
+    // 2. doc_leave 삽입
+    const { error: docLeaveError } = await supabase
+      .from('doc_leave')
+      .insert({
+        document_id: docMaster.id,
+        leave_type: leaveType.type,
+        start_date: getDateString(-startOffset),
+        end_date: getDateString(-startOffset + duration - 1),
+        days_count: daysCount,
+        half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
+        reason: `${leaveType.name} 신청`,
+      })
+
+    if (docLeaveError) {
+      console.error('doc_leave 삽입 에러:', docLeaveError.message)
+    } else {
+      leaveInsertCount++
+      approvedCount++
+    }
   }
 
   // 승인 대기 중인 휴가 (3~5건)
@@ -186,23 +218,49 @@ async function main() {
   for (const emp of pendingVacationEmployees) {
     const leaveType = leaveTypes[Math.floor(Math.random() * leaveTypes.length)]
     const startOffset = Math.floor(Math.random() * 5) + 1 // 1~5일 후
+    const duration = leaveType.type === 'half_day' ? 1 : Math.floor(Math.random() * 3) + 1
+    const daysCount = leaveType.type === 'half_day' ? 0.5 : duration
 
-    leaveRequests.push({
-      employee_id: emp.id,
-      leave_type: leaveType.type,
-      requested_days: leaveType.type === 'half_day' ? 0.5 : Math.floor(Math.random() * 3) + 1,
-      start_date: getDateString(startOffset),
-      end_date: getDateString(startOffset + (leaveType.type === 'half_day' ? 0 : Math.floor(Math.random() * 2))),
-      half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
-      reason: `${leaveType.name} 신청`,
-      status: 'pending',
-      requested_at: new Date().toISOString(),
-    })
+    // 1. document_master 삽입
+    const { data: docMaster, error: docMasterError } = await supabase
+      .from('document_master')
+      .insert({
+        requester_id: emp.id,
+        doc_type: 'leave',
+        status: 'pending',
+        current_step: 1,
+        created_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (docMasterError) {
+      console.error('document_master 삽입 에러:', docMasterError.message)
+      continue
+    }
+
+    // 2. doc_leave 삽입
+    const { error: docLeaveError } = await supabase
+      .from('doc_leave')
+      .insert({
+        document_id: docMaster.id,
+        leave_type: leaveType.type,
+        start_date: getDateString(startOffset),
+        end_date: getDateString(startOffset + (leaveType.type === 'half_day' ? 0 : Math.floor(Math.random() * 2))),
+        days_count: daysCount,
+        half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
+        reason: `${leaveType.name} 신청`,
+      })
+
+    if (docLeaveError) {
+      console.error('doc_leave 삽입 에러:', docLeaveError.message)
+    } else {
+      leaveInsertCount++
+      pendingCount++
+    }
   }
 
-  const { error: leaveError } = await supabase.from('leave_request').insert(leaveRequests)
-  if (leaveError) console.error('휴가 신청 삽입 에러:', leaveError.message)
-  else console.log(`✅ 휴가 신청 ${leaveRequests.length}건 삽입 완료`)
+  console.log(`✅ 휴가 신청 ${leaveInsertCount}건 삽입 완료 (승인: ${approvedCount}, 대기: ${pendingCount})`)
 
   // 6. 근무 신청 데이터 (work_request) - 재택, 외근, 출장
   console.log('💼 근무 신청 데이터 삽입 중...')
@@ -289,7 +347,7 @@ async function main() {
   console.log('\n📊 삽입 결과 요약:')
   console.log(`   - 좌석 예약: ${seatReservations.length}건`)
   console.log(`   - 회의실 예약: ${meetingBookings.length}건`)
-  console.log(`   - 휴가 신청: ${leaveRequests.length}건 (승인: ${leaveRequests.filter(l => l.status === 'approved').length}, 대기: ${leaveRequests.filter(l => l.status === 'pending').length})`)
+  console.log(`   - 휴가 신청: ${leaveInsertCount}건 (승인: ${approvedCount}, 대기: ${pendingCount})`)
   console.log(`   - 근무 신청: ${workRequests.length}건 (재택: ${workRequests.filter(w => w.work_type === 'remote').length}, 외근/출장: ${workRequests.filter(w => w.work_type !== 'remote').length})`)
 }
 

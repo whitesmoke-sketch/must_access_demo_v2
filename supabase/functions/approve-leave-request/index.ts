@@ -2,18 +2,23 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface RequestBody {
-  leaveRequestId: number
+  leaveRequestId: number  // 이제 document_master.id를 의미
 }
 
-// 연차 차감 로직 (직접 통합 + 병렬 처리 최적화)
-async function deductLeaveBalance(supabase: ReturnType<typeof createClient>, leaveRequestId: number, employeeId: string, requestedDays: number) {
+// 연차 차감 로직 (document_master + doc_leave 기반)
+async function deductLeaveBalance(
+  supabase: ReturnType<typeof createClient>,
+  documentId: number,
+  employeeId: string,
+  requestedDays: number
+) {
   // 1. Check idempotency and get grants in parallel
   const today = new Date().toISOString().split('T')[0]
   const [existingUsageResult, grantsResult] = await Promise.all([
     supabase
       .from('annual_leave_usage')
       .select('id')
-      .eq('leave_request_id', leaveRequestId)
+      .eq('leave_request_id', documentId)  // document_master.id 참조
       .limit(1),
     supabase
       .from('annual_leave_grant')
@@ -69,7 +74,7 @@ async function deductLeaveBalance(supabase: ReturnType<typeof createClient>, lea
 
   // 4. Insert usage records and update balance in parallel
   const usageInserts = usageRecords.map(record => ({
-    leave_request_id: leaveRequestId,
+    leave_request_id: documentId,  // document_master.id 참조
     grant_id: record.grant_id,
     used_days: record.used_days,
     used_date: new Date().toISOString()
@@ -206,38 +211,52 @@ Deno.serve(async (req) => {
 
     // 4. Check if this is the last step
     if (currentStep.is_last_step) {
-      // Get leave request info and update status in parallel
-      const [leaveRequestResult, updateResult] = await Promise.all([
-        supabase
-          .from('leave_request')
-          .select('employee_id, requested_days')
-          .eq('id', leaveRequestId)
-          .single(),
-        supabase
-          .from('leave_request')
-          .update({
-            status: 'approved',
-            approver_id: user.id,
-            approved_at: new Date().toISOString()
-          })
-          .eq('id', leaveRequestId)
-      ])
+      // Get document info from document_master + doc_leave
+      const { data: documentData, error: docError } = await supabase
+        .from('document_master')
+        .select(`
+          id,
+          requester_id,
+          doc_leave (
+            days_count
+          )
+        `)
+        .eq('id', leaveRequestId)
+        .single()
 
-      if (updateResult.error) {
+      if (docError || !documentData) {
+        throw new Error('문서 정보 조회 실패')
+      }
+
+      // Update document_master status to approved
+      const { error: updateError } = await supabase
+        .from('document_master')
+        .update({
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+          current_step: null
+        })
+        .eq('id', leaveRequestId)
+
+      if (updateError) {
         throw new Error('최종 승인 업데이트 실패')
       }
 
-      if (leaveRequestResult.error || !leaveRequestResult.data) {
-        throw new Error('연차 정보 조회 실패')
-      }
+      // Get days_count from doc_leave
+      const docLeave = Array.isArray(documentData.doc_leave)
+        ? documentData.doc_leave[0]
+        : documentData.doc_leave
+      const requestedDays = docLeave?.days_count || 0
 
       // Deduct leave balance directly (no HTTP call)
-      await deductLeaveBalance(
-        supabase,
-        leaveRequestId,
-        leaveRequestResult.data.employee_id,
-        Number(leaveRequestResult.data.requested_days)
-      )
+      if (requestedDays > 0) {
+        await deductLeaveBalance(
+          supabase,
+          leaveRequestId,
+          documentData.requester_id,
+          Number(requestedDays)
+        )
+      }
 
       return new Response(
         JSON.stringify({
@@ -275,9 +294,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update leave request current_step
+      // Update document_master current_step
       const { error: requestUpdateError } = await supabase
-        .from('leave_request')
+        .from('document_master')
         .update({ current_step: nextStepOrder })
         .eq('id', leaveRequestId)
 

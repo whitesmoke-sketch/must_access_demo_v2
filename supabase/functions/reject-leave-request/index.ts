@@ -2,7 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface RequestBody {
-  leaveRequestId: number
+  leaveRequestId: number  // 이제 document_master.id를 의미
   rejectReason: string
 }
 
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check if user is HR (role.level >= 5)
+    // Check if user has approval permission (either HR level >= 5 or assigned approver)
     const { data: employee, error: employeeError } = await supabase
       .from('employee')
       .select('id, role:role_id(level)')
@@ -62,27 +62,67 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!employee.role || employee.role.level < 5) {
+    const isHR = employee.role && employee.role.level >= 5
+
+    // Check if user is an assigned approver with pending status
+    const { data: approvalStep, error: stepError } = await supabase
+      .from('approval_step')
+      .select('id, step_order')
+      .eq('request_type', 'leave')
+      .eq('request_id', leaveRequestId)
+      .eq('approver_id', user.id)
+      .eq('status', 'pending')
+      .maybeSingle()
+
+    const isApprover = !!approvalStep
+
+    if (!isHR && !isApprover) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Insufficient permissions. HR access required.' }),
+        JSON.stringify({ success: false, error: 'Insufficient permissions. HR access or approver role required.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Update leave request status with rejection reason
+    // If user is an assigned approver, update their approval_step
+    if (approvalStep) {
+      const { error: stepUpdateError } = await supabase
+        .from('approval_step')
+        .update({
+          status: 'rejected',
+          approved_at: new Date().toISOString(),
+          comment: rejectReason
+        })
+        .eq('id', approvalStep.id)
+
+      if (stepUpdateError) {
+        console.error('Error updating approval step:', stepUpdateError)
+        throw new Error('Failed to update approval step')
+      }
+
+      // Create audit record (optional - ignore errors)
+      await supabase
+        .from('approval_step_audit')
+        .insert({
+          approval_step_id: approvalStep.id,
+          action: 'rejected',
+          actor_id: user.id,
+          old_status: 'pending',
+          new_status: 'rejected'
+        })
+    }
+
+    // Update document_master status to rejected
     const { error: updateError } = await supabase
-      .from('leave_request')
+      .from('document_master')
       .update({
         status: 'rejected',
-        approver_id: user.id,
-        approved_at: new Date().toISOString(),
-        rejection_reason: rejectReason,
+        current_step: null
       })
       .eq('id', leaveRequestId)
 
     if (updateError) {
-      console.error('Error rejecting leave request:', updateError)
-      throw new Error('Failed to reject leave request')
+      console.error('Error rejecting document:', updateError)
+      throw new Error('Failed to reject document')
     }
 
     return new Response(

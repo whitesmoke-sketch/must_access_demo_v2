@@ -76,32 +76,38 @@ Deno.serve(async (req) => {
         .select('employee_id, granted_days')
         .in('grant_type', ['award_overtime', 'award_attendance'])
         .eq('approval_status', 'approved'),
-      // Fetch reward leave usage
+      // Fetch reward leave usage (새 시스템: document_master + doc_leave)
       supabase
-        .from('leave_request')
-        .select('employee_id, requested_days')
-        .eq('leave_type', 'award')
+        .from('document_master')
+        .select(`
+          requester_id,
+          doc_leave!inner (
+            days_count
+          )
+        `)
+        .eq('doc_type', 'leave')
         .eq('status', 'approved'),
-      // Fetch all leave requests
+      // Fetch all leave requests (새 시스템: document_master + doc_leave)
       supabase
-        .from('leave_request')
+        .from('document_master')
         .select(`
           id,
-          employee_id,
-          leave_type,
-          requested_days,
-          start_date,
-          end_date,
-          reason,
+          requester_id,
           status,
-          rejection_reason,
-          requested_at,
-          approved_at,
           current_step,
-          employee:employee_id(id, name),
-          approver:approver_id(id, name)
+          created_at,
+          approved_at,
+          requester:requester_id(id, name),
+          doc_leave (
+            leave_type,
+            start_date,
+            end_date,
+            days_count,
+            reason
+          )
         `)
-        .order('requested_at', { ascending: false }),
+        .eq('doc_type', 'leave')
+        .order('created_at', { ascending: false }),
       // Fetch approval steps where current user is the approver and status is pending
       supabase
         .from('approval_step')
@@ -154,8 +160,9 @@ Deno.serve(async (req) => {
     })
 
     rewardUsage?.forEach(usage => {
-      const current = rewardUsageMap.get(usage.employee_id) || 0
-      rewardUsageMap.set(usage.employee_id, current + Number(usage.requested_days))
+      const docLeave = Array.isArray(usage.doc_leave) ? usage.doc_leave[0] : usage.doc_leave
+      const current = rewardUsageMap.get(usage.requester_id) || 0
+      rewardUsageMap.set(usage.requester_id, current + Number(docLeave?.days_count || 0))
     })
 
     // Map to Member format
@@ -170,12 +177,15 @@ Deno.serve(async (req) => {
       usedRewardLeave: rewardUsageMap.get(emp.id) || 0,
     })) || []
 
-    // Map to LeaveRequest format
+    // Map to LeaveRequest format (새 시스템)
     const leaveRequestsFormatted = leaveRequests?.map(req => {
+      const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+      const leaveType = docLeave?.leave_type || 'annual'
+
       let mappedLeaveType: 'annual' | 'reward' | 'sick' | 'other' = 'annual'
-      if (req.leave_type === 'award') {
+      if (leaveType === 'award') {
         mappedLeaveType = 'reward'
-      } else if (['annual', 'half_day', 'quarter_day'].includes(req.leave_type)) {
+      } else if (['annual', 'half_day', 'quarter_day'].includes(leaveType)) {
         mappedLeaveType = 'annual'
       }
 
@@ -184,18 +194,16 @@ Deno.serve(async (req) => {
 
       return {
         id: String(req.id),
-        memberId: req.employee_id,
-        memberName: req.employee?.name || '알 수 없음',
+        memberId: req.requester_id,
+        memberName: req.requester?.name || '알 수 없음',
         leaveType: mappedLeaveType,
-        startDate: req.start_date,
-        endDate: req.end_date,
-        days: Number(req.requested_days) || 0,
-        reason: req.reason || undefined,
+        startDate: docLeave?.start_date,
+        endDate: docLeave?.end_date,
+        days: Number(docLeave?.days_count) || 0,
+        reason: docLeave?.reason || undefined,
         status: req.status,
-        submittedAt: req.requested_at,
-        reviewedBy: req.approver?.name || undefined,
+        submittedAt: req.created_at,
         reviewedAt: req.approved_at || undefined,
-        rejectReason: req.rejection_reason || undefined,
         canApprove, // 현재 사용자가 결재 가능한지 여부
       }
     }) || []

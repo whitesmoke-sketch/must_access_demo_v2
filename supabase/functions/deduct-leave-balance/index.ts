@@ -45,19 +45,34 @@ Deno.serve(async (req) => {
 
     console.log('[연차 차감 Edge Function] 시작 - requestId:', requestId)
 
-    // 1. Get leave request details
-    const { data: leaveRequest, error: leaveError } = await supabase
-      .from('leave_request')
-      .select('employee_id, requested_days')
+    // 1. Get document_master + doc_leave details (새 시스템)
+    const { data: documentData, error: docError } = await supabase
+      .from('document_master')
+      .select(`
+        id,
+        requester_id,
+        doc_leave (
+          days_count
+        )
+      `)
       .eq('id', requestId)
       .single()
 
-    if (leaveError || !leaveRequest) {
-      console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
-      throw new Error(`연차 정보 조회 실패: ${leaveError?.message}`)
+    if (docError || !documentData) {
+      console.error('[연차 차감] 문서 정보 조회 실패:', docError)
+      throw new Error(`문서 정보 조회 실패: ${docError?.message}`)
     }
 
-    console.log('[연차 차감] 연차 정보:', leaveRequest)
+    // doc_leave 데이터 추출 (배열일 수 있음)
+    const docLeave = Array.isArray(documentData.doc_leave)
+      ? documentData.doc_leave[0]
+      : documentData.doc_leave
+
+    if (!docLeave) {
+      throw new Error('연차 상세 정보가 없습니다')
+    }
+
+    console.log('[연차 차감] 문서 정보:', { requester_id: documentData.requester_id, days_count: docLeave.days_count })
 
     // 2. Check for existing usage records (idempotency)
     const { data: existingUsage } = await supabase
@@ -82,7 +97,7 @@ Deno.serve(async (req) => {
     const { data: grants, error: grantsError } = await supabase
       .from('annual_leave_grant')
       .select('id, granted_days, expiration_date')
-      .eq('employee_id', leaveRequest.employee_id)
+      .eq('employee_id', documentData.requester_id)
       .eq('approval_status', 'approved')
       .gte('expiration_date', today)
       .order('expiration_date', { ascending: true })
@@ -114,7 +129,7 @@ Deno.serve(async (req) => {
     }
 
     // 5. Deduct using FIFO (oldest expiration first)
-    let remainingToDeduct = Number(leaveRequest.requested_days)
+    let remainingToDeduct = Number(docLeave.days_count)
     const usageRecords: Array<{ grant_id: number; used_days: number }> = []
 
     for (const grant of grants) {
@@ -161,7 +176,7 @@ Deno.serve(async (req) => {
 
     // 7. Update balance using RPC function
     const { error: balanceError } = await supabase.rpc('update_leave_balance', {
-      p_employee_id: leaveRequest.employee_id
+      p_employee_id: documentData.requester_id
     })
 
     if (balanceError) {

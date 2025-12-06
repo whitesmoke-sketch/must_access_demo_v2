@@ -118,9 +118,10 @@ Deno.serve(async (req) => {
     }
 
     // 5. Update request table based on type
+    // 변경: leave 타입은 이제 document_master 테이블 사용
     const tableMap: Record<string, string> = {
-      leave: 'leave_request',
-      document: 'document_submission',
+      leave: 'document_master',  // leave_request → document_master
+      document: 'document_master',  // document_submission → document_master
       business_trip: 'business_trip_request',
       expense: 'expense_request'
     }

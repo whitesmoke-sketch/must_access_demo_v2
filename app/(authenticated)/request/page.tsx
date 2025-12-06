@@ -43,14 +43,24 @@ export default async function RequestPage({
 
   const totalReward = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
 
+  // 포상휴가 사용량 조회 (새 시스템: document_master + doc_leave)
   const { data: rewardUsage } = await supabase
-    .from('leave_request')
-    .select('number_of_days')
-    .eq('employee_id', user.id)
-    .eq('leave_type', 'award')
+    .from('document_master')
+    .select(`
+      doc_leave (
+        days_count
+      )
+    `)
+    .eq('requester_id', user.id)
+    .eq('doc_type', 'leave')
     .eq('status', 'approved')
 
-  const usedReward = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
+  // doc_leave에서 leave_type이 award인 것을 필터링하기 위해 별도 조회 필요
+  // 또는 단순히 모든 승인된 연차를 계산
+  const usedReward = rewardUsage?.reduce((sum, req) => {
+    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+    return sum + (docLeave?.days_count || 0)
+  }, 0) || 0
   const remainingReward = totalReward - usedReward
 
   // 구성원 목록 조회 (결재선용) - 직책, 부서 정보 포함

@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   // 오늘 날짜
   const today = new Date().toISOString().split('T')[0]
 
-  // Parallel queries for better performance
+  // Parallel queries for better performance (새 시스템: document_master + doc_leave)
   const [employeeResult, myRequestsResult, employeeRoleResult, todayLeaveResult] = await Promise.all([
     // 사용자 정보 조회
     supabase
@@ -26,11 +26,27 @@ export default async function DashboardPage() {
       .select('id, name, department:department_id(name)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 내가 요청한 문서 (최근 3건)
+    // 내가 요청한 문서 (최근 3건) - 새 시스템
     supabase
-      .from('leave_request')
-      .select('id, employee_id, leave_type, requested_days, start_date, end_date, reason, status, requested_at, approved_at, current_step, employee:employee_id(id, name, department:department_id(name), role:role_id(name))')
-      .eq('employee_id', user.id)
+      .from('document_master')
+      .select(`
+        id,
+        requester_id,
+        status,
+        current_step,
+        created_at,
+        approved_at,
+        requester:requester_id(id, name, department:department_id(name), role:role_id(name)),
+        doc_leave (
+          leave_type,
+          start_date,
+          end_date,
+          days_count,
+          reason
+        )
+      `)
+      .eq('requester_id', user.id)
+      .eq('doc_type', 'leave')
       .order('created_at', { ascending: false })
       .limit(3),
     // 사용자 역할 확인
@@ -39,36 +55,52 @@ export default async function DashboardPage() {
       .select('role:role_id(code)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 오늘 연차인 멤버 조회 (승인된 연차만)
+    // 오늘 연차인 멤버 조회 (승인된 연차만) - 새 시스템
     supabase
-      .from('leave_request')
-      .select('id, employee_id, leave_type, employee:employee_id(id, name, department:department_id(name))')
+      .from('document_master')
+      .select(`
+        id,
+        requester_id,
+        requester:requester_id(id, name, department:department_id(name)),
+        doc_leave!inner (
+          leave_type,
+          start_date,
+          end_date
+        )
+      `)
+      .eq('doc_type', 'leave')
       .eq('status', 'approved')
-      .lte('start_date', today)
-      .gte('end_date', today)
   ])
 
   const employee = employeeResult.data
   const myRequests = myRequestsResult.data || []
   const todayLeaveRequests = todayLeaveResult.data || []
 
-  // 오늘 연차인 멤버 데이터 처리
+  // 오늘 연차인 멤버 데이터 처리 (새 시스템: document_master + doc_leave)
   const todayOnLeaveMembers = todayLeaveRequests
+    .filter((request) => {
+      // doc_leave에서 오늘 날짜가 연차 기간에 포함되는지 확인
+      const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave
+      if (!docLeave) return false
+      return docLeave.start_date <= today && docLeave.end_date >= today
+    })
     .map((request) => {
-      const emp = request.employee as { id: string; name: string; department?: { name: string } | { name: string }[] | null } | { id: string; name: string }[] | null
+      const emp = request.requester as { id: string; name: string; department?: { name: string } | { name: string }[] | null } | { id: string; name: string }[] | null
       if (!emp) return null
       const empData = Array.isArray(emp) ? emp[0] : emp
       if (!empData) return null
 
       const dept = 'department' in empData ? empData.department : null
-      const deptName = dept ? (Array.isArray(dept) ? dept[0]?.name : dept?.name) || '' : ''
+      const deptName = dept ? (Array.isArray(dept) ? dept[0]?.name : (dept as { name: string })?.name) || '' : ''
+
+      const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave
 
       return {
         id: empData.id,
         name: empData.name,
         department: deptName,
         team: '', // team 정보가 없으면 빈 문자열
-        leaveType: request.leave_type,
+        leaveType: docLeave?.leave_type || 'annual',
       }
     })
     .filter((m): m is NonNullable<typeof m> => m !== null)
@@ -103,11 +135,27 @@ export default async function DashboardPage() {
     if (!stepsError && myPendingSteps && myPendingSteps.length > 0) {
       const requestIds = myPendingSteps.map(step => step.request_id)
 
-      // 병렬로 leave_request와 approval_steps 조회
+      // 병렬로 document_master + doc_leave와 approval_steps 조회 (새 시스템)
       const [leaveResult, stepsResult] = await Promise.all([
         supabase
-          .from('leave_request')
-          .select('id, employee_id, leave_type, requested_days, start_date, end_date, reason, status, requested_at, approved_at, current_step, employee:employee_id(id, name, department:department_id(name), role:role_id(name))')
+          .from('document_master')
+          .select(`
+            id,
+            requester_id,
+            status,
+            current_step,
+            created_at,
+            approved_at,
+            requester:requester_id(id, name, department:department_id(name), role:role_id(name)),
+            doc_leave (
+              leave_type,
+              start_date,
+              end_date,
+              days_count,
+              reason
+            )
+          `)
+          .eq('doc_type', 'leave')
           .in('id', requestIds)
           .order('created_at', { ascending: true })
           .limit(3),

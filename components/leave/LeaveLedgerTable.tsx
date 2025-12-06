@@ -109,27 +109,47 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
       if (grantsError) throw new Error(`연차 부여 이력 조회 실패: ${grantsError.message}`)
 
-      // 연차 신청 이력 조회 (승인자 정보 포함)
-      const { data: requests, error: requestsError } = await supabase
-        .from('leave_request')
+      // 연차 신청 이력 조회 (새 시스템: document_master + doc_leave)
+      const { data: requestsRaw, error: requestsError } = await supabase
+        .from('document_master')
         .select(`
           id,
-          start_date,
-          end_date,
-          leave_type,
-          requested_days,
+          requester_id,
           status,
           created_at,
           approved_at,
-          approver:approver_id (
-            id,
-            name
+          drive_file_url,
+          doc_leave (
+            leave_type,
+            start_date,
+            end_date,
+            days_count,
+            reason
           )
         `)
-        .eq('employee_id', employeeId)
+        .eq('requester_id', employeeId)
+        .eq('doc_type', 'leave')
         .order('created_at', { ascending: false })
 
       if (requestsError) throw new Error(`연차 신청 이력 조회 실패: ${requestsError.message}`)
+
+      // 데이터 형식 변환
+      const requests = (requestsRaw || []).map(doc => {
+        const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
+        return {
+          id: doc.id,
+          start_date: docLeave?.start_date || '',
+          end_date: docLeave?.end_date || '',
+          leave_type: docLeave?.leave_type || 'annual',
+          requested_days: docLeave?.days_count || 0,
+          status: doc.status,
+          created_at: doc.created_at,
+          approved_at: doc.approved_at,
+          drive_file_url: doc.drive_file_url,
+          reason: docLeave?.reason || '',
+          approver: null, // 승인자 정보는 approval_step에서 조회
+        }
+      })
 
       // Ledger 엔트리 생성
       const entries: LeaveLedgerEntry[] = []
@@ -200,34 +220,35 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
     try {
       const supabase = createClient()
 
-      // 연차 신청 상세 조회
-      const { data: request, error: requestError } = await supabase
-        .from('leave_request')
+      // 연차 신청 상세 조회 (새 시스템: document_master + doc_leave)
+      const { data: document, error: requestError } = await supabase
+        .from('document_master')
         .select(`
           id,
-          employee_id,
-          leave_type,
-          start_date,
-          end_date,
-          requested_days,
-          reason,
+          requester_id,
           status,
           created_at,
           approved_at,
           drive_file_url,
-          employee:employee_id (
+          requester:requester_id (
             id,
             name
           ),
-          approver:approver_id (
-            id,
-            name
+          doc_leave (
+            leave_type,
+            start_date,
+            end_date,
+            days_count,
+            reason
           )
         `)
         .eq('id', requestId)
+        .eq('doc_type', 'leave')
         .single()
 
       if (requestError) throw requestError
+
+      const docLeave = Array.isArray(document.doc_leave) ? document.doc_leave[0] : document.doc_leave
 
       // 승인 단계 조회
       const { data: steps, error: stepsError } = await supabase
@@ -250,19 +271,25 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
       if (stepsError) throw stepsError
 
+      // 최종 승인자 찾기 (마지막 approved step)
+      const approvedSteps = steps?.filter((s: any) => s.status === 'approved') || []
+      const lastApprover = approvedSteps.length > 0
+        ? approvedSteps[approvedSteps.length - 1]
+        : null
+
       const detail: LeaveRequestDetail = {
-        id: request.id,
-        employee_id: request.employee_id,
-        employee_name: (request.employee as any)?.name || '알 수 없음',
-        leave_type: request.leave_type,
-        start_date: request.start_date,
-        end_date: request.end_date,
-        requested_days: request.requested_days,
-        reason: request.reason || '',
-        status: request.status,
-        created_at: request.created_at,
-        approved_at: request.approved_at,
-        approver_name: (request.approver as any)?.name || null,
+        id: document.id,
+        employee_id: document.requester_id,
+        employee_name: (document.requester as any)?.name || '알 수 없음',
+        leave_type: docLeave?.leave_type || 'annual',
+        start_date: docLeave?.start_date || '',
+        end_date: docLeave?.end_date || '',
+        requested_days: docLeave?.days_count || 0,
+        reason: docLeave?.reason || '',
+        status: document.status,
+        created_at: document.created_at,
+        approved_at: document.approved_at,
+        approver_name: lastApprover?.approver?.name || null,
         approval_steps: steps?.map((step: any) => ({
           id: step.id,
           approver_id: step.approver_id,
@@ -272,7 +299,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
           comment: step.comment,
           step_order: step.step_order,
         })) || [],
-        drive_file_url: request.drive_file_url || null,
+        drive_file_url: document.drive_file_url || null,
       }
 
       setSelectedRequest(detail)
@@ -337,16 +364,23 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
       setIsSubmitting(true)
       const supabase = createClient()
 
-      // 연차 신청 상태를 'retrieved'로 변경
+      // 문서 상태를 'retrieved'로 변경 (새 시스템: document_master)
       const { error } = await supabase
-        .from('leave_request')
+        .from('document_master')
         .update({
           status: 'retrieved',
-          rejection_reason: cancelReason,
+          retrieved_at: new Date().toISOString(),
         })
         .eq('id', selectedRequest.id)
 
       if (error) throw error
+
+      // 결재선 삭제
+      await supabase
+        .from('approval_step')
+        .delete()
+        .eq('request_type', 'leave')
+        .eq('request_id', selectedRequest.id)
 
       toast.success('연차 신청이 회수되었습니다.')
       setIsCancelDialogOpen(false)

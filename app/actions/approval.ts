@@ -3,16 +3,20 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createNotification } from './notification'
+import type { DocumentType } from '@/types/document'
 
 // ================================================
 // Types
 // ================================================
 
+// 결재 요청 유형 (새로운 통합 문서 시스템과 호환)
+export type ApprovalRequestType = DocumentType | 'document' // 'document'는 하위 호환용
+
 export interface ApprovalTemplate {
   id: string
   employee_id: string
   name: string
-  request_type: 'leave' | 'document'
+  request_type: ApprovalRequestType
   is_default: boolean
   created_at: string
   updated_at: string
@@ -112,7 +116,7 @@ export interface Approver {
 /**
  * 사용자의 결재선 템플릿 목록 조회
  */
-export async function getApprovalTemplates(requestType: 'leave' | 'document') {
+export async function getApprovalTemplates(requestType: ApprovalRequestType) {
   try {
     const supabase = await createClient()
 
@@ -756,22 +760,22 @@ export async function processApproval(
     // 반려인 경우, 요청 상태를 rejected로 변경
     if (action === 'rejected') {
       if (step.request_type === 'leave') {
-        // 연차 신청 상태 변경
+        // 연차 신청 상태 변경 (새 시스템: document_master)
         await supabase
-          .from('leave_request')
-          .update({ status: 'rejected', rejected_at: new Date().toISOString() })
+          .from('document_master')
+          .update({ status: 'rejected' })
           .eq('id', step.request_id)
 
-        // 기안자 정보 조회 후 알림 발송
-        const { data: leaveRequest } = await supabase
-          .from('leave_request')
-          .select('employee_id')
+        // 기안자 정보 조회 후 알림 발송 (새 시스템: document_master)
+        const { data: documentData } = await supabase
+          .from('document_master')
+          .select('requester_id')
           .eq('id', step.request_id)
           .single()
 
-        if (leaveRequest) {
+        if (documentData) {
           await createNotification({
-            recipient_id: leaveRequest.employee_id,
+            recipient_id: documentData.requester_id,
             type: 'approval_rejected',
             title: '[반려] 연차 신청서',
             message: comment.trim() ? `연차 신청이 반려되었습니다. 사유: ${comment.trim()}` : '연차 신청이 반려되었습니다.',
@@ -847,10 +851,10 @@ export async function processApproval(
         .update({ status: 'pending' })
         .in('id', nextStepIds)
 
-      // current_step 업데이트
+      // current_step 업데이트 (새 시스템: document_master)
       if (step.request_type === 'leave') {
         await supabase
-          .from('leave_request')
+          .from('document_master')
           .update({ current_step: nextStepOrder })
           .eq('id', step.request_id)
       }
@@ -862,16 +866,16 @@ export async function processApproval(
         .in('id', nextStepIds)
 
       if (nextApprovers && nextApprovers.length > 0) {
-        // 신청자 정보 조회
+        // 신청자 정보 조회 (새 시스템: document_master)
         let requesterName = '알 수 없음'
         if (step.request_type === 'leave') {
-          const { data: leaveReq } = await supabase
-            .from('leave_request')
-            .select('employee:employee_id(name)')
+          const { data: documentData } = await supabase
+            .from('document_master')
+            .select('requester:requester_id(name)')
             .eq('id', step.request_id)
             .single()
-          if (leaveReq?.employee) {
-            const emp = Array.isArray(leaveReq.employee) ? leaveReq.employee[0] : leaveReq.employee
+          if (documentData?.requester) {
+            const emp = Array.isArray(documentData.requester) ? documentData.requester[0] : documentData.requester
             requesterName = emp?.name || '알 수 없음'
           }
         }
@@ -915,43 +919,53 @@ async function completeApproval(
   requestId: number
 ) {
   if (requestType === 'leave') {
-    // 1. 연차 신청 상태를 'approved'로 변경
+    // 1. 문서 상태를 'approved'로 변경 (새 시스템: document_master)
     await supabase
-      .from('leave_request')
+      .from('document_master')
       .update({ status: 'approved', approved_at: new Date().toISOString() })
       .eq('id', requestId)
 
-    // 2. 연차 정보 조회
-    const { data: leaveRequest, error: leaveError } = await supabase
-      .from('leave_request')
-      .select('employee_id, requested_days')
+    // 2. 문서 정보 조회 (새 시스템: document_master + doc_leave)
+    const { data: documentData, error: docError } = await supabase
+      .from('document_master')
+      .select(`
+        requester_id,
+        doc_leave (
+          days_count
+        )
+      `)
       .eq('id', requestId)
       .single()
 
-    if (leaveError) {
-      console.error('[연차 차감] 연차 정보 조회 실패:', leaveError)
+    if (docError) {
+      console.error('[연차 차감] 문서 정보 조회 실패:', docError)
     }
 
-    if (leaveRequest) {
-      console.log('[연차 차감] 연차 정보:', leaveRequest)
+    if (documentData) {
+      const docLeave = Array.isArray(documentData.doc_leave)
+        ? documentData.doc_leave[0]
+        : documentData.doc_leave
+      const requestedDays = docLeave?.days_count || 0
+
+      console.log('[연차 차감] 문서 정보:', { requester_id: documentData.requester_id, days_count: requestedDays })
 
       // 3. 연차 잔액 차감
       const { data: currentBalance, error: balanceError } = await supabase
         .from('annual_leave_balance')
         .select('used_days, remaining_days')
-        .eq('employee_id', leaveRequest.employee_id)
+        .eq('employee_id', documentData.requester_id)
         .single()
 
       if (balanceError) {
         console.error('[연차 차감] 잔액 조회 실패:', balanceError)
       }
 
-      if (currentBalance) {
-        const newUsedDays = Number(currentBalance.used_days) + Number(leaveRequest.requested_days)
-        const newRemainingDays = Number(currentBalance.remaining_days) - Number(leaveRequest.requested_days)
+      if (currentBalance && requestedDays > 0) {
+        const newUsedDays = Number(currentBalance.used_days) + Number(requestedDays)
+        const newRemainingDays = Number(currentBalance.remaining_days) - Number(requestedDays)
 
         console.log('[연차 차감] 현재:', currentBalance)
-        console.log('[연차 차감] 신청일수:', leaveRequest.requested_days)
+        console.log('[연차 차감] 신청일수:', requestedDays)
         console.log('[연차 차감] 새로운 값:', { newUsedDays, newRemainingDays })
 
         const { error: updateError } = await supabase
@@ -961,7 +975,7 @@ async function completeApproval(
             remaining_days: newRemainingDays,
             updated_at: new Date().toISOString()
           })
-          .eq('employee_id', leaveRequest.employee_id)
+          .eq('employee_id', documentData.requester_id)
 
         if (updateError) {
           console.error('[연차 차감] 업데이트 실패:', updateError)
@@ -969,12 +983,10 @@ async function completeApproval(
           console.log('[연차 차감] 성공!')
         }
       }
-    }
 
-    // 4. 기안자에게 결재 완료 알림 발송
-    if (leaveRequest) {
+      // 4. 기안자에게 결재 완료 알림 발송
       await createNotification({
-        recipient_id: leaveRequest.employee_id,
+        recipient_id: documentData.requester_id,
         type: 'approval_completed',
         title: '[결재완료] 연차 신청서',
         message: '연차 신청이 최종 승인되었습니다.',

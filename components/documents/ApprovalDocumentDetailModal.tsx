@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { approveLeaveRequest, rejectLeaveRequest } from '@/app/(authenticated)/documents/actions'
+import { approveDocument, rejectDocument } from '@/app/(authenticated)/documents/actions'
 
 type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
@@ -231,7 +231,7 @@ export function ApprovalDocumentDetailModal({
 
     setProcessing(true)
     try {
-      const result = await approveLeaveRequest(document.id)
+      const result = await approveDocument(document.id, 'leave')
 
       if (result.success) {
         toast.success('승인이 완료되었습니다')
@@ -261,7 +261,7 @@ export function ApprovalDocumentDetailModal({
 
     setProcessing(true)
     try {
-      const result = await rejectLeaveRequest(document.id, rejectReason)
+      const result = await rejectDocument(document.id, rejectReason, 'leave')
 
       if (result.success) {
         toast.error('반려가 완료되었습니다')

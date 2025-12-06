@@ -73,18 +73,18 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get leave request to verify user has access
-    const { data: leaveRequest, error: leaveError } = await supabase
-      .from('leave_request')
-      .select('employee_id')
+    // Get document_master to verify user has access (새 시스템)
+    const { data: documentData, error: docError } = await supabase
+      .from('document_master')
+      .select('requester_id')
       .eq('id', requestId)
       .single()
 
-    if (leaveError || !leaveRequest) {
+    if (docError || !documentData) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Leave request not found'
+          error: 'Document not found'
         }),
         {
           status: 404,
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       .eq('approver_id', user.id)
       .maybeSingle()
 
-    const isRequester = leaveRequest.employee_id === user.id
+    const isRequester = documentData.requester_id === user.id
     const isApprover = !!approverCheck
 
     if (!isRequester && !isApprover) {

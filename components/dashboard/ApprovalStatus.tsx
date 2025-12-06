@@ -9,12 +9,12 @@ type LeaveStatus = 'pending' | 'approved' | 'rejected'
 type LeaveType = 'annual' | 'half_day' | 'reward'
 
 interface LeaveRequest {
-  id: string
+  id: number
   leave_type: LeaveType
   start_date: string
   end_date: string
   status: LeaveStatus
-  employee?: {
+  requester?: {
     name: string
   }[] | { name: string } | null
 }
@@ -26,13 +26,22 @@ interface ApprovalStatusProps {
 export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
   const supabase = await createClient()
 
-  // Parallel queries for better performance
+  // Parallel queries for better performance (새 시스템: document_master + doc_leave)
   const [myRequestsResult, employeeResult] = await Promise.all([
-    // 내가 요청한 문서 (최근 3건)
+    // 내가 요청한 문서 (최근 3건) - 새 시스템
     supabase
-      .from('leave_request')
-      .select('id, leave_type, start_date, end_date, status')
-      .eq('employee_id', employeeId)
+      .from('document_master')
+      .select(`
+        id,
+        status,
+        doc_leave (
+          leave_type,
+          start_date,
+          end_date
+        )
+      `)
+      .eq('requester_id', employeeId)
+      .eq('doc_type', 'leave')
       .order('created_at', { ascending: false })
       .limit(3),
     // 사용자 역할 확인
@@ -43,7 +52,17 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
       .maybeSingle()
   ])
 
-  const myRequests = (myRequestsResult.data || []) as LeaveRequest[]
+  // 데이터 변환 (document_master + doc_leave → LeaveRequest 형태)
+  const myRequests: LeaveRequest[] = (myRequestsResult.data || []).map(req => {
+    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+    return {
+      id: req.id,
+      leave_type: (docLeave?.leave_type || 'annual') as LeaveType,
+      start_date: docLeave?.start_date || '',
+      end_date: docLeave?.end_date || '',
+      status: req.status as LeaveStatus,
+    }
+  })
 
   // Type-safe role check
   const role = employeeResult.data?.role as { code: string } | { code: string }[] | null
@@ -68,17 +87,35 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
 
 
   if (myApprovalSteps && myApprovalSteps.length > 0) {
-    // approval_step의 request_id로 leave_request 조회
+    // approval_step의 request_id로 document_master + doc_leave 조회 (새 시스템)
     const requestIds = myApprovalSteps.map(s => s.request_id)
-    const { data: leaveRequests, error: leaveError } = await supabase
-      .from('leave_request')
-      .select('id, leave_type, start_date, end_date, status, employee:employee_id(name)')
+    const { data: leaveRequests } = await supabase
+      .from('document_master')
+      .select(`
+        id,
+        status,
+        requester:requester_id(name),
+        doc_leave (
+          leave_type,
+          start_date,
+          end_date
+        )
+      `)
+      .eq('doc_type', 'leave')
       .in('id', requestIds)
 
-
-
     if (leaveRequests) {
-      pendingRequests = leaveRequests as LeaveRequest[]
+      pendingRequests = leaveRequests.map(req => {
+        const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+        return {
+          id: req.id,
+          leave_type: (docLeave?.leave_type || 'annual') as LeaveType,
+          start_date: docLeave?.start_date || '',
+          end_date: docLeave?.end_date || '',
+          status: req.status as LeaveStatus,
+          requester: req.requester,
+        }
+      })
     }
   }
 
@@ -139,9 +176,9 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
                   >
                     <div className="flex-1">
                       <p className="font-medium text-sm">
-                        {Array.isArray(request.employee)
-                          ? request.employee[0]?.name ?? '알 수 없음'
-                          : request.employee?.name ?? '알 수 없음'} - {getLeaveTypeLabel(request.leave_type)}
+                        {Array.isArray(request.requester)
+                          ? request.requester[0]?.name ?? '알 수 없음'
+                          : request.requester?.name ?? '알 수 없음'} - {getLeaveTypeLabel(request.leave_type)}
                       </p>
                       <div className="flex items-center text-xs text-muted-foreground mt-1">
                         <Calendar className="w-3 h-3 mr-1" />

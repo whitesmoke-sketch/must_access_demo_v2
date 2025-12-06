@@ -46,7 +46,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
-import { withdrawLeaveRequest } from '@/app/(authenticated)/documents/actions'
+import { withdrawDocument } from '@/app/(authenticated)/documents/actions'
 
 type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retrieved'
 
@@ -126,7 +126,7 @@ export function MyDocumentsClient({
 
     setWithdrawingId(withdrawTargetId)
     try {
-      const result = await withdrawLeaveRequest(withdrawTargetId, withdrawReason)
+      const result = await withdrawDocument(withdrawTargetId, withdrawReason)
 
       if (result.success) {
         toast.success('문서가 회수되었습니다')
