@@ -877,6 +877,68 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         }}
       />
 
+      {/* 작성 전 확인사항 - 문서 유형 선택 후 표시 */}
+      {documentType && (
+        <Card
+          className="rounded-2xl"
+          style={{
+            borderRadius: 'var(--radius)',
+            backgroundColor: 'var(--muted)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle
+                className="w-5 h-5 shrink-0 mt-0.5"
+                style={{ color: 'var(--muted-foreground)' }}
+              />
+              <div className="space-y-2">
+                <h4
+                  style={{
+                    fontSize: 'var(--font-size-body)',
+                    fontWeight: 500,
+                    color: 'var(--foreground)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  작성 전 확인사항
+                </h4>
+                <ul className="space-y-1.5">
+                  <li
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    • 필수 항목(*)은 반드시 입력해주세요
+                  </li>
+                  <li
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    • 결재선은 최소 1명 이상 지정해야 합니다
+                  </li>
+                  <li
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    • 제출 후에는 수정이 불가능하니 신중하게 작성해주세요
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {documentType && (
         <>
           {/* Step 2: 양식 작성 */}
