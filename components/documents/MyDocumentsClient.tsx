@@ -273,8 +273,10 @@ export function MyDocumentsClient({
   const getLeaveTypeText = (type: string) => {
     const types: Record<string, string> = {
       annual: '연차',
+      half_day: '반차',
       half_day_am: '오전 반차',
       half_day_pm: '오후 반차',
+      award: '포상휴가',
       sick: '병가',
     }
     return types[type] || type
