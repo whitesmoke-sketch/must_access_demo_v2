@@ -153,23 +153,29 @@ export default async function AdminDashboardPage() {
     .eq('doc_type', 'leave')
     .eq('status', 'approved');
 
-  // 오늘 날짜가 연차 기간에 포함되고, leave_type이 annual, half_day, award인 것만 필터링
+  // 오늘 날짜가 연차 기간에 포함되고, leave_type이 annual, half_day, quarter_day, award인 것만 필터링
   const filteredVacationRequests = vacationRequests?.filter(req => {
     const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave;
     if (!docLeave) return false;
     const leaveType = docLeave.leave_type;
     return docLeave.start_date <= today && docLeave.end_date >= today &&
-           ['annual', 'half_day', 'award'].includes(leaveType);
+           ['annual', 'half_day', 'quarter_day', 'award'].includes(leaveType);
   }) || [];
 
   const vacationMembers = filteredVacationRequests.map(req => {
     const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave;
     const leaveType = docLeave?.leave_type;
+    const leaveTypeLabels: Record<string, string> = {
+      annual: '연차',
+      half_day: '반차',
+      quarter_day: '반반차',
+      award: '포상휴가',
+    };
     return {
       id: req.id.toString(),
       name: (req.requester as any)?.name || '알 수 없음',
       department: (req.requester as any)?.department?.name || '',
-      status: leaveType === 'annual' ? '연차' : leaveType === 'half_day' ? '반차' : '포상휴가',
+      status: leaveTypeLabels[leaveType] || '연차',
     };
   });
 
@@ -281,10 +287,16 @@ export default async function AdminDashboardPage() {
   const approvalQueue = pendingRequests?.map(request => {
     const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave;
     const leaveType = docLeave?.leave_type;
+    const leaveTypeLabels: Record<string, string> = {
+      annual: '연차',
+      half_day: '반차',
+      quarter_day: '반반차',
+      award: '포상휴가',
+    };
     return {
       id: request.id,
       userName: (request.requester as any)?.name || '알 수 없음',
-      type: leaveType === 'annual' ? '연차' : leaveType === 'half_day' ? '반차' : '포상휴가',
+      type: leaveTypeLabels[leaveType] || '연차',
       requestDate: request.created_at,
       startDate: docLeave?.start_date,
       endDate: docLeave?.end_date,
