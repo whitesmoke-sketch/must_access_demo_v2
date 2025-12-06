@@ -1109,6 +1109,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         date={startDate}
                         onDateChange={setStartDate}
                         placeholder="시작일 선택"
+                        disableWeekends
+                        disablePastDates
                       />
                     </div>
                     <div className="space-y-2">
@@ -1117,6 +1119,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         date={endDate}
                         onDateChange={setEndDate}
                         placeholder="종료일 선택"
+                        disableWeekends
+                        disablePastDates
                       />
                     </div>
                   </div>
@@ -1124,14 +1128,14 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   {calculatedDays > 0 && (
                     <div
                       className="p-4 rounded-lg flex items-center gap-3"
-                      style={{ backgroundColor: 'rgba(255, 102, 146, 0.05)' }}
+                      style={{ backgroundColor: 'var(--primary-bg)' }}
                     >
-                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#FF6692' }} />
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
                       <div>
                         <p style={{
                           fontSize: 'var(--font-size-body)',
                           fontWeight: 600,
-                          color: 'var(--card-foreground)',
+                          color: 'var(--foreground)',
                           lineHeight: 1.5
                         }}>
                           사용 일수: {calculatedDays}일
