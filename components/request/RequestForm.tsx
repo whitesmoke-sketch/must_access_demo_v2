@@ -902,8 +902,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 </h3>
               </div>
 
-              {/* 연차 정보 카드 */}
-              {isLeaveType && (
+              {/* 연차 정보 카드 - 연차 신청 시에만 표시 */}
+              {documentType === 'annual_leave' && (
                 <LeaveBalanceCards balance={balance} documentType={documentType} />
               )}
 
