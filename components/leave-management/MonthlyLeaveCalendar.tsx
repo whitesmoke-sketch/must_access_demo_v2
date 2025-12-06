@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { LeaveRequest } from '@/lib/leave-management/types'
+import { LeaveRequest, getDetailedLeaveTypeLabel } from '@/lib/leave-management/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
@@ -89,30 +89,26 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
     return details
   }
 
-  // 휴가 타입 한글 변환
-  const getLeaveTypeLabel = (leaveType: string): string => {
-    const labels: Record<string, string> = {
-      annual: '연차',
-      half_day_am: '반차(오전)',
-      half_day_pm: '반차(오후)',
-      award: '포상휴가',
-      sick: '병가',
-      special: '특별휴가',
-    }
-    return labels[leaveType] || leaveType
+  // 휴가 타입 한글 변환 (상세 타입 사용)
+  const getLeaveTypeLabel = (leaveType: string, detailedType?: string): string => {
+    return getDetailedLeaveTypeLabel(detailedType || leaveType)
   }
 
-  // 휴가 타입별 색상
-  const getLeaveTypeColor = (leaveType: string): { bg: string; text: string; border: string } => {
+  // 휴가 타입별 색상 (상세 타입 지원)
+  const getLeaveTypeColor = (leaveType: string, detailedType?: string): { bg: string; text: string; border: string } => {
     const colors: Record<string, { bg: string; text: string; border: string }> = {
       annual: { bg: 'var(--primary-bg)', text: 'var(--primary)', border: 'var(--primary)' },
+      half_day: { bg: 'var(--warning-bg)', text: 'var(--warning)', border: 'var(--warning)' },
       half_day_am: { bg: 'var(--warning-bg)', text: 'var(--warning)', border: 'var(--warning)' },
       half_day_pm: { bg: 'var(--warning-bg)', text: 'var(--warning)', border: 'var(--warning)' },
+      quarter_day: { bg: 'var(--info-bg)', text: 'var(--info)', border: 'var(--info)' },
       award: { bg: 'var(--secondary-bg)', text: 'var(--secondary)', border: 'var(--secondary)' },
+      reward: { bg: 'var(--secondary-bg)', text: 'var(--secondary)', border: 'var(--secondary)' },
       sick: { bg: 'var(--destructive-bg)', text: 'var(--destructive)', border: 'var(--destructive)' },
       special: { bg: 'var(--info-bg)', text: 'var(--info)', border: 'var(--info)' },
     }
-    return colors[leaveType] || colors.annual
+    const typeToUse = detailedType || leaveType
+    return colors[typeToUse] || colors.annual
   }
 
   // 날짜 클릭 핸들러
@@ -333,7 +329,7 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
 
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
             {selectedDate && getLeaveDetailsForDate(selectedDate).map((request, idx) => {
-              const colors = getLeaveTypeColor(request.leaveType)
+              const colors = getLeaveTypeColor(request.leaveType, request.detailedLeaveType)
               return (
                 <div
                   key={idx}
@@ -366,7 +362,7 @@ export function MonthlyLeaveCalendar({ leaveRequests }: MonthlyLeaveCalendarProp
                             fontWeight: 500,
                           }}
                         >
-                          {getLeaveTypeLabel(request.leaveType)}
+                          {getLeaveTypeLabel(request.leaveType, request.detailedLeaveType)}
                         </Badge>
                       </div>
 

@@ -33,35 +33,36 @@ export default async function RequestPage({
     .eq('employee_id', user.id)
     .single()
 
-  // 포상휴가 조회
-  const { data: rewardGrants } = await supabase
-    .from('annual_leave_grant')
-    .select('granted_days')
-    .eq('employee_id', user.id)
-    .in('grant_type', ['award_overtime', 'award_attendance'])
-    .eq('approval_status', 'approved')
+  // 포상휴가 사용량 조회 (올해 사용한 포상휴가만)
+  // 포상휴가는 신청 → 승인 시 부여와 동시에 사용 처리됨
+  const currentYear = new Date().getFullYear()
+  const yearStart = `${currentYear}-01-01`
+  const yearEnd = `${currentYear}-12-31`
 
-  const totalReward = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
-
-  // 포상휴가 사용량 조회 (새 시스템: document_master + doc_leave)
   const { data: rewardUsage } = await supabase
     .from('document_master')
     .select(`
-      doc_leave (
-        days_count
+      doc_leave!inner (
+        days_count,
+        leave_type,
+        start_date
       )
     `)
     .eq('requester_id', user.id)
     .eq('doc_type', 'leave')
     .eq('status', 'approved')
 
-  // doc_leave에서 leave_type이 award인 것을 필터링하기 위해 별도 조회 필요
-  // 또는 단순히 모든 승인된 연차를 계산
+  // leave_type이 award이고 올해 사용한 것만 합산
   const usedReward = rewardUsage?.reduce((sum, req) => {
     const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
-    return sum + (docLeave?.days_count || 0)
+    if (docLeave?.leave_type === 'award') {
+      const startDate = docLeave?.start_date
+      if (startDate && startDate >= yearStart && startDate <= yearEnd) {
+        return sum + (docLeave?.days_count || 0)
+      }
+    }
+    return sum
   }, 0) || 0
-  const remainingReward = totalReward - usedReward
 
   // 구성원 목록 조회 (결재선용) - 직책, 부서 정보 포함
   // RLS를 우회하기 위해 adminSupabase 사용
@@ -116,9 +117,7 @@ export default async function RequestPage({
         currentUser={employee}
         balance={balance ? {
           ...balance,
-          reward_total: totalReward,
           reward_used: usedReward,
-          reward_remaining: remainingReward
         } : null}
         members={members}
         initialDocumentType={params.type}

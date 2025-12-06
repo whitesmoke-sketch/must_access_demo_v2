@@ -18,8 +18,29 @@ export interface Member {
   usedRewardLeave: number
 }
 
-// 기존 호환용 타입 (UI에서 사용)
+// 기존 호환용 타입 (통계에서 사용)
 export type LeaveType = 'annual' | 'reward' | 'sick' | 'other'
+
+// 상세 휴가 타입 (UI 표시에서 사용)
+export type DetailedLeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'quarter_day' | 'award' | 'reward' | 'sick' | 'special'
+
+// 상세 휴가 타입 라벨
+export const DetailedLeaveTypeLabels: Record<string, string> = {
+  annual: '연차',
+  half_day: '반차',
+  half_day_am: '오전 반차',
+  half_day_pm: '오후 반차',
+  quarter_day: '반반차',
+  award: '포상휴가',
+  reward: '포상휴가',
+  sick: '병가',
+  special: '특별휴가',
+}
+
+// 상세 휴가 타입 라벨 변환 함수
+export function getDetailedLeaveTypeLabel(leaveType: string): string {
+  return DetailedLeaveTypeLabels[leaveType] || '연차'
+}
 
 // 새 시스템 휴가 타입으로 매핑
 export const LeaveTypeMapping: Record<LeaveType, DocLeaveType> = {
@@ -34,6 +55,7 @@ export interface LeaveRequest {
   memberId: string
   memberName: string
   leaveType: LeaveType
+  detailedLeaveType?: DetailedLeaveType // 상세 휴가 타입 (annual, half_day, quarter_day, award)
   startDate: string
   endDate: string
   days: number
@@ -93,6 +115,7 @@ export function toLeaveRequest(doc: {
     memberId: doc.requester_id,
     memberName: doc.requester?.name || '',
     leaveType: doc.doc_leave ? leaveTypeMap[doc.doc_leave.leave_type] : 'annual',
+    detailedLeaveType: (doc.doc_leave?.leave_type || 'annual') as DetailedLeaveType,
     startDate: doc.doc_leave?.start_date || '',
     endDate: doc.doc_leave?.end_date || '',
     days: doc.doc_leave?.days_count || 0,

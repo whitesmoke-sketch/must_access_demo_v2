@@ -180,12 +180,13 @@ Deno.serve(async (req) => {
     // Map to LeaveRequest format (새 시스템)
     const leaveRequestsFormatted = leaveRequests?.map(req => {
       const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
-      const leaveType = docLeave?.leave_type || 'annual'
+      const detailedLeaveType = docLeave?.leave_type || 'annual'
 
+      // 통계용 매핑 (annual 또는 reward)
       let mappedLeaveType: 'annual' | 'reward' | 'sick' | 'other' = 'annual'
-      if (leaveType === 'award') {
+      if (detailedLeaveType === 'award') {
         mappedLeaveType = 'reward'
-      } else if (['annual', 'half_day', 'quarter_day'].includes(leaveType)) {
+      } else if (['annual', 'half_day', 'quarter_day'].includes(detailedLeaveType)) {
         mappedLeaveType = 'annual'
       }
 
@@ -197,6 +198,7 @@ Deno.serve(async (req) => {
         memberId: req.requester_id,
         memberName: req.requester?.name || '알 수 없음',
         leaveType: mappedLeaveType,
+        detailedLeaveType, // 상세 휴가 타입 (annual, half_day, quarter_day, award)
         startDate: docLeave?.start_date,
         endDate: docLeave?.end_date,
         days: Number(docLeave?.days_count) || 0,

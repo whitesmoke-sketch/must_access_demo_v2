@@ -97,10 +97,7 @@ interface Balance {
   total_days: number
   used_days: number
   remaining_days: number
-  reward_leave_balance?: number
-  reward_total?: number
-  reward_used?: number
-  reward_remaining?: number
+  reward_used?: number // 올해 사용한 포상휴가
 }
 
 interface ExpenseItem {
@@ -503,15 +500,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         return false
       }
 
-      // 포상휴가인 경우 포상휴가 잔액 체크
-      if (documentType === 'reward_leave') {
-        const remainingReward = balance?.reward_remaining || 0
-        if (calculatedDays > remainingReward) {
-          toast.error(`잔여 포상휴가가 부족합니다 (필요: ${calculatedDays}일, 잔여: ${remainingReward}일)`)
-          return false
-        }
-      } else {
-        // 연차/반차인 경우 연차 잔액 체크
+      // 포상휴가는 잔액 체크 없음 (신청 → 승인 시 부여와 동시에 사용)
+      // 연차/반차인 경우만 연차 잔액 체크
+      if (documentType === 'annual_leave') {
         const remainingDays = balance?.remaining_days || 0
         if (calculatedDays > remainingDays) {
           toast.error(`잔여 연차가 부족합니다 (필요: ${calculatedDays}일, 잔여: ${remainingDays}일)`)
@@ -720,12 +711,27 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
 
       if (isLeaveType) {
-        formData.leave_type = documentType === 'annual_leave' ? 'annual' : 'award'
         formData.requested_days = calculatedDays
         formData.start_date = startDate?.toISOString().split('T')[0]
         formData.end_date = endDate?.toISOString().split('T')[0]
+
         if (documentType === 'annual_leave') {
+          // 1일만 신청하고 반차인 경우 half_day로 설정
+          const sortedDates = Object.keys(dateDetails).sort()
+          const hasHalfDay = Object.values(dateDetails).some(v => v === 'morning' || v === 'afternoon')
+          const isSingleDayHalfLeave = sortedDates.length === 1 && hasHalfDay
+
+          if (isSingleDayHalfLeave) {
+            formData.leave_type = 'half_day'
+            const slot = dateDetails[sortedDates[0]]
+            formData.half_day_slot = slot === 'morning' ? 'am' : 'pm'
+          } else {
+            formData.leave_type = 'annual'
+          }
           formData.date_details = dateDetails
+        } else {
+          // 포상휴가
+          formData.leave_type = 'award'
         }
       }
 

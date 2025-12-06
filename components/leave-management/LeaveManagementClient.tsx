@@ -16,7 +16,7 @@ import {
   Upload,
   Edit,
 } from 'lucide-react'
-import { Member, LeaveRequest } from '@/lib/leave-management/types'
+import { Member, LeaveRequest, getDetailedLeaveTypeLabel } from '@/lib/leave-management/types'
 import { approveLeaveRequest, rejectLeaveRequest, grantRewardLeave } from '@/lib/leave-management/actions'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -173,7 +173,7 @@ export function LeaveManagementClient({
 
     if (success) {
       toast.success('연차 신청을 승인했습니다', {
-        description: `${request.memberName}님의 ${request.leaveType === 'annual' ? '연차' : '포상휴가'} 신청이 승인되었습니다.`,
+        description: `${request.memberName}님의 ${getDetailedLeaveTypeLabel(request.detailedLeaveType || request.leaveType)} 신청이 승인되었습니다.`,
       })
     } else {
       // 실패 시 UI 원복
@@ -590,7 +590,7 @@ export function LeaveManagementClient({
                     <div
                       style={{ fontSize: '24px', fontWeight: 700, color: '#FF6692', lineHeight: 1.2, marginTop: '8px' }}
                     >
-                      {thisMonthUsage}일
+                      {Number.isInteger(thisMonthUsage) ? thisMonthUsage : thisMonthUsage.toFixed(1)}일
                     </div>
                   </div>
                   <CalendarCheck className="w-10 h-10 hidden md:block" style={{ color: '#FF6692', opacity: 0.5 }} />
@@ -706,11 +706,7 @@ export function LeaveManagementClient({
                                     lineHeight: 1.4,
                                   }}
                                 >
-                                  {request.leaveType === 'annual'
-                                    ? '연차'
-                                    : request.leaveType === 'reward'
-                                    ? '포상휴가'
-                                    : '연차'}{' '}
+                                  {getDetailedLeaveTypeLabel(request.detailedLeaveType || request.leaveType)}{' '}
                                   · {request.days || 1}일
                                 </p>
                               </div>
