@@ -24,35 +24,12 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
   const usedAnnual = (balance?.total_days || 0) - remainingAnnual
   const totalAnnual = balance?.total_days || 0
 
-  // 포상휴가 조회
-  // 1. 부여된 포상휴가 합계
-  const { data: rewardGrants } = await supabase
-    .from('annual_leave_grant')
-    .select('granted_days')
-    .eq('employee_id', employeeId)
-    .in('grant_type', ['award_overtime', 'award_attendance'])
-    .eq('approval_status', 'approved')
-
-  const totalReward = rewardGrants?.reduce((sum, grant) => sum + grant.granted_days, 0) || 0
-
-  // 2. 사용한 포상휴가 합계
-  const { data: rewardUsage } = await supabase
-    .from('leave_request')
-    .select('number_of_days')
-    .eq('employee_id', employeeId)
-    .eq('leave_type', 'award')
-    .eq('status', 'approved')
-
-  const usedReward = rewardUsage?.reduce((sum, req) => sum + req.number_of_days, 0) || 0
-
-  // 3. 잔여 포상휴가
-  const remainingReward = totalReward - usedReward
-
   return (
     <Card
-      className="rounded-2xl"
+      className="rounded-2xl flex flex-col"
       style={{
-        height: '182px'
+        borderRadius: '16px',
+        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
       }}
     >
       <CardHeader style={{ paddingBottom: '12px' }}>
@@ -60,7 +37,7 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
           <CardTitle style={{
             fontSize: '16px',
             fontWeight: 500,
-            lineHeight: '24px',
+            lineHeight: '20.8px',
             color: '#29363D'
           }}>
             연차 요약
@@ -79,55 +56,53 @@ export async function LeaveBalanceCard({ employeeId }: LeaveBalanceCardProps) {
           </Link>
         </div>
       </CardHeader>
-      <CardContent className="flex gap-4 relative">
-        {/* 잔여 연차 */}
-        <div className="flex-1 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-              잔여 연차
-            </p>
-            <p style={{ fontSize: '20px', fontWeight: 700, lineHeight: '32.5px', color: '#29363D' }}>
-              {remainingAnnual}일
-            </p>
-          </div>
-          <div className="flex items-center justify-between">
-            <p style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
-              사용 / 발생
-            </p>
-            <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '18px', color: '#5B6A72' }}>
-              {usedAnnual} / {totalAnnual}
-            </p>
-          </div>
-        </div>
-
-        {/* 세로 구분선 */}
+      <CardContent className="flex flex-col items-center justify-center pb-6">
+        <p style={{
+          fontSize: '26px',
+          fontWeight: 700,
+          lineHeight: '32.5px',
+          color: '#29363D',
+          textAlign: 'center'
+        }}>
+          {remainingAnnual}일
+        </p>
+        <p style={{
+          fontSize: '14px',
+          lineHeight: '19.6px',
+          color: '#5B6A72',
+          textAlign: 'center',
+          marginTop: '4px'
+        }}>
+          남은 연차일
+        </p>
         <div
           style={{
-            width: '1px',
-            height: '50px',
-            backgroundColor: '#E5E8EB',
-            alignSelf: 'center'
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: '#F0EEFF',
+            borderRadius: '100px',
+            padding: '2px 16px',
+            marginTop: '12px'
           }}
-        />
-
-        {/* 잔여 포상휴가 */}
-        <div className="flex-1 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
-              잔여 포상휴가
-            </p>
-            <p style={{ fontSize: '20px', fontWeight: 700, lineHeight: '32.5px', color: '#29363D' }}>
-              {remainingReward}일
-            </p>
-          </div>
-          <div className="flex items-center justify-between">
-            <p style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
-              사용 / 발생
-            </p>
-            <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '18px', color: '#5B6A72' }}>
-              {usedReward} / {totalReward}
-            </p>
-          </div>
+        >
+          <p style={{
+            fontSize: '12px',
+            lineHeight: '14px',
+            color: '#5B6A72',
+            textAlign: 'center'
+          }}>
+            사용 / 총 연차
+          </p>
+          <p style={{
+            fontSize: '12px',
+            fontWeight: 800,
+            lineHeight: '14px',
+            color: '#5B6A72',
+            textAlign: 'center'
+          }}>
+            {usedAnnual}일 / {totalAnnual}일
+          </p>
         </div>
       </CardContent>
     </Card>
