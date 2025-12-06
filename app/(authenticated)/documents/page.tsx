@@ -63,17 +63,11 @@ export default async function DocumentsPage() {
       `)
       .eq('doc_type', 'leave')
       .order('created_at', { ascending: false }),
-    // 내가 승인자로 지정된 문서 중, 현재 내 차례인 것만 조회
+    // 내가 승인자로 지정된 문서 중, pending 상태인 것 조회
+    // 주의: approval_step.request_id → document_master.id 외래키가 없으므로 조인 불가
     supabase
       .from('approval_step')
-      .select(`
-        request_id,
-        step_order,
-        status,
-        document_master:request_id (
-          current_step
-        )
-      `)
+      .select('request_id, step_order, status')
       .eq('approver_id', user.id)
       .eq('request_type', 'leave')
       .eq('status', 'pending'),
@@ -172,16 +166,17 @@ export default async function DocumentsPage() {
     }
   })
 
+  // document_id -> current_step 매핑 생성
+  const documentCurrentStepMap = new Map(
+    allDocumentsRaw.map(doc => [doc.id, doc.current_step])
+  )
+
   // 내 step_order가 현재 current_step과 일치하는 문서만 필터링
+  // approval_step에서 status='pending'이면 이미 현재 차례이므로, step_order와 current_step 일치 확인
   const myApprovalRequestIds = new Set(
     myCurrentApprovalSteps
       ?.filter(step => {
-        const documentMaster = step.document_master as { current_step: number | null } | { current_step: number | null }[] | null
-        const currentStep = documentMaster
-          ? Array.isArray(documentMaster)
-            ? documentMaster[0]?.current_step
-            : documentMaster.current_step
-          : null
+        const currentStep = documentCurrentStepMap.get(step.request_id)
         return step.step_order === currentStep
       })
       .map(step => step.request_id) ?? []
