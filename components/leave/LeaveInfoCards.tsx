@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
+import { CalendarPlus, CalendarMinus, CalendarDays } from 'lucide-react'
 
 interface LeaveInfoCardsProps {
   employeeId: string
@@ -7,8 +8,6 @@ interface LeaveInfoCardsProps {
 
 export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
   const supabase = await createClient()
-
-  const currentYear = new Date().getFullYear()
 
   // 연차 잔액 조회
   const { data: balance } = await supabase
@@ -29,43 +28,38 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         style={{
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
-          height: '182px',
         }}
       >
-        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
-          <CardTitle
-            style={{
-              color: 'var(--foreground)',
-              fontSize: 'var(--font-size-body)',
-              fontWeight: 500,
-              lineHeight: 1.5,
-            }}
-          >
-            총 부여 연차
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
-          <div
-            style={{
-              fontSize: '24px',
-              fontWeight: 700,
-              color: 'var(--foreground)',
-              lineHeight: 1.2,
-            }}
-          >
-            {totalDays}일
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: 'var(--foreground)',
+                  lineHeight: 1.5,
+                  fontWeight: 500,
+                }}
+              >
+                총 부여 연차
+              </p>
+              <div
+                style={{
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: 'var(--foreground)',
+                  lineHeight: 1.2,
+                  marginTop: '4px',
+                }}
+              >
+                {totalDays}일
+              </div>
+            </div>
+            <CalendarPlus
+              className="w-10 h-10"
+              style={{ color: 'var(--foreground)', opacity: 0.5 }}
+            />
           </div>
-          <p
-            style={{
-              fontSize: 'var(--font-size-caption)',
-              color: 'var(--foreground)',
-              lineHeight: 1.4,
-              marginTop: '4px',
-              opacity: 0.7,
-            }}
-          >
-            {currentYear}년 기준
-          </p>
         </CardContent>
       </Card>
 
@@ -75,43 +69,38 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         style={{
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
-          height: '182px',
         }}
       >
-        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
-          <CardTitle
-            style={{
-              color: 'var(--foreground)',
-              fontSize: 'var(--font-size-body)',
-              fontWeight: 500,
-              lineHeight: 1.5,
-            }}
-          >
-            사용 연차
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
-          <div
-            style={{
-              fontSize: '24px',
-              fontWeight: 700,
-              color: 'var(--muted-foreground)',
-              lineHeight: 1.2,
-            }}
-          >
-            {usedDays}일
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: 'var(--foreground)',
+                  lineHeight: 1.5,
+                  fontWeight: 500,
+                }}
+              >
+                사용 연차
+              </p>
+              <div
+                style={{
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: 'var(--muted-foreground)',
+                  lineHeight: 1.2,
+                  marginTop: '4px',
+                }}
+              >
+                {usedDays}일
+              </div>
+            </div>
+            <CalendarMinus
+              className="w-10 h-10"
+              style={{ color: 'var(--muted-foreground)', opacity: 0.5 }}
+            />
           </div>
-          <p
-            style={{
-              fontSize: 'var(--font-size-caption)',
-              color: 'var(--foreground)',
-              lineHeight: 1.4,
-              marginTop: '4px',
-              opacity: 0.7,
-            }}
-          >
-            총 {totalDays}일 중
-          </p>
         </CardContent>
       </Card>
 
@@ -121,43 +110,38 @@ export async function LeaveInfoCards({ employeeId }: LeaveInfoCardsProps) {
         style={{
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
-          height: '182px',
         }}
       >
-        <CardHeader className="pb-2" style={{ paddingTop: '12px', paddingBottom: '4px' }}>
-          <CardTitle
-            style={{
-              color: 'var(--foreground)',
-              fontSize: 'var(--font-size-body)',
-              fontWeight: 500,
-              lineHeight: 1.5,
-            }}
-          >
-            잔여 연차
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0" style={{ paddingTop: '0', paddingBottom: '12px' }}>
-          <div
-            style={{
-              fontSize: '24px',
-              fontWeight: 700,
-              color: 'var(--primary)',
-              lineHeight: 1.2,
-            }}
-          >
-            {remainingDays}일
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: 'var(--foreground)',
+                  lineHeight: 1.5,
+                  fontWeight: 500,
+                }}
+              >
+                잔여 연차
+              </p>
+              <div
+                style={{
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: 'var(--primary)',
+                  lineHeight: 1.2,
+                  marginTop: '4px',
+                }}
+              >
+                {remainingDays}일
+              </div>
+            </div>
+            <CalendarDays
+              className="w-10 h-10"
+              style={{ color: 'var(--primary)', opacity: 0.5 }}
+            />
           </div>
-          <p
-            style={{
-              fontSize: 'var(--font-size-caption)',
-              color: 'var(--foreground)',
-              lineHeight: 1.4,
-              marginTop: '4px',
-              opacity: 0.7,
-            }}
-          >
-            사용 가능
-          </p>
         </CardContent>
       </Card>
     </div>
