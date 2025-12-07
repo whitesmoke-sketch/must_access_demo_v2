@@ -300,6 +300,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [condolenceType, setCondolenceType] = useState('')
   const [targetName, setTargetName] = useState('')
   const [relationship, setRelationship] = useState('')
+  const [welfareDate, setWelfareDate] = useState<Date>()
+  const [welfareAmount, setWelfareAmount] = useState('')
 
   // 야근수당
   const [overtimeDate, setOvertimeDate] = useState<Date>()
@@ -517,8 +519,16 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
     // 경조사비 검증
     if (documentType === 'condolence') {
-      if (!condolenceType || !targetName || !relationship) {
-        toast.error('경조사 정보를 모두 입력해주세요')
+      if (!condolenceType) {
+        toast.error('경조사 유형을 선택해주세요')
+        return false
+      }
+      if (!welfareDate) {
+        toast.error('경조사 날짜를 선택해주세요')
+        return false
+      }
+      if (!welfareAmount || parseInt(welfareAmount.replace(/,/g, '')) <= 0) {
+        toast.error('신청 금액을 입력해주세요')
         return false
       }
     }
@@ -756,9 +766,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
 
       if (documentType === 'condolence') {
-        formData.condolence_type = condolenceType
+        // DB 필드명에 맞게 매핑 (doc_welfare 테이블)
+        formData.event_type = condolenceType
+        formData.event_date = welfareDate?.toISOString().split('T')[0]
         formData.target_name = targetName
         formData.relationship = relationship
+        formData.amount = parseInt(welfareAmount.replace(/,/g, '')) || 0
       }
 
       if (documentType === 'overtime') {
@@ -1293,19 +1306,47 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="targetName">대상자 이름 *</Label>
+                      <Label>경조사 날짜 *</Label>
+                      <DatePicker
+                        date={welfareDate}
+                        onDateChange={setWelfareDate}
+                        placeholder="경조사 날짜 선택"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="welfareAmount">신청 금액 *</Label>
+                      <Input
+                        id="welfareAmount"
+                        type="text"
+                        placeholder="예: 100,000"
+                        value={welfareAmount}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d,]/g, '')
+                          const numericValue = value.replace(/,/g, '')
+                          if (numericValue === '') {
+                            setWelfareAmount('')
+                          } else {
+                            setWelfareAmount(Number(numericValue).toLocaleString())
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="targetName">대상자 이름</Label>
                       <Input
                         id="targetName"
-                        placeholder="이름"
+                        placeholder="이름 (선택)"
                         value={targetName}
                         onChange={(e) => setTargetName(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="relationship">관계 *</Label>
+                      <Label htmlFor="relationship">관계</Label>
                       <Input
                         id="relationship"
-                        placeholder="예: 본인, 부모, 자녀"
+                        placeholder="예: 본인, 부모, 자녀 (선택)"
                         value={relationship}
                         onChange={(e) => setRelationship(e.target.value)}
                       />
