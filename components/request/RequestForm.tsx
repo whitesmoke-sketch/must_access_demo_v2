@@ -303,7 +303,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
   // 야근수당
   const [overtimeDate, setOvertimeDate] = useState<Date>()
-  const [overtimeHours, setOvertimeHours] = useState('')
+  const [overtimeStartTime, setOvertimeStartTime] = useState('')
+  const [overtimeEndTime, setOvertimeEndTime] = useState('')
+  const [workContent, setWorkContent] = useState('')
 
   // 지출결의서 - 다중 항목 지원
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([{ item: '', amount: '' }])
@@ -521,8 +523,16 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
     // 야근수당 검증
     if (documentType === 'overtime') {
-      if (!overtimeDate || !overtimeHours) {
-        toast.error('야근 날짜와 시간을 입력해주세요')
+      if (!overtimeDate) {
+        toast.error('야근 날짜를 선택해주세요')
+        return false
+      }
+      if (!overtimeStartTime || !overtimeEndTime) {
+        toast.error('야근 시작 시간과 종료 시간을 선택해주세요')
+        return false
+      }
+      if (!workContent.trim()) {
+        toast.error('업무 내용을 입력해주세요')
         return false
       }
     }
@@ -742,8 +752,28 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
 
       if (documentType === 'overtime') {
-        formData.overtime_date = overtimeDate?.toISOString().split('T')[0]
-        formData.overtime_hours = parseFloat(overtimeHours)
+        // DB 필드명에 맞게 매핑
+        formData.work_date = overtimeDate?.toISOString().split('T')[0]
+        formData.start_time = overtimeStartTime
+        // 종료 시간: 익일인 경우 '+' 제거
+        formData.end_time = overtimeEndTime.startsWith('+')
+          ? overtimeEndTime.slice(1)
+          : overtimeEndTime
+        formData.work_content = workContent
+
+        // 총 야근 시간 계산 (소수점 1자리)
+        const startParts = overtimeStartTime.split(':').map(Number)
+        const startMinutes = startParts[0] * 60 + startParts[1]
+        let endMinutes: number
+        if (overtimeEndTime.startsWith('+')) {
+          const endParts = overtimeEndTime.slice(1).split(':').map(Number)
+          endMinutes = (24 * 60) + endParts[0] * 60 + endParts[1]
+        } else {
+          const endParts = overtimeEndTime.split(':').map(Number)
+          endMinutes = endParts[0] * 60 + endParts[1]
+        }
+        const diffMinutes = endMinutes - startMinutes
+        formData.total_hours = Math.round((diffMinutes / 60) * 10) / 10
       }
 
       if (documentType === 'expense') {
@@ -880,6 +910,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setEndDate(undefined)
           setDateDetails({})
           setExpenseItems([{ item: '', amount: '' }])
+          // 야근수당 필드 초기화
+          setOvertimeDate(undefined)
+          setOvertimeStartTime('')
+          setOvertimeEndTime('')
+          setWorkContent('')
         }}
       />
 
@@ -1260,7 +1295,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
               )}
 
               {documentType === 'overtime' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <>
+                  {/* 야근 날짜 */}
                   <div className="space-y-2">
                     <Label>야근 날짜 *</Label>
                     <DatePicker
@@ -1269,17 +1305,124 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       placeholder="야근 날짜 선택"
                     />
                   </div>
+
+                  {/* 야근 시작/종료 시간 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>야근 시작 시간 *</Label>
+                      <Select value={overtimeStartTime} onValueChange={setOvertimeStartTime}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="시작 시간 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* 18:00 ~ 23:30 (30분 단위) */}
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const hour = 18 + Math.floor(i / 2)
+                            const minute = (i % 2) * 30
+                            const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                            return (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>야근 종료 시간 *</Label>
+                      <Select value={overtimeEndTime} onValueChange={setOvertimeEndTime}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="종료 시간 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* 시작 시간 이후 ~ 익일 06:00 (30분 단위) */}
+                          {(() => {
+                            const options = []
+                            // 18:30 ~ 23:30
+                            for (let i = 1; i <= 11; i++) {
+                              const hour = 18 + Math.floor(i / 2)
+                              const minute = (i % 2) * 30
+                              const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                              const isDisabled = overtimeStartTime !== '' && time <= overtimeStartTime
+                              options.push(
+                                <SelectItem key={time} value={time} disabled={isDisabled}>
+                                  {time}
+                                </SelectItem>
+                              )
+                            }
+                            // 00:00 ~ 06:00 (익일)
+                            for (let i = 0; i <= 12; i++) {
+                              const hour = Math.floor(i / 2)
+                              const minute = (i % 2) * 30
+                              const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                              options.push(
+                                <SelectItem key={`next-${time}`} value={`+${time}`}>
+                                  익일 {time}
+                                </SelectItem>
+                              )
+                            }
+                            return options
+                          })()}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* 총 야근 시간 자동 계산 */}
+                  {overtimeStartTime && overtimeEndTime && (
+                    <div
+                      className="p-4 rounded-lg flex items-center gap-3"
+                      style={{ backgroundColor: 'rgba(99, 91, 255, 0.05)' }}
+                    >
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
+                      <div>
+                        <p style={{
+                          fontSize: 'var(--font-size-body)',
+                          fontWeight: 600,
+                          color: 'var(--card-foreground)',
+                          lineHeight: 1.5
+                        }}>
+                          총 야근 시간: {(() => {
+                            const startParts = overtimeStartTime.split(':').map(Number)
+                            const startMinutes = startParts[0] * 60 + startParts[1]
+
+                            let endMinutes: number
+                            if (overtimeEndTime.startsWith('+')) {
+                              // 익일 시간
+                              const endParts = overtimeEndTime.slice(1).split(':').map(Number)
+                              endMinutes = (24 * 60) + endParts[0] * 60 + endParts[1]
+                            } else {
+                              const endParts = overtimeEndTime.split(':').map(Number)
+                              endMinutes = endParts[0] * 60 + endParts[1]
+                            }
+
+                            const diffMinutes = endMinutes - startMinutes
+                            const hours = Math.floor(diffMinutes / 60)
+                            const minutes = diffMinutes % 60
+
+                            if (minutes === 0) {
+                              return `${hours}시간`
+                            }
+                            return `${hours}시간 ${minutes}분`
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 업무 내용 */}
                   <div className="space-y-2">
-                    <Label htmlFor="overtimeHours">야근 시간 *</Label>
-                    <Input
-                      id="overtimeHours"
-                      type="number"
-                      placeholder="시간 입력 (예: 2.5)"
-                      value={overtimeHours}
-                      onChange={(e) => setOvertimeHours(e.target.value)}
+                    <Label htmlFor="workContent">업무 내용 *</Label>
+                    <Textarea
+                      id="workContent"
+                      placeholder="야근 중 수행한 업무 내용을 입력하세요"
+                      rows={3}
+                      value={workContent}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setWorkContent(e.target.value)}
                     />
                   </div>
-                </div>
+                </>
               )}
 
               {documentType === 'expense' && (
