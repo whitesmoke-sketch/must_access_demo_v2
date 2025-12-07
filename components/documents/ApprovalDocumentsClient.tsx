@@ -41,7 +41,7 @@ import {
 import { ApprovalDocumentDetailModal } from './ApprovalDocumentDetailModal'
 import { ApprovalProgressBadge } from './ApprovalProgressBadge'
 
-type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'quarter_day' | 'award' | 'sick'
+type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'quarter_day' | 'award' | 'sick' | 'overtime'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retrieved'
 
 interface EmployeeInfo {
@@ -314,6 +314,7 @@ export function ApprovalDocumentsClient({
       quarter_day: { backgroundColor: 'var(--chart-4-bg)', color: 'var(--chart-4)' },
       award: { backgroundColor: 'var(--chart-4-bg)', color: 'var(--chart-4)' },
       sick: { backgroundColor: 'var(--destructive-bg)', color: 'var(--destructive)' },
+      overtime: { backgroundColor: 'var(--success-bg)', color: 'var(--success)' },
     }
 
     const labels: Record<string, string> = {
@@ -321,6 +322,7 @@ export function ApprovalDocumentsClient({
       half_day: '반차',
       half_day_am: '오전 반차',
       half_day_pm: '오후 반차',
+      overtime: '야근수당',
       quarter_day: '반반차',
       award: '포상휴가',
       sick: '병가',
@@ -384,8 +386,20 @@ export function ApprovalDocumentsClient({
       quarter_day: '반반차',
       award: '포상휴가',
       sick: '병가',
+      overtime: '야근수당',
     }
     const leaveLabel = leaveTypeLabels[doc.leave_type] || '연차'
+
+    // 야근수당인 경우 다른 형식으로 표시
+    if (doc.leave_type === 'overtime') {
+      const workDate = doc.start_date ? new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : ''
+      const hours = doc.requested_days || 0
+      if (doc.reason) {
+        return `${doc.reason} (${workDate}, ${hours}시간)`
+      }
+      return `${leaveLabel} 신청 (${workDate}, ${hours}시간)`
+    }
+
     const startDate = new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
     const endDate = new Date(doc.end_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
 

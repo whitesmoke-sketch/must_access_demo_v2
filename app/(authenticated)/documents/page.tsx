@@ -26,7 +26,7 @@ export default async function DocumentsPage() {
       .select('role:role_id(code, approval_level)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 모든 결재 문서 조회 (새 시스템: document_master + doc_leave)
+    // 모든 결재 문서 조회 (새 시스템: document_master + doc_leave/doc_overtime)
     supabase
       .from('document_master')
       .select(`
@@ -59,9 +59,15 @@ export default async function DocumentsPage() {
           days_count,
           half_day_slot,
           reason
+        ),
+        doc_overtime (
+          work_date,
+          start_time,
+          end_time,
+          total_hours,
+          work_content
         )
       `)
-      .eq('doc_type', 'leave')
       .order('created_at', { ascending: false }),
     // 내가 승인자로 지정된 문서 중, pending 상태인 것 조회
     // 주의: approval_step.request_id → document_master.id 외래키가 없으므로 조인 불가
@@ -69,14 +75,12 @@ export default async function DocumentsPage() {
       .from('approval_step')
       .select('request_id, step_order, status')
       .eq('approver_id', user.id)
-      .eq('request_type', 'leave')
       .eq('status', 'pending'),
     // 내가 관여한 모든 문서의 approval_step 상태 조회
     supabase
       .from('approval_step')
       .select('request_id, status')
-      .eq('approver_id', user.id)
-      .eq('request_type', 'leave'),
+      .eq('approver_id', user.id),
     // 모든 문서의 approval_step 조회 (결재선 정보 - 부서/직급 포함)
     adminSupabase
       .from('approval_step')
@@ -98,14 +102,12 @@ export default async function DocumentsPage() {
           )
         )
       `)
-      .eq('request_type', 'leave')
       .order('step_order', { ascending: true }),
     // 내가 참조로 지정된 결재 요청 조회
     supabase
       .from('approval_cc')
       .select('*')
       .eq('employee_id', user.id)
-      .eq('request_type', 'leave')
       .order('created_at', { ascending: false }),
     // 모든 문서의 참조자 목록 조회 (상세 모달용)
     adminSupabase
@@ -127,7 +129,6 @@ export default async function DocumentsPage() {
           )
         )
       `)
-      .eq('request_type', 'leave')
       .order('created_at', { ascending: true })
   ])
 
@@ -145,14 +146,12 @@ export default async function DocumentsPage() {
   // document_master 데이터를 기존 인터페이스에 맞게 변환
   const allDocuments = allDocumentsRaw.map(doc => {
     const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
-    return {
+    const docOvertime = Array.isArray(doc.doc_overtime) ? doc.doc_overtime[0] : doc.doc_overtime
+
+    // 기본 문서 정보
+    const baseDoc = {
       id: doc.id,
       employee_id: doc.requester_id,
-      leave_type: docLeave?.leave_type || 'annual',
-      requested_days: docLeave?.days_count || 0,
-      start_date: docLeave?.start_date || '',
-      end_date: docLeave?.end_date || '',
-      reason: docLeave?.reason || null,
       status: doc.status,
       requested_at: doc.created_at,
       approved_at: doc.approved_at,
@@ -163,6 +162,43 @@ export default async function DocumentsPage() {
       // 새 시스템 필드
       doc_type: doc.doc_type,
       title: doc.title,
+    }
+
+    // 문서 유형별 추가 필드
+    if (doc.doc_type === 'leave') {
+      return {
+        ...baseDoc,
+        leave_type: docLeave?.leave_type || 'annual',
+        requested_days: docLeave?.days_count || 0,
+        start_date: docLeave?.start_date || '',
+        end_date: docLeave?.end_date || '',
+        reason: docLeave?.reason || null,
+      }
+    } else if (doc.doc_type === 'overtime') {
+      return {
+        ...baseDoc,
+        leave_type: 'overtime', // 문서 유형 식별용
+        work_date: docOvertime?.work_date || '',
+        start_time: docOvertime?.start_time || '',
+        end_time: docOvertime?.end_time || '',
+        total_hours: docOvertime?.total_hours || 0,
+        work_content: docOvertime?.work_content || '',
+        // 호환성을 위한 필드
+        start_date: docOvertime?.work_date || '',
+        end_date: docOvertime?.work_date || '',
+        requested_days: docOvertime?.total_hours || 0,
+        reason: docOvertime?.work_content || null,
+      }
+    } else {
+      // 기타 문서 유형
+      return {
+        ...baseDoc,
+        leave_type: doc.doc_type,
+        start_date: '',
+        end_date: '',
+        requested_days: 0,
+        reason: null,
+      }
     }
   })
 
@@ -208,7 +244,7 @@ export default async function DocumentsPage() {
   const myCCRequests = myCCRequestsResult.data || []
   const ccRequestIds = myCCRequests.map(cc => cc.request_id)
 
-  // 참조 문서의 상세 정보 조회 (document_master + doc_leave와 조인)
+  // 참조 문서의 상세 정보 조회 (document_master + 문서유형별 테이블 조인)
   let referenceDocuments: any[] = []
   if (ccRequestIds.length > 0) {
     const { data: refDocs } = await supabase
@@ -238,9 +274,15 @@ export default async function DocumentsPage() {
           end_date,
           days_count,
           reason
+        ),
+        doc_overtime (
+          work_date,
+          start_time,
+          end_time,
+          total_hours,
+          work_content
         )
       `)
-      .eq('doc_type', 'leave')
       .in('id', ccRequestIds)
       .order('created_at', { ascending: false })
 
@@ -248,22 +290,55 @@ export default async function DocumentsPage() {
     referenceDocuments = (refDocs || []).map(doc => {
       const ccRecord = myCCRequests.find(cc => cc.request_id === doc.id)
       const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
-      return {
+      const docOvertime = Array.isArray(doc.doc_overtime) ? doc.doc_overtime[0] : doc.doc_overtime
+
+      const baseRefDoc = {
         id: doc.id,
         employee_id: doc.requester_id,
-        leave_type: docLeave?.leave_type || 'annual',
-        requested_days: docLeave?.days_count || 0,
-        start_date: docLeave?.start_date || '',
-        end_date: docLeave?.end_date || '',
-        reason: docLeave?.reason || null,
         status: doc.status,
         requested_at: doc.created_at,
         approved_at: doc.approved_at,
         current_step: doc.current_step,
         employee: doc.requester,
+        doc_type: doc.doc_type,
+        title: doc.title,
         cc_id: ccRecord?.id,
         read_at: ccRecord?.read_at,
         readStatus: ccRecord?.read_at ? 'read' : 'unread'
+      }
+
+      if (doc.doc_type === 'leave') {
+        return {
+          ...baseRefDoc,
+          leave_type: docLeave?.leave_type || 'annual',
+          requested_days: docLeave?.days_count || 0,
+          start_date: docLeave?.start_date || '',
+          end_date: docLeave?.end_date || '',
+          reason: docLeave?.reason || null,
+        }
+      } else if (doc.doc_type === 'overtime') {
+        return {
+          ...baseRefDoc,
+          leave_type: 'overtime',
+          work_date: docOvertime?.work_date || '',
+          start_time: docOvertime?.start_time || '',
+          end_time: docOvertime?.end_time || '',
+          total_hours: docOvertime?.total_hours || 0,
+          work_content: docOvertime?.work_content || '',
+          start_date: docOvertime?.work_date || '',
+          end_date: docOvertime?.work_date || '',
+          requested_days: docOvertime?.total_hours || 0,
+          reason: docOvertime?.work_content || null,
+        }
+      } else {
+        return {
+          ...baseRefDoc,
+          leave_type: doc.doc_type,
+          start_date: '',
+          end_date: '',
+          requested_days: 0,
+          reason: null,
+        }
       }
     })
   }
@@ -271,13 +346,13 @@ export default async function DocumentsPage() {
   return (
     <div className="space-y-6">
       <ApprovalDocumentsClient
-        documents={allDocuments || []}
+        documents={allDocuments as any[] || []}
         userId={user.id}
         approvalLevel={approvalLevel}
         myApprovalRequestIds={Array.from(myApprovalRequestIds)}
         myApprovalStatusMap={Object.fromEntries(myApprovalStatusMap)}
         approvalStepsMap={Object.fromEntries(approvalStepsMap)}
-        referenceDocuments={referenceDocuments}
+        referenceDocuments={referenceDocuments as any[]}
         ccListMap={Object.fromEntries(ccListMap)}
       />
     </div>
