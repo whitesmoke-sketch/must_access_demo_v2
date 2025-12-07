@@ -310,6 +310,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   // 지출결의서 - 다중 항목 지원
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([{ item: '', amount: '' }])
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [expenseDate, setExpenseDate] = useState<Date>()
+  const [expenseCategory, setExpenseCategory] = useState('')
 
   // 첨부파일
   const [attachments, setAttachments] = useState<File[]>([])
@@ -539,6 +541,14 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
     // 지출결의서 검증
     if (documentType === 'expense') {
+      if (!expenseDate) {
+        toast.error('지출 날짜를 선택해주세요')
+        return false
+      }
+      if (!expenseCategory) {
+        toast.error('지출 카테고리를 선택해주세요')
+        return false
+      }
       if (expenseItems.some(item => !item.item.trim() || !item.amount.trim())) {
         toast.error('모든 지출 항목과 금액을 입력해주세요')
         return false
@@ -777,6 +787,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
 
       if (documentType === 'expense') {
+        // DB 필드명에 맞게 매핑
+        formData.expense_date = expenseDate?.toISOString().split('T')[0]
+        formData.category = expenseCategory
+        // 총 금액 계산
+        formData.amount = expenseItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+        formData.usage_purpose = reason // 사유를 usage_purpose로 매핑
         formData.expense_items = expenseItems.map(item => ({
           item: item.item,
           amount: parseFloat(item.amount),
@@ -915,6 +931,10 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setOvertimeStartTime('')
           setOvertimeEndTime('')
           setWorkContent('')
+          // 지출결의서 필드 초기화
+          setExpenseDate(undefined)
+          setExpenseCategory('')
+          setPaymentMethod('')
         }}
       />
 
@@ -1427,6 +1447,37 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
               {documentType === 'expense' && (
                 <>
+                  {/* 지출 날짜 */}
+                  <div className="space-y-2">
+                    <Label>지출 날짜 *</Label>
+                    <DatePicker
+                      date={expenseDate}
+                      onDateChange={setExpenseDate}
+                      placeholder="지출 날짜 선택"
+                    />
+                  </div>
+
+                  {/* 지출 카테고리 */}
+                  <div className="space-y-2">
+                    <Label>지출 카테고리 *</Label>
+                    <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="카테고리 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="office_supplies">사무용품</SelectItem>
+                        <SelectItem value="transportation">교통비</SelectItem>
+                        <SelectItem value="meals">식비</SelectItem>
+                        <SelectItem value="meeting">회의비</SelectItem>
+                        <SelectItem value="equipment">장비/비품</SelectItem>
+                        <SelectItem value="education">교육비</SelectItem>
+                        <SelectItem value="overtime_transport">야근 교통비</SelectItem>
+                        <SelectItem value="other">기타</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 지출 항목 */}
                   <div className="space-y-3">
                     <Label>지출 항목 *</Label>
                     {expenseItems.map((item, index) => (
@@ -1467,8 +1518,16 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       <Plus className="w-4 h-4 mr-2" />
                       지출 항목 추가
                     </Button>
+
+                    {/* 총 금액 표시 */}
+                    <div className="flex justify-end pt-2 border-t">
+                      <p style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--foreground)' }}>
+                        총 금액: {expenseItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}원
+                      </p>
+                    </div>
                   </div>
 
+                  {/* 결제수단 */}
                   <div className="space-y-2">
                     <Label htmlFor="paymentMethod">결제수단 *</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
