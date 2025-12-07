@@ -53,7 +53,7 @@ type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'retri
 interface MyDocument {
   id: number
   employee_id: string
-  leave_type: 'annual' | 'half_day_am' | 'half_day_pm' | 'sick'
+  leave_type: 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'sick' | 'award' | 'overtime' | string
   requested_days: number
   start_date: string
   end_date: string
@@ -64,6 +64,8 @@ interface MyDocument {
   rejected_at: string | null
   retrieved_at: string | null
   current_step: number | null
+  doc_type?: string
+  title?: string
 }
 
 interface ApprovalStep {
@@ -278,8 +280,18 @@ export function MyDocumentsClient({
       half_day_pm: '오후 반차',
       award: '포상휴가',
       sick: '병가',
+      overtime: '야근수당',
     }
     return types[type] || type
+  }
+
+  // 문서 상세 텍스트 생성
+  const getDocumentDetail = (doc: MyDocument) => {
+    if (doc.leave_type === 'overtime') {
+      const workDate = doc.start_date ? new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : ''
+      return `${doc.reason || '야근'} (${workDate}, ${doc.requested_days}시간)`
+    }
+    return `${doc.reason} (${doc.start_date} ~ ${doc.end_date})`
   }
 
   // 결재 히스토리 이벤트 정보 (Figma 디자인과 동일한 CSS 변수 사용)
@@ -467,7 +479,7 @@ export function MyDocumentsClient({
                           </Badge>
                         </TableCell>
                         <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
-                          {doc.reason} ({doc.start_date} ~ {doc.end_date})
+                          {getDocumentDetail(doc)}
                         </TableCell>
                         <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
                           {new Date(doc.requested_at).toLocaleDateString('ko-KR', {
@@ -589,40 +601,63 @@ export function MyDocumentsClient({
 
               <div>
                 <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
-                  신청 사유
+                  {selectedDocument.leave_type === 'overtime' ? '업무 내용' : '신청 사유'}
                 </p>
                 <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
                   {selectedDocument.reason}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
-                    시작일
-                  </p>
-                  <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
-                    {selectedDocument.start_date}
-                  </p>
+              {selectedDocument.leave_type === 'overtime' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                      야근 날짜
+                    </p>
+                    <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                      {selectedDocument.start_date}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                      야근 시간
+                    </p>
+                    <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                      {selectedDocument.requested_days}시간
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
-                    종료일
-                  </p>
-                  <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
-                    {selectedDocument.end_date}
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                        시작일
+                      </p>
+                      <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                        {selectedDocument.start_date}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                        종료일
+                      </p>
+                      <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                        {selectedDocument.end_date}
+                      </p>
+                    </div>
+                  </div>
 
-              <div>
-                <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
-                  사용일수
-                </p>
-                <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
-                  {selectedDocument.requested_days}일
-                </p>
-              </div>
+                  <div>
+                    <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
+                      사용일수
+                    </p>
+                    <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                      {selectedDocument.requested_days}일
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div>
                 <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)', lineHeight: 1.4, marginBottom: '4px' }}>
