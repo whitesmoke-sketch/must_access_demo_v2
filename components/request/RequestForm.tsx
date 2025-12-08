@@ -944,7 +944,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           : overtimeEndTime
         formData.work_content = workContent
 
-        // 총 야근 시간 계산 (소수점 1자리)
+        // 총 야근 시간 계산 (소수점 1자리, 휴게시간 1시간 차감)
         const startParts = overtimeStartTime.split(':').map(Number)
         const startMinutes = startParts[0] * 60 + startParts[1]
         let endMinutes: number
@@ -955,7 +955,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           const endParts = overtimeEndTime.split(':').map(Number)
           endMinutes = endParts[0] * 60 + endParts[1]
         }
-        const diffMinutes = endMinutes - startMinutes
+        // 1시간 차감 (휴게시간)
+        const diffMinutes = Math.max(0, endMinutes - startMinutes - 60)
         formData.total_hours = Math.round((diffMinutes / 60) * 10) / 10
       }
 
@@ -1647,7 +1648,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                           <SelectValue placeholder="종료 시간 선택" />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* 시작 시간 이후 ~ 익일 06:00 (30분 단위) */}
+                          {/* 시작 시간 이후 ~ 익일 09:00 (30분 단위) */}
                           {(() => {
                             const options = []
                             // 18:30 ~ 23:30
@@ -1662,8 +1663,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                                 </SelectItem>
                               )
                             }
-                            // 00:00 ~ 06:00 (익일)
-                            for (let i = 0; i <= 12; i++) {
+                            // 00:00 ~ 09:00 (익일)
+                            for (let i = 0; i <= 18; i++) {
                               const hour = Math.floor(i / 2)
                               const minute = (i % 2) * 30
                               const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
@@ -1708,7 +1709,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                               endMinutes = endParts[0] * 60 + endParts[1]
                             }
 
-                            const diffMinutes = endMinutes - startMinutes
+                            // 1시간 차감 (휴게시간)
+                            const diffMinutes = Math.max(0, endMinutes - startMinutes - 60)
                             const hours = Math.floor(diffMinutes / 60)
                             const minutes = diffMinutes % 60
 
@@ -1716,7 +1718,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                               return `${hours}시간`
                             }
                             return `${hours}시간 ${minutes}분`
-                          })()}
+                          })()} (휴게시간 1시간 제외)
                         </p>
                       </div>
                     </div>
