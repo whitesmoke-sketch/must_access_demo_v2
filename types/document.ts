@@ -163,10 +163,8 @@ export interface DocExpenseProposal {
     quantity: number
     unit_price: number
   }>
-  supply_amount: number
-  vat_amount: number
   total_amount: number
-  vendor_name: string | null
+  vendor_name: string
   linked_expense_id: number | null
   created_at: string
 }
@@ -441,10 +439,8 @@ export interface CreateExpenseProposalDocumentInput extends CreateDocumentInput 
   expense_date: string
   expense_reason: string
   items: Array<{ item: string; quantity: number; unit_price: number }>
-  supply_amount: number
-  vat_amount: number
   total_amount: number
-  vendor_name?: string
+  vendor_name: string
 }
 
 // 사직서 생성 입력

@@ -339,10 +339,8 @@ async function createDocumentDetail(
           expense_date: formData.expense_date as string,
           expense_reason: formData.expense_reason as string,
           items: formData.items || [],
-          supply_amount: formData.supply_amount as number,
-          vat_amount: formData.vat_amount as number,
           total_amount: formData.total_amount as number,
-          vendor_name: formData.vendor_name as string || null,
+          vendor_name: formData.vendor_name as string,
         })
         if (error) return { success: false, error: error.message }
         break

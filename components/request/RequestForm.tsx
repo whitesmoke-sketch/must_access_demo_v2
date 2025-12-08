@@ -671,6 +671,10 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         toast.error('모든 품목 정보를 입력해주세요')
         return false
       }
+      if (!vendorName.trim()) {
+        toast.error('거래 예정처를 입력해주세요')
+        return false
+      }
     }
 
     // 사직서 검증
@@ -991,12 +995,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           quantity: parseInt(item.quantity) || 1,
           unit_price: parseFloat(item.unitPrice) || 0,
         }))
-        const supplyAmount = proposalItems.reduce((sum, item) =>
+        // 총 금액 계산 (부가세 없이)
+        const totalAmount = proposalItems.reduce((sum, item) =>
           sum + (parseInt(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0), 0)
-        formData.supply_amount = supplyAmount
-        formData.vat_amount = Math.round(supplyAmount * 0.1)
-        formData.total_amount = supplyAmount + Math.round(supplyAmount * 0.1)
-        formData.vendor_name = vendorName || null
+        formData.total_amount = totalAmount
+        formData.vendor_name = vendorName
       }
 
       if (documentType === 'resignation') {
@@ -2034,41 +2037,43 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       품목 추가
                     </Button>
 
-                    {/* 금액 계산 */}
-                    {proposalItems.some(item => item.quantity && item.unitPrice) && (
-                      <div className="space-y-1 pt-2 border-t">
-                        {(() => {
-                          const supplyAmount = proposalItems.reduce((sum, item) =>
-                            sum + (parseInt(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0), 0)
-                          const vatAmount = Math.round(supplyAmount * 0.1)
-                          const totalAmount = supplyAmount + vatAmount
-                          return (
-                            <>
-                              <div className="flex justify-between">
-                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>공급가액</span>
-                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>{supplyAmount.toLocaleString()}원</span>
+                    {/* 품목 요약 및 총 금액 */}
+                    {proposalItems.some(item => item.item && item.quantity && item.unitPrice) && (
+                      <div className="space-y-2 pt-2 border-t">
+                        {/* 품목 목록 요약 */}
+                        <div className="space-y-1">
+                          {proposalItems.filter(item => item.item && item.quantity && item.unitPrice).map((item, index) => {
+                            const itemTotal = (parseInt(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0)
+                            return (
+                              <div key={index} className="flex justify-between">
+                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+                                  {item.item} x {item.quantity}개
+                                </span>
+                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
+                                  {itemTotal.toLocaleString()}원
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>부가세 (10%)</span>
-                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>{vatAmount.toLocaleString()}원</span>
-                              </div>
-                              <div className="flex justify-between pt-1 border-t">
-                                <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--foreground)' }}>총 금액</span>
-                                <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--primary)' }}>{totalAmount.toLocaleString()}원</span>
-                              </div>
-                            </>
-                          )
-                        })()}
+                            )
+                          })}
+                        </div>
+                        {/* 총 금액 */}
+                        <div className="flex justify-between pt-2 border-t">
+                          <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--foreground)' }}>총 금액</span>
+                          <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--primary)' }}>
+                            {proposalItems.reduce((sum, item) =>
+                              sum + (parseInt(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0), 0).toLocaleString()}원
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* 거래처 */}
+                  {/* 거래 예정처 */}
                   <div className="space-y-2">
-                    <Label htmlFor="vendorName">거래처</Label>
+                    <Label htmlFor="vendorName">거래 예정처 *</Label>
                     <Input
                       id="vendorName"
-                      placeholder="거래처명 (선택)"
+                      placeholder="거래 예정처를 입력하세요"
                       value={vendorName}
                       onChange={(e) => setVendorName(e.target.value)}
                     />
