@@ -28,7 +28,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { DocumentTypeSelector } from './DocumentTypeSelector'
 import { LeaveBalanceCards } from './LeaveBalanceCards'
-import { submitDocumentRequest } from '@/app/actions/document'
+import { submitDocumentRequest, searchAccessibleDocuments } from '@/app/actions/document'
 import { generateDefaultApprovers } from '@/app/actions/approval'
 import { Upload, X, AlertCircle, Plus, User, Edit2, Trash2, GripVertical, FileText, Search, Check } from 'lucide-react'
 import { toast } from 'sonner'
@@ -116,6 +116,8 @@ interface ExistingDocument {
   type: string
   submittedAt: string
   status: 'pending' | 'approved' | 'rejected'
+  requesterName?: string
+  visibility?: string
 }
 
 interface RequestFormProps {
@@ -123,7 +125,6 @@ interface RequestFormProps {
   balance: Balance | null
   members: Member[]
   initialDocumentType?: string
-  existingDocuments?: ExistingDocument[]
 }
 
 interface DraggableApprovalGroupProps {
@@ -275,7 +276,7 @@ const DraggableApprovalGroup: React.FC<DraggableApprovalGroupProps> = ({
   )
 }
 
-export function RequestForm({ currentUser, balance, members, initialDocumentType, existingDocuments = [] }: RequestFormProps) {
+export function RequestForm({ currentUser, balance, members, initialDocumentType }: RequestFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -291,6 +292,10 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   // 공통 필드
   const [title, setTitle] = useState('')
   const [reason, setReason] = useState('')
+
+  // 공개 범위 (연차/사직서는 자동으로 'private' 설정)
+  type VisibilityScope = 'private' | 'team' | 'department' | 'division' | 'public'
+  const [visibility, setVisibility] = useState<VisibilityScope | ''>('')
 
   // 연차 관련
   const [startDate, setStartDate] = useState<Date>()
@@ -371,6 +376,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [isExistingDocDialogOpen, setIsExistingDocDialogOpen] = useState(false)
   const [tempSelectedDocs, setTempSelectedDocs] = useState<string[]>([])
   const [docSearchQuery, setDocSearchQuery] = useState('')
+  const [existingDocuments, setExistingDocuments] = useState<ExistingDocument[]>([])
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
   // Step 3: 결재선
   const [approvalSteps, setApprovalSteps] = useState<ApprovalStep[]>([])
@@ -552,6 +559,13 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     const reasonRequiredTypes = ['annual_leave', 'reward_leave', 'condolence', 'expense']
     if (reasonRequiredTypes.includes(documentType) && !reason.trim()) {
       toast.error('사유를 입력해주세요')
+      return false
+    }
+
+    // 공개 범위 검증 (연차/사직서 제외한 문서에서 필수)
+    const visibilityExemptTypes = ['annual_leave', 'reward_leave', 'resignation']
+    if (!visibilityExemptTypes.includes(documentType) && !visibility) {
+      toast.error('공개 범위를 선택해주세요')
       return false
     }
 
@@ -890,9 +904,16 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }))
 
       // 폼 데이터 구성
+      // 연차/사직서는 자동으로 비공개, 그 외는 사용자 선택값
+      const visibilityExemptTypes = ['annual_leave', 'reward_leave', 'resignation']
+      const finalVisibility = visibilityExemptTypes.includes(documentType)
+        ? 'private'
+        : visibility
+
       const formData: Record<string, unknown> = {
         title,
         reason,
+        visibility: finalVisibility,
       }
 
       if (isLeaveType) {
@@ -1048,6 +1069,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         form_data: formData,
         approval_steps: serverApprovalSteps,
         reference_steps: referenceSteps,
+        visibility: finalVisibility as 'private' | 'team' | 'department' | 'division' | 'public',
       })
 
       if (result.success) {
@@ -1077,10 +1099,25 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   }
 
   // 기존 문서 첨부 다이얼로그 열기
-  const openExistingDocDialog = () => {
+  const openExistingDocDialog = async () => {
     setTempSelectedDocs([...selectedExistingDocs])
     setDocSearchQuery('')
     setIsExistingDocDialogOpen(true)
+
+    // 접근 가능한 문서 목록 조회
+    setIsLoadingDocs(true)
+    try {
+      const result = await searchAccessibleDocuments()
+      if (result.success) {
+        setExistingDocuments(result.data)
+      } else {
+        toast.error('문서 목록을 불러오는데 실패했습니다')
+      }
+    } catch {
+      toast.error('문서 목록을 불러오는데 실패했습니다')
+    } finally {
+      setIsLoadingDocs(false)
+    }
   }
 
   // 기존 문서 선택 토글
@@ -1164,6 +1201,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           // 문서 타입 변경 시 필드 초기화
           setTitle('')
           setReason('')
+          setVisibility('')
           setStartDate(undefined)
           setEndDate(undefined)
           setDateDetails({})
@@ -1313,6 +1351,32 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
+
+              {/* 공개 범위 - 연차/사직서 제외 */}
+              {documentType && !['annual_leave', 'reward_leave', 'resignation'].includes(documentType) && (
+                <div className="space-y-2">
+                  <Label htmlFor="visibility">공개 범위 *</Label>
+                  <Select value={visibility} onValueChange={(value) => setVisibility(value as VisibilityScope)}>
+                    <SelectTrigger id="visibility">
+                      <SelectValue placeholder="공개 범위를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">비공개 (본인 + 최종결재자)</SelectItem>
+                      <SelectItem value="team">팀 (본인이 속한 팀)</SelectItem>
+                      <SelectItem value="department">부서 (본인이 속한 부서)</SelectItem>
+                      <SelectItem value="division">사업부 (본인이 속한 사업부)</SelectItem>
+                      <SelectItem value="public">전사 (모든 직원)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p style={{
+                    fontSize: 'var(--font-size-caption)',
+                    color: 'var(--muted-foreground)',
+                    marginTop: '4px',
+                  }}>
+                    다른 직원이 문서를 첨부할 때 검색 가능 범위가 결정됩니다
+                  </p>
+                </div>
+              )}
 
               {/* 문서별 동적 필드 */}
               {documentType === 'annual_leave' && (
@@ -2436,7 +2500,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                     variant="outline"
                     onClick={openExistingDocDialog}
                     className="w-full"
-                    disabled={existingDocuments.length === 0}
                   >
                     <FileText className="w-4 h-4 mr-2" />
                     이전 문서 선택
@@ -2495,17 +2558,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                     </div>
                   )}
 
-                  {existingDocuments.length === 0 && (
-                    <p style={{
-                      fontSize: 'var(--font-size-caption)',
-                      color: 'var(--muted-foreground)',
-                      lineHeight: 1.4,
-                      textAlign: 'center',
-                      padding: '8px 0',
-                    }}>
-                      이전에 제출한 문서가 없습니다
-                    </p>
-                  )}
                 </div>
               </div>
             </CardContent>
@@ -3019,14 +3071,24 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
               </div>
             </div>
 
-            {existingDocuments.length === 0 ? (
+            {isLoadingDocs ? (
               <div className="text-center py-8">
                 <p style={{
                   fontSize: 'var(--font-size-body)',
                   color: 'var(--muted-foreground)',
                   lineHeight: 1.5
                 }}>
-                  이전에 제출한 문서가 없습니다
+                  문서 목록을 불러오는 중...
+                </p>
+              </div>
+            ) : existingDocuments.length === 0 ? (
+              <div className="text-center py-8">
+                <p style={{
+                  fontSize: 'var(--font-size-body)',
+                  color: 'var(--muted-foreground)',
+                  lineHeight: 1.5
+                }}>
+                  첨부 가능한 문서가 없습니다
                 </p>
               </div>
             ) : (
@@ -3064,6 +3126,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                             </TableHead>
                             <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
                               문서 제목
+                            </TableHead>
+                            <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              작성자
                             </TableHead>
                             <TableHead className="text-left p-3" style={{ fontSize: 'var(--font-size-caption)', fontWeight: 600, color: 'var(--muted-foreground)' }}>
                               제출일
@@ -3118,6 +3183,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                                 </TableCell>
                                 <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
                                   {doc.title}
+                                </TableCell>
+                                <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+                                  {doc.requesterName || '-'}
                                 </TableCell>
                                 <TableCell className="p-3" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>
                                   {new Date(doc.submittedAt).toLocaleDateString('ko-KR', {

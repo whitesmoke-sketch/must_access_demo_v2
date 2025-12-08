@@ -809,3 +809,207 @@ export async function saveDraft(data: DocumentSubmissionData) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
+
+// ================================================
+// 접근 가능한 문서 검색 (기존 문서 첨부용)
+// ================================================
+
+interface AccessibleDocument {
+  id: string
+  title: string
+  type: string
+  submittedAt: string
+  status: 'pending' | 'approved' | 'rejected'
+  requesterName: string
+  visibility: string
+}
+
+/**
+ * 공개 범위에 따라 접근 가능한 문서 목록 조회
+ * - 본인 문서는 항상 볼 수 있음
+ * - 비공개(private): 본인 문서만
+ * - 팀(team): 같은 department_id의 직원 문서
+ * - 부서(department): 같은 부서 또는 하위 부서의 직원 문서
+ * - 사업부(division): 같은 사업부(상위 부서 기준) 계열의 직원 문서
+ * - 전사(public): 모든 문서
+ */
+export async function searchAccessibleDocuments(options?: {
+  search?: string
+  page?: number
+  perPage?: number
+}): Promise<{ success: boolean; data: AccessibleDocument[]; total: number; error?: string }> {
+  try {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: '인증이 필요합니다', data: [], total: 0 }
+    }
+
+    // 현재 사용자 정보 조회
+    const { data: currentEmployee } = await supabase
+      .from('employee')
+      .select('id, department_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!currentEmployee) {
+      return { success: false, error: '사용자 정보를 찾을 수 없습니다', data: [], total: 0 }
+    }
+
+    // 현재 사용자의 부서 계층 정보 조회
+    const { data: currentDept } = await supabase
+      .from('department')
+      .select('id, parent_department_id')
+      .eq('id', currentEmployee.department_id)
+      .single()
+
+    // 같은 부서의 하위 부서들 (department 범위용)
+    const { data: childDepts } = await supabase
+      .from('department')
+      .select('id')
+      .eq('parent_department_id', currentEmployee.department_id)
+
+    const departmentIds = [
+      currentEmployee.department_id,
+      ...(childDepts?.map(d => d.id) || [])
+    ]
+
+    // 같은 사업부 계열 부서들 (division 범위용)
+    // 상위 부서가 같거나, 상위 부서가 없으면 같은 최상위 부서
+    let divisionDeptIds: number[] = [currentEmployee.department_id]
+
+    if (currentDept?.parent_department_id) {
+      // 같은 상위 부서를 가진 모든 부서
+      const { data: siblingDepts } = await supabase
+        .from('department')
+        .select('id')
+        .eq('parent_department_id', currentDept.parent_department_id)
+
+      divisionDeptIds = siblingDepts?.map(d => d.id) || []
+
+      // 상위 부서 자체도 포함
+      divisionDeptIds.push(currentDept.parent_department_id)
+
+      // 각 sibling의 하위 부서들도 포함
+      const { data: nephewDepts } = await supabase
+        .from('department')
+        .select('id')
+        .in('parent_department_id', divisionDeptIds)
+
+      if (nephewDepts) {
+        divisionDeptIds = [...divisionDeptIds, ...nephewDepts.map(d => d.id)]
+      }
+    } else {
+      // 최상위 부서인 경우, 자신과 하위 부서들
+      divisionDeptIds = departmentIds
+    }
+
+    // 같은 팀(부서)의 직원 ID들
+    const { data: teamMembers } = await supabase
+      .from('employee')
+      .select('id')
+      .eq('department_id', currentEmployee.department_id)
+      .eq('status', 'active')
+
+    const teamMemberIds = teamMembers?.map(m => m.id) || []
+
+    // 같은 부서 계열의 직원 ID들
+    const { data: deptMembers } = await supabase
+      .from('employee')
+      .select('id')
+      .in('department_id', departmentIds)
+      .eq('status', 'active')
+
+    const deptMemberIds = deptMembers?.map(m => m.id) || []
+
+    // 같은 사업부 계열의 직원 ID들
+    const { data: divisionMembers } = await supabase
+      .from('employee')
+      .select('id')
+      .in('department_id', divisionDeptIds)
+      .eq('status', 'active')
+
+    const divisionMemberIds = divisionMembers?.map(m => m.id) || []
+
+    const page = options?.page || 1
+    const perPage = options?.perPage || 50
+    const from = (page - 1) * perPage
+    const to = from + perPage - 1
+
+    // 문서 조회 - 공개 범위에 따른 필터링
+    // OR 조건으로 여러 케이스를 처리
+    let query = supabase
+      .from('document_master')
+      .select(`
+        id,
+        title,
+        doc_type,
+        status,
+        visibility,
+        created_at,
+        requester:requester_id (
+          id,
+          name
+        )
+      `, { count: 'exact' })
+      .eq('status', 'approved') // 승인된 문서만
+      .order('created_at', { ascending: false })
+
+    // 검색어 필터
+    if (options?.search) {
+      query = query.ilike('title', `%${options.search}%`)
+    }
+
+    const { data: allDocs, error, count } = await query.range(from, to)
+
+    if (error) {
+      console.error('[Document] Search accessible documents error:', error)
+      return { success: false, error: error.message, data: [], total: 0 }
+    }
+
+    // 클라이언트 측에서 공개 범위 필터링
+    const accessibleDocs = (allDocs || []).filter(doc => {
+      const requesterId = (doc.requester as any)?.id
+
+      // 본인 문서는 항상 접근 가능
+      if (requesterId === user.id) return true
+
+      // 공개 범위에 따른 필터링
+      switch (doc.visibility) {
+        case 'public':
+          return true
+        case 'division':
+          return divisionMemberIds.includes(requesterId)
+        case 'department':
+          return deptMemberIds.includes(requesterId)
+        case 'team':
+          return teamMemberIds.includes(requesterId)
+        case 'private':
+          return false // 본인 문서만 (위에서 이미 처리됨)
+        default:
+          return false
+      }
+    })
+
+    // 결과 변환
+    const result: AccessibleDocument[] = accessibleDocs.map(doc => ({
+      id: String(doc.id),
+      title: doc.title,
+      type: doc.doc_type,
+      submittedAt: doc.created_at,
+      status: doc.status as 'pending' | 'approved' | 'rejected',
+      requesterName: (doc.requester as any)?.name || '알 수 없음',
+      visibility: doc.visibility,
+    }))
+
+    return {
+      success: true,
+      data: result,
+      total: count || 0,
+    }
+  } catch (error: unknown) {
+    console.error('[Document] Search accessible documents error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [], total: 0 }
+  }
+}
