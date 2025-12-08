@@ -367,6 +367,238 @@ CREATE TABLE approval_step_audit (
 CREATE INDEX idx_approval_step_audit_step ON approval_step_audit(approval_step_id, changed_at DESC);
 
 -- ================================================================
+-- 3.5 UNIFIED DOCUMENT SYSTEM
+-- ================================================================
+
+-- 문서 공개 범위 ENUM
+CREATE TYPE visibility_scope AS ENUM ('private', 'team', 'department', 'company');
+
+-- 문서 종류 ENUM (9개 타입)
+CREATE TYPE document_type AS ENUM (
+    'leave',             -- 휴가 신청
+    'overtime',          -- 연장 근로 신청
+    'expense',           -- 지출결의서
+    'welfare',           -- 경조사비
+    'general',           -- 일반 문서
+    'budget',            -- 예산 신청서
+    'expense_proposal',  -- 지출 품의서
+    'resignation',       -- 사직서
+    'overtime_report'    -- 연장 근로 보고
+);
+
+-- 통합 문서 마스터 테이블
+CREATE TABLE document_master (
+    id BIGSERIAL PRIMARY KEY,
+    document_number VARCHAR(50) UNIQUE,
+    requester_id UUID NOT NULL REFERENCES employee(id),
+    department_id BIGINT NOT NULL REFERENCES department(id),
+    visibility visibility_scope NOT NULL DEFAULT 'team',
+    is_confidential BOOLEAN DEFAULT FALSE,
+    doc_type document_type NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'approved', 'rejected', 'retrieved')),
+    summary_data JSONB,
+    current_step INTEGER DEFAULT 1,
+    drive_file_id TEXT,
+    drive_file_url TEXT,
+    pdf_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    approved_at TIMESTAMPTZ,
+    retrieved_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_doc_master_visibility ON document_master(visibility, department_id);
+CREATE INDEX idx_doc_master_requester ON document_master(requester_id);
+CREATE INDEX idx_doc_master_status ON document_master(status);
+CREATE INDEX idx_doc_master_created_at ON document_master(created_at DESC);
+CREATE INDEX idx_doc_master_doc_type ON document_master(doc_type);
+
+COMMENT ON TABLE document_master IS '통합 문서 마스터 테이블 - 모든 결재 문서의 공통 헤더';
+
+-- 휴가 신청 상세
+CREATE TABLE doc_leave (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    leave_type VARCHAR(50) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    days_count DECIMAL(4,1) NOT NULL,
+    half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
+    reason TEXT,
+    attachment_url VARCHAR(500),
+    deducted_from_grants JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_leave_dates ON doc_leave(start_date, end_date);
+CREATE INDEX idx_doc_leave_type ON doc_leave(leave_type);
+
+COMMENT ON TABLE doc_leave IS '휴가 신청 상세 (연차, 반차, 포상휴가)';
+
+-- 야근 수당 신청 상세
+CREATE TABLE doc_overtime (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    work_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    total_hours DECIMAL(4,1) NOT NULL,
+    work_content TEXT NOT NULL,
+    meal_expense DECIMAL(10,0) DEFAULT 0,
+    transportation_expense DECIMAL(10,0) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_overtime_date ON doc_overtime(work_date);
+
+COMMENT ON TABLE doc_overtime IS '야근 수당 신청 상세 (연장 근로 신청)';
+
+-- 지출결의서 상세
+CREATE TABLE doc_expense (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    expense_date DATE NOT NULL,
+    expense_category VARCHAR(50) NOT NULL,
+    amount DECIMAL(15,0) NOT NULL,
+    vendor VARCHAR(200),
+    description TEXT,
+    receipt_url VARCHAR(500),
+    payment_method VARCHAR(50) CHECK (payment_method IN ('corporate_card', 'bank_transfer', 'personal_card')),
+    bank_name VARCHAR(100),
+    account_number VARCHAR(50),
+    account_holder VARCHAR(100),
+    linked_proposal_id BIGINT REFERENCES document_master(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_expense_date ON doc_expense(expense_date);
+CREATE INDEX idx_doc_expense_category ON doc_expense(expense_category);
+CREATE INDEX idx_doc_expense_payment ON doc_expense(payment_method);
+CREATE INDEX idx_doc_expense_linked ON doc_expense(linked_proposal_id);
+
+COMMENT ON TABLE doc_expense IS '지출결의서 상세';
+COMMENT ON COLUMN doc_expense.payment_method IS '지급 방식: corporate_card(법인카드), bank_transfer(계좌이체/입금), personal_card(개인카드)';
+
+-- 경조사비 상세
+CREATE TABLE doc_welfare (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    event_date DATE NOT NULL,
+    relationship VARCHAR(100),
+    amount DECIMAL(10,0) DEFAULT 0,
+    description TEXT,
+    attachment_url VARCHAR(500),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_welfare_event ON doc_welfare(event_type);
+CREATE INDEX idx_doc_welfare_date ON doc_welfare(event_date);
+
+COMMENT ON TABLE doc_welfare IS '경조사비 신청 상세';
+
+-- 예산 신청서 상세
+CREATE TABLE doc_budget (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    budget_department_id BIGINT NOT NULL REFERENCES department(id),
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    calculation_basis TEXT NOT NULL,
+    total_amount DECIMAL(15,0) NOT NULL,
+    approved_amount DECIMAL(15,0),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT budget_period_valid CHECK (period_end >= period_start)
+);
+
+CREATE INDEX idx_doc_budget_dept ON doc_budget(budget_department_id);
+CREATE INDEX idx_doc_budget_period ON doc_budget(period_start, period_end);
+
+COMMENT ON TABLE doc_budget IS '예산 신청서 상세';
+COMMENT ON COLUMN doc_budget.budget_department_id IS '예산 편성 부서';
+COMMENT ON COLUMN doc_budget.calculation_basis IS '산정 근거';
+
+-- 지출 품의서 상세
+CREATE TABLE doc_expense_proposal (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    expense_date DATE NOT NULL,
+    expense_reason TEXT NOT NULL,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    supply_amount DECIMAL(15,0) NOT NULL,
+    vat_amount DECIMAL(15,0) NOT NULL,
+    total_amount DECIMAL(15,0) NOT NULL,
+    vendor_name VARCHAR(200),
+    linked_expense_id BIGINT REFERENCES document_master(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_expense_proposal_date ON doc_expense_proposal(expense_date);
+CREATE INDEX idx_doc_expense_proposal_vendor ON doc_expense_proposal(vendor_name);
+
+COMMENT ON TABLE doc_expense_proposal IS '지출 품의서 상세';
+COMMENT ON COLUMN doc_expense_proposal.items IS '품목 목록 [{item: string, quantity: number, unit_price: number}, ...]';
+COMMENT ON COLUMN doc_expense_proposal.linked_expense_id IS '승인 후 생성된 지출결의서 문서 ID';
+
+-- 사직서 상세
+CREATE TABLE doc_resignation (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    employment_date DATE NOT NULL,
+    resignation_date DATE NOT NULL,
+    resignation_type VARCHAR(50) NOT NULL CHECK (resignation_type IN ('personal', 'contract_end', 'recommended', 'other')),
+    detail_reason TEXT,
+    handover_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    confidentiality_agreed BOOLEAN NOT NULL DEFAULT FALSE,
+    voluntary_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    last_working_date DATE,
+    hr_processed_at TIMESTAMPTZ,
+    hr_processor_id UUID REFERENCES employee(id),
+    hr_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT resignation_date_valid CHECK (resignation_date > employment_date)
+);
+
+CREATE INDEX idx_doc_resignation_type ON doc_resignation(resignation_type);
+CREATE INDEX idx_doc_resignation_date ON doc_resignation(resignation_date);
+
+COMMENT ON TABLE doc_resignation IS '사직서 상세';
+COMMENT ON COLUMN doc_resignation.resignation_type IS '퇴직 유형: personal(개인사유), contract_end(계약만료), recommended(권고사직), other(기타)';
+COMMENT ON COLUMN doc_resignation.handover_confirmed IS '인수인계 확인 서약';
+COMMENT ON COLUMN doc_resignation.confidentiality_agreed IS '비밀 유지 서약';
+COMMENT ON COLUMN doc_resignation.voluntary_confirmed IS '자발적 의사 확인';
+
+-- 연장 근로 보고 상세
+CREATE TABLE doc_overtime_report (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    work_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    total_hours DECIMAL(4,1) NOT NULL,
+    work_content TEXT NOT NULL,
+    linked_overtime_request_id BIGINT REFERENCES document_master(id),
+    transportation_fee DECIMAL(10,0) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_overtime_report_date ON doc_overtime_report(work_date);
+CREATE INDEX idx_doc_overtime_report_linked ON doc_overtime_report(linked_overtime_request_id);
+
+COMMENT ON TABLE doc_overtime_report IS '연장 근로 보고 상세 (사후 보고)';
+COMMENT ON COLUMN doc_overtime_report.linked_overtime_request_id IS '관련 연장 근로 신청 문서 ID';
+
+-- 결재 참조자 테이블
+CREATE TABLE approval_cc (
+    id BIGSERIAL PRIMARY KEY,
+    request_type TEXT NOT NULL,
+    request_id BIGINT NOT NULL,
+    employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+    submitted_notified_at TIMESTAMPTZ,
+    approved_notified_at TIMESTAMPTZ,
+    rejected_notified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_approval_cc_request ON approval_cc(request_type, request_id);
+CREATE INDEX idx_approval_cc_employee ON approval_cc(employee_id);
+
+COMMENT ON TABLE approval_cc IS '결재 참조자 테이블';
+
+-- ================================================================
 -- 4. LEAVE MANAGEMENT
 -- ================================================================
 
@@ -1134,6 +1366,14 @@ ALTER TABLE department ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_master ENABLE ROW LEVEL SECURITY;
 ALTER TABLE doc_leave ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_overtime ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_expense ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_welfare ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_budget ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_expense_proposal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_resignation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doc_overtime_report ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_cc ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_grant ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_balance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_usage ENABLE ROW LEVEL SECURITY;
@@ -1273,6 +1513,131 @@ CREATE POLICY doc_leave_select_as_approver ON doc_leave FOR SELECT TO authentica
       AND approval_step.approver_id = auth.uid()
     )
   );
+
+-- ================================================================
+-- Doc Overtime Policies (연장 근로 신청)
+-- ================================================================
+
+CREATE POLICY doc_overtime_select_own ON doc_overtime FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_overtime.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_overtime_insert_own ON doc_overtime FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_overtime_update_own ON doc_overtime FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_overtime.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_overtime_select_as_approver ON doc_overtime FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_overtime.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Doc Expense Policies (지출결의서)
+-- ================================================================
+
+CREATE POLICY doc_expense_select_own ON doc_expense FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_expense.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_expense_insert_own ON doc_expense FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_expense_update_own ON doc_expense FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_expense.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_expense_select_as_approver ON doc_expense FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_expense.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Doc Welfare Policies (경조사비)
+-- ================================================================
+
+CREATE POLICY doc_welfare_select_own ON doc_welfare FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_welfare.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_welfare_insert_own ON doc_welfare FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_welfare_update_own ON doc_welfare FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_welfare.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_welfare_select_as_approver ON doc_welfare FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_welfare.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Doc Budget Policies (예산 신청서)
+-- ================================================================
+
+CREATE POLICY doc_budget_select_own ON doc_budget FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_budget.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_budget_insert_own ON doc_budget FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_budget_update_own ON doc_budget FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_budget.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_budget_select_as_approver ON doc_budget FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_budget.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Doc Expense Proposal Policies (지출 품의서)
+-- ================================================================
+
+CREATE POLICY doc_expense_proposal_select_own ON doc_expense_proposal FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_expense_proposal.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_expense_proposal_insert_own ON doc_expense_proposal FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_expense_proposal_update_own ON doc_expense_proposal FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_expense_proposal.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_expense_proposal_select_as_approver ON doc_expense_proposal FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_expense_proposal.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Doc Resignation Policies (사직서)
+-- ================================================================
+
+CREATE POLICY doc_resignation_select_own ON doc_resignation FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_resignation.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_resignation_insert_own ON doc_resignation FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_resignation_update_own ON doc_resignation FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_resignation.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_resignation_select_as_approver ON doc_resignation FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_resignation.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Doc Overtime Report Policies (연장 근로 보고)
+-- ================================================================
+
+CREATE POLICY doc_overtime_report_select_own ON doc_overtime_report FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_overtime_report.document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_overtime_report_insert_own ON doc_overtime_report FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
+
+CREATE POLICY doc_overtime_report_update_own ON doc_overtime_report FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_overtime_report.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
+
+CREATE POLICY doc_overtime_report_select_as_approver ON doc_overtime_report FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_overtime_report.document_id AND approver_id = auth.uid()));
+
+-- ================================================================
+-- Approval CC Policies (결재 참조자)
+-- ================================================================
+
+CREATE POLICY approval_cc_select_own ON approval_cc FOR SELECT TO authenticated
+  USING (employee_id = auth.uid());
+
+CREATE POLICY approval_cc_select_requester ON approval_cc FOR SELECT TO authenticated
+  USING (is_document_requester(request_id));
+
+CREATE POLICY approval_cc_insert_requester ON approval_cc FOR INSERT TO authenticated
+  WITH CHECK (is_document_requester(request_id));
 
 -- ================================================================
 -- [DEPRECATED] LEAVE REQUEST POLICIES

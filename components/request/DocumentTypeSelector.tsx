@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar, Clock, Gift, FileText, DollarSign } from 'lucide-react'
+import { Calendar, Clock, Gift, FileText, DollarSign, Wallet, Receipt, UserMinus, ClipboardList } from 'lucide-react'
 
 type DocumentType =
   | 'annual_leave'
@@ -11,6 +11,10 @@ type DocumentType =
   | 'condolence'
   | 'overtime'
   | 'expense'
+  | 'budget'
+  | 'expense_proposal'
+  | 'resignation'
+  | 'overtime_report'
   | 'other'
 
 interface DocumentTypeSelectorProps {
@@ -25,6 +29,10 @@ export function DocumentTypeSelector({ value, onChange }: DocumentTypeSelectorPr
     { value: 'condolence', label: '경조사비 신청', icon: FileText },
     { value: 'overtime', label: '야근수당 신청', icon: Clock },
     { value: 'expense', label: '지출결의서', icon: DollarSign },
+    { value: 'budget', label: '예산 신청서', icon: Wallet },
+    { value: 'expense_proposal', label: '지출 품의서', icon: Receipt },
+    { value: 'resignation', label: '사직서', icon: UserMinus },
+    { value: 'overtime_report', label: '연장 근로 보고', icon: ClipboardList },
     { value: 'other', label: '기타 회사 문서', icon: FileText },
   ]
 

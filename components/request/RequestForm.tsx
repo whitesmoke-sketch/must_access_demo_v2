@@ -41,6 +41,10 @@ type DocumentType =
   | 'condolence'
   | 'overtime'
   | 'expense'
+  | 'budget'
+  | 'expense_proposal'
+  | 'resignation'
+  | 'overtime_report'
   | 'other'
 
 // 서버 액션에 전달할 타입
@@ -275,7 +279,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Validate and set initial document type
-  const validDocumentTypes: DocumentType[] = ['annual_leave', 'reward_leave', 'condolence', 'overtime', 'expense', 'other']
+  const validDocumentTypes: DocumentType[] = ['annual_leave', 'reward_leave', 'condolence', 'overtime', 'expense', 'budget', 'expense_proposal', 'resignation', 'overtime_report', 'other']
   const initialType = initialDocumentType && validDocumentTypes.includes(initialDocumentType as DocumentType)
     ? (initialDocumentType as DocumentType)
     : ''
@@ -314,6 +318,41 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [paymentMethod, setPaymentMethod] = useState('')
   const [expenseDate, setExpenseDate] = useState<Date>()
   const [expenseCategory, setExpenseCategory] = useState('')
+
+  // 예산 신청서
+  const [budgetDepartmentId, setBudgetDepartmentId] = useState('')
+  const [budgetPeriodStart, setBudgetPeriodStart] = useState<Date>()
+  const [budgetPeriodEnd, setBudgetPeriodEnd] = useState<Date>()
+  const [calculationBasis, setCalculationBasis] = useState('')
+  const [budgetAmount, setBudgetAmount] = useState('')
+
+  // 지출 품의서
+  interface ExpenseProposalItem {
+    item: string
+    quantity: string
+    unitPrice: string
+  }
+  const [proposalExpenseDate, setProposalExpenseDate] = useState<Date>()
+  const [expenseReason, setExpenseReason] = useState('')
+  const [proposalItems, setProposalItems] = useState<ExpenseProposalItem[]>([{ item: '', quantity: '', unitPrice: '' }])
+  const [vendorName, setVendorName] = useState('')
+
+  // 사직서
+  const [employmentDate, setEmploymentDate] = useState<Date>()
+  const [resignationDate, setResignationDate] = useState<Date>()
+  const [resignationType, setResignationType] = useState<'personal' | 'contract_end' | 'recommended' | 'other'>('personal')
+  const [detailReason, setDetailReason] = useState('')
+  const [handoverConfirmed, setHandoverConfirmed] = useState(false)
+  const [confidentialityAgreed, setConfidentialityAgreed] = useState(false)
+  const [voluntaryConfirmed, setVoluntaryConfirmed] = useState(false)
+
+  // 연장 근로 보고
+  const [reportWorkDate, setReportWorkDate] = useState<Date>()
+  const [reportStartTime, setReportStartTime] = useState('')
+  const [reportEndTime, setReportEndTime] = useState('')
+  const [reportWorkContent, setReportWorkContent] = useState('')
+  const [linkedOvertimeRequestId, setLinkedOvertimeRequestId] = useState('')
+  const [reportTransportationFee, setReportTransportationFee] = useState('')
 
   // 첨부파일
   const [attachments, setAttachments] = useState<File[]>([])
@@ -435,11 +474,17 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
   async function loadDefaultApprovers(docType: DocumentType) {
     // 문서 유형에 따라 결재 타입 결정
-    let approvalType = 'leave' // 기본값
-    if (docType === 'expense') {
+    // 기본값: leave, 지출관련: expense, 야근관련: overtime
+    type ApprovalRequestType = 'leave' | 'expense' | 'overtime' | 'welfare' | 'general' | 'budget' | 'expense_proposal' | 'resignation' | 'overtime_report' | 'document'
+    let approvalType: ApprovalRequestType = 'leave' // 기본값
+    if (docType === 'expense' || docType === 'budget' || docType === 'expense_proposal') {
       approvalType = 'expense'
-    } else if (docType === 'overtime') {
+    } else if (docType === 'overtime' || docType === 'overtime_report') {
       approvalType = 'overtime'
+    } else if (docType === 'condolence') {
+      approvalType = 'welfare'
+    } else if (docType === 'resignation') {
+      approvalType = 'resignation'
     }
 
     const result = await generateDefaultApprovers(approvalType)
@@ -561,6 +606,82 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
       if (!paymentMethod) {
         toast.error('결제수단을 선택해주세요')
+        return false
+      }
+    }
+
+    // 예산 신청서 검증
+    if (documentType === 'budget') {
+      if (!budgetDepartmentId) {
+        toast.error('예산 대상 부서를 선택해주세요')
+        return false
+      }
+      if (!budgetPeriodStart || !budgetPeriodEnd) {
+        toast.error('예산 기간을 선택해주세요')
+        return false
+      }
+      if (!calculationBasis.trim()) {
+        toast.error('산출 근거를 입력해주세요')
+        return false
+      }
+      if (!budgetAmount.trim() || parseFloat(budgetAmount) <= 0) {
+        toast.error('총 금액을 입력해주세요')
+        return false
+      }
+    }
+
+    // 지출 품의서 검증
+    if (documentType === 'expense_proposal') {
+      if (!proposalExpenseDate) {
+        toast.error('지출 예정일을 선택해주세요')
+        return false
+      }
+      if (!expenseReason.trim()) {
+        toast.error('지출 사유를 입력해주세요')
+        return false
+      }
+      if (proposalItems.some(item => !item.item.trim() || !item.quantity.trim() || !item.unitPrice.trim())) {
+        toast.error('모든 품목 정보를 입력해주세요')
+        return false
+      }
+    }
+
+    // 사직서 검증
+    if (documentType === 'resignation') {
+      if (!employmentDate) {
+        toast.error('입사일을 선택해주세요')
+        return false
+      }
+      if (!resignationDate) {
+        toast.error('퇴직 희망일을 선택해주세요')
+        return false
+      }
+      if (!handoverConfirmed) {
+        toast.error('인수인계 확약에 동의해주세요')
+        return false
+      }
+      if (!confidentialityAgreed) {
+        toast.error('기밀유지 동의에 체크해주세요')
+        return false
+      }
+      if (!voluntaryConfirmed) {
+        toast.error('자발적 퇴직 확인에 체크해주세요')
+        return false
+      }
+    }
+
+    // 연장 근로 보고 검증
+    if (documentType === 'overtime_report') {
+      if (!reportWorkDate) {
+        toast.error('근무일을 선택해주세요')
+        return false
+      }
+      if (!reportStartTime || !reportEndTime) {
+        toast.error('시작 시간과 종료 시간을 선택해주세요')
+        return false
+      }
+      if (!reportWorkContent.trim()) {
+        toast.error('업무 내용을 입력해주세요')
         return false
       }
     }
@@ -809,6 +930,65 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         formData.payment_method = paymentMethod
       }
 
+      if (documentType === 'budget') {
+        formData.budget_department_id = parseInt(budgetDepartmentId)
+        formData.period_start = budgetPeriodStart?.toISOString().split('T')[0]
+        formData.period_end = budgetPeriodEnd?.toISOString().split('T')[0]
+        formData.calculation_basis = calculationBasis
+        formData.total_amount = parseFloat(budgetAmount)
+      }
+
+      if (documentType === 'expense_proposal') {
+        formData.expense_date = proposalExpenseDate?.toISOString().split('T')[0]
+        formData.expense_reason = expenseReason
+        formData.items = proposalItems.map(item => ({
+          item: item.item,
+          quantity: parseInt(item.quantity) || 1,
+          unit_price: parseFloat(item.unitPrice) || 0,
+        }))
+        const supplyAmount = proposalItems.reduce((sum, item) =>
+          sum + (parseInt(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0), 0)
+        formData.supply_amount = supplyAmount
+        formData.vat_amount = Math.round(supplyAmount * 0.1)
+        formData.total_amount = supplyAmount + Math.round(supplyAmount * 0.1)
+        formData.vendor_name = vendorName || null
+      }
+
+      if (documentType === 'resignation') {
+        formData.employment_date = employmentDate?.toISOString().split('T')[0]
+        formData.resignation_date = resignationDate?.toISOString().split('T')[0]
+        formData.resignation_type = resignationType
+        formData.detail_reason = detailReason || null
+        formData.handover_confirmed = handoverConfirmed
+        formData.confidentiality_agreed = confidentialityAgreed
+        formData.voluntary_confirmed = voluntaryConfirmed
+      }
+
+      if (documentType === 'overtime_report') {
+        formData.work_date = reportWorkDate?.toISOString().split('T')[0]
+        formData.start_time = reportStartTime
+        formData.end_time = reportEndTime.startsWith('+')
+          ? reportEndTime.slice(1)
+          : reportEndTime
+        formData.work_content = reportWorkContent
+        formData.linked_overtime_request_id = linkedOvertimeRequestId ? parseInt(linkedOvertimeRequestId) : null
+        formData.transportation_fee = reportTransportationFee ? parseFloat(reportTransportationFee) : 0
+
+        // 총 근로 시간 계산
+        const startParts = reportStartTime.split(':').map(Number)
+        const startMinutes = startParts[0] * 60 + startParts[1]
+        let endMinutes: number
+        if (reportEndTime.startsWith('+')) {
+          const endParts = reportEndTime.slice(1).split(':').map(Number)
+          endMinutes = (24 * 60) + endParts[0] * 60 + endParts[1]
+        } else {
+          const endParts = reportEndTime.split(':').map(Number)
+          endMinutes = endParts[0] * 60 + endParts[1]
+        }
+        const diffMinutes = endMinutes - startMinutes
+        formData.total_hours = Math.round((diffMinutes / 60) * 10) / 10
+      }
+
       if (selectedExistingDocs.length > 0) {
         formData.attached_documents = selectedExistingDocs
       }
@@ -918,6 +1098,10 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     'condolence': '경조사비',
     'overtime': '야근수당',
     'expense': '지출결의서',
+    'budget': '예산 신청',
+    'expense_proposal': '지출 품의',
+    'resignation': '사직서',
+    'overtime_report': '연장 근로 보고',
     'other': '기타',
   }
 
@@ -944,6 +1128,32 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setExpenseDate(undefined)
           setExpenseCategory('')
           setPaymentMethod('')
+          // 예산 신청서 필드 초기화
+          setBudgetDepartmentId('')
+          setBudgetPeriodStart(undefined)
+          setBudgetPeriodEnd(undefined)
+          setCalculationBasis('')
+          setBudgetAmount('')
+          // 지출 품의서 필드 초기화
+          setProposalExpenseDate(undefined)
+          setExpenseReason('')
+          setProposalItems([{ item: '', quantity: '', unitPrice: '' }])
+          setVendorName('')
+          // 사직서 필드 초기화
+          setEmploymentDate(undefined)
+          setResignationDate(undefined)
+          setResignationType('personal')
+          setDetailReason('')
+          setHandoverConfirmed(false)
+          setConfidentialityAgreed(false)
+          setVoluntaryConfirmed(false)
+          // 연장 근로 보고 필드 초기화
+          setReportWorkDate(undefined)
+          setReportStartTime('')
+          setReportEndTime('')
+          setReportWorkContent('')
+          setLinkedOvertimeRequestId('')
+          setReportTransportationFee('')
         }}
       />
 
@@ -1557,6 +1767,439 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         <SelectItem value="transfer">계좌이체</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </>
+              )}
+
+              {/* 예산 신청서 */}
+              {documentType === 'budget' && (
+                <>
+                  {/* 예산 대상 부서 */}
+                  <div className="space-y-2">
+                    <Label>예산 대상 부서 *</Label>
+                    <Select value={budgetDepartmentId} onValueChange={setBudgetDepartmentId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="부서 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">경영지원팀</SelectItem>
+                        <SelectItem value="2">개발팀</SelectItem>
+                        <SelectItem value="3">마케팅팀</SelectItem>
+                        <SelectItem value="4">영업팀</SelectItem>
+                        <SelectItem value="5">인사팀</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 예산 기간 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>기간 시작일 *</Label>
+                      <DatePicker
+                        date={budgetPeriodStart}
+                        onDateChange={setBudgetPeriodStart}
+                        placeholder="시작일 선택"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>기간 종료일 *</Label>
+                      <DatePicker
+                        date={budgetPeriodEnd}
+                        onDateChange={setBudgetPeriodEnd}
+                        placeholder="종료일 선택"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 산출 근거 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="calculationBasis">산출 근거 *</Label>
+                    <Textarea
+                      id="calculationBasis"
+                      placeholder="예산 산출 근거를 상세히 입력해주세요"
+                      rows={4}
+                      value={calculationBasis}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCalculationBasis(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 총 금액 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="budgetAmount">총 금액 (원) *</Label>
+                    <Input
+                      id="budgetAmount"
+                      type="number"
+                      placeholder="예산 총액을 입력하세요"
+                      value={budgetAmount}
+                      onChange={(e) => setBudgetAmount(e.target.value)}
+                    />
+                    {budgetAmount && (
+                      <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+                        {parseFloat(budgetAmount).toLocaleString()}원
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* 지출 품의서 */}
+              {documentType === 'expense_proposal' && (
+                <>
+                  {/* 지출 예정일 */}
+                  <div className="space-y-2">
+                    <Label>지출 예정일 *</Label>
+                    <DatePicker
+                      date={proposalExpenseDate}
+                      onDateChange={setProposalExpenseDate}
+                      placeholder="지출 예정일 선택"
+                    />
+                  </div>
+
+                  {/* 지출 사유 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="expenseReason">지출 사유 *</Label>
+                    <Textarea
+                      id="expenseReason"
+                      placeholder="지출 사유를 입력하세요"
+                      rows={3}
+                      value={expenseReason}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setExpenseReason(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 품목 목록 */}
+                  <div className="space-y-3">
+                    <Label>품목 목록 *</Label>
+                    {proposalItems.map((item, index) => (
+                      <div key={index} className="flex gap-3 items-start">
+                        <div className="flex-1 grid grid-cols-3 gap-3">
+                          <Input
+                            placeholder="품목명"
+                            value={item.item}
+                            onChange={(e) => {
+                              const newItems = [...proposalItems]
+                              newItems[index].item = e.target.value
+                              setProposalItems(newItems)
+                            }}
+                          />
+                          <Input
+                            type="number"
+                            placeholder="수량"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const newItems = [...proposalItems]
+                              newItems[index].quantity = e.target.value
+                              setProposalItems(newItems)
+                            }}
+                          />
+                          <Input
+                            type="number"
+                            placeholder="단가"
+                            value={item.unitPrice}
+                            onChange={(e) => {
+                              const newItems = [...proposalItems]
+                              newItems[index].unitPrice = e.target.value
+                              setProposalItems(newItems)
+                            }}
+                          />
+                        </div>
+                        {proposalItems.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setProposalItems(proposalItems.filter((_, i) => i !== index))
+                            }}
+                            style={{ height: '42px', width: '42px' }}
+                          >
+                            <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setProposalItems([...proposalItems, { item: '', quantity: '', unitPrice: '' }])}
+                      className="w-full"
+                      style={{ height: '42px' }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      품목 추가
+                    </Button>
+
+                    {/* 금액 계산 */}
+                    {proposalItems.some(item => item.quantity && item.unitPrice) && (
+                      <div className="space-y-1 pt-2 border-t">
+                        {(() => {
+                          const supplyAmount = proposalItems.reduce((sum, item) =>
+                            sum + (parseInt(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0), 0)
+                          const vatAmount = Math.round(supplyAmount * 0.1)
+                          const totalAmount = supplyAmount + vatAmount
+                          return (
+                            <>
+                              <div className="flex justify-between">
+                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>공급가액</span>
+                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>{supplyAmount.toLocaleString()}원</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>부가세 (10%)</span>
+                                <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)' }}>{vatAmount.toLocaleString()}원</span>
+                              </div>
+                              <div className="flex justify-between pt-1 border-t">
+                                <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--foreground)' }}>총 금액</span>
+                                <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--primary)' }}>{totalAmount.toLocaleString()}원</span>
+                              </div>
+                            </>
+                          )
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 거래처 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="vendorName">거래처</Label>
+                    <Input
+                      id="vendorName"
+                      placeholder="거래처명 (선택)"
+                      value={vendorName}
+                      onChange={(e) => setVendorName(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* 사직서 */}
+              {documentType === 'resignation' && (
+                <>
+                  {/* 입사일 / 퇴직 희망일 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>입사일 *</Label>
+                      <DatePicker
+                        date={employmentDate}
+                        onDateChange={setEmploymentDate}
+                        placeholder="입사일 선택"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>퇴직 희망일 *</Label>
+                      <DatePicker
+                        date={resignationDate}
+                        onDateChange={setResignationDate}
+                        placeholder="퇴직 희망일 선택"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 퇴직 유형 */}
+                  <div className="space-y-2">
+                    <Label>퇴직 유형 *</Label>
+                    <Select value={resignationType} onValueChange={(v) => setResignationType(v as 'personal' | 'contract_end' | 'recommended' | 'other')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="퇴직 유형 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="personal">개인 사유</SelectItem>
+                        <SelectItem value="contract_end">계약 만료</SelectItem>
+                        <SelectItem value="recommended">권고 사직</SelectItem>
+                        <SelectItem value="other">기타</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 상세 사유 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="detailReason">상세 사유</Label>
+                    <Textarea
+                      id="detailReason"
+                      placeholder="퇴직 사유를 상세히 입력해주세요 (선택)"
+                      rows={3}
+                      value={detailReason}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDetailReason(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 확약 사항 */}
+                  <div className="space-y-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--muted)' }}>
+                    <p style={{ fontSize: 'var(--font-size-body)', fontWeight: 600, color: 'var(--foreground)' }}>
+                      확약 사항 *
+                    </p>
+                    <div className="space-y-3">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={handoverConfirmed}
+                          onChange={(e) => setHandoverConfirmed(e.target.checked)}
+                          className="mt-1"
+                        />
+                        <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                          담당 업무에 대한 인수인계를 성실히 이행할 것을 확약합니다.
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={confidentialityAgreed}
+                          onChange={(e) => setConfidentialityAgreed(e.target.checked)}
+                          className="mt-1"
+                        />
+                        <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                          재직 중 취득한 회사의 기밀정보를 퇴직 후에도 유지할 것을 동의합니다.
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={voluntaryConfirmed}
+                          onChange={(e) => setVoluntaryConfirmed(e.target.checked)}
+                          className="mt-1"
+                        />
+                        <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                          본 사직서 제출은 본인의 자발적인 의사에 의한 것임을 확인합니다.
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 연장 근로 보고 */}
+              {documentType === 'overtime_report' && (
+                <>
+                  {/* 근무일 */}
+                  <div className="space-y-2">
+                    <Label>근무일 *</Label>
+                    <DatePicker
+                      date={reportWorkDate}
+                      onDateChange={setReportWorkDate}
+                      placeholder="근무일 선택"
+                    />
+                  </div>
+
+                  {/* 시작/종료 시간 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>시작 시간 *</Label>
+                      <Select value={reportStartTime} onValueChange={setReportStartTime}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="시작 시간 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const hour = 18 + Math.floor(i / 2)
+                            const minute = (i % 2) * 30
+                            const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                            return <SelectItem key={time} value={time}>{time}</SelectItem>
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>종료 시간 *</Label>
+                      <Select value={reportEndTime} onValueChange={setReportEndTime}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="종료 시간 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(() => {
+                            const options = []
+                            for (let i = 1; i <= 11; i++) {
+                              const hour = 18 + Math.floor(i / 2)
+                              const minute = (i % 2) * 30
+                              const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                              const isDisabled = reportStartTime !== '' && time <= reportStartTime
+                              options.push(
+                                <SelectItem key={time} value={time} disabled={isDisabled}>{time}</SelectItem>
+                              )
+                            }
+                            for (let i = 0; i <= 12; i++) {
+                              const hour = Math.floor(i / 2)
+                              const minute = (i % 2) * 30
+                              const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                              options.push(
+                                <SelectItem key={`next-${time}`} value={`+${time}`}>익일 {time}</SelectItem>
+                              )
+                            }
+                            return options
+                          })()}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* 총 근로 시간 표시 */}
+                  {reportStartTime && reportEndTime && (
+                    <div
+                      className="p-4 rounded-lg flex items-center gap-3"
+                      style={{ backgroundColor: 'rgba(99, 91, 255, 0.05)' }}
+                    >
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
+                      <div>
+                        <p style={{
+                          fontSize: 'var(--font-size-body)',
+                          fontWeight: 600,
+                          color: 'var(--card-foreground)',
+                          lineHeight: 1.5
+                        }}>
+                          총 근로 시간: {(() => {
+                            const startParts = reportStartTime.split(':').map(Number)
+                            const startMinutes = startParts[0] * 60 + startParts[1]
+                            let endMinutes: number
+                            if (reportEndTime.startsWith('+')) {
+                              const endParts = reportEndTime.slice(1).split(':').map(Number)
+                              endMinutes = (24 * 60) + endParts[0] * 60 + endParts[1]
+                            } else {
+                              const endParts = reportEndTime.split(':').map(Number)
+                              endMinutes = endParts[0] * 60 + endParts[1]
+                            }
+                            const diffMinutes = endMinutes - startMinutes
+                            const hours = Math.floor(diffMinutes / 60)
+                            const minutes = diffMinutes % 60
+                            if (minutes === 0) return `${hours}시간`
+                            return `${hours}시간 ${minutes}분`
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 업무 내용 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reportWorkContent">업무 내용 *</Label>
+                    <Textarea
+                      id="reportWorkContent"
+                      placeholder="연장 근로 중 수행한 업무 내용을 입력하세요"
+                      rows={3}
+                      value={reportWorkContent}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReportWorkContent(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 연결된 연장근로 신청서 ID */}
+                  <div className="space-y-2">
+                    <Label htmlFor="linkedOvertimeRequestId">연결된 연장근로 신청서 ID</Label>
+                    <Input
+                      id="linkedOvertimeRequestId"
+                      type="number"
+                      placeholder="연결된 신청서 ID (선택)"
+                      value={linkedOvertimeRequestId}
+                      onChange={(e) => setLinkedOvertimeRequestId(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 교통비 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reportTransportationFee">교통비 (원)</Label>
+                    <Input
+                      id="reportTransportationFee"
+                      type="number"
+                      placeholder="교통비 (선택)"
+                      value={reportTransportationFee}
+                      onChange={(e) => setReportTransportationFee(e.target.value)}
+                    />
                   </div>
                 </>
               )}

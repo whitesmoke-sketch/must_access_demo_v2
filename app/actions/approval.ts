@@ -408,7 +408,7 @@ export async function getEligibleApprovers() {
  * 자동 결재선 생성 (계층 구조 기반)
  */
 export async function generateDefaultApprovers(
-  requestType: 'leave' | 'document'
+  requestType: ApprovalRequestType
 ): Promise<{ success: boolean; data?: Approver[]; error?: string }> {
   try {
     const supabase = await createClient()
@@ -595,7 +595,7 @@ export async function generateDefaultApprovers(
  * 신청서에 대한 승인 단계 생성 (Edge Function 사용, 합의 + 참조자 지원)
  */
 export async function createApprovalSteps(
-  requestType: 'leave' | 'document',
+  requestType: ApprovalRequestType,
   requestId: number,
   steps: ApprovalStepInput[], // 결재 단계 배열 (합의 지원)
   ccEmployeeIds: string[] = [] // 참조자 ID 배열

@@ -1166,3 +1166,276 @@ WHERE d.deleted_at IS NULL
 GROUP BY d.id, d.name, d.code, d.parent_department_id, d.display_order,
          d.created_at, d.updated_at, d.created_by, d.updated_by, d.deleted_at, d.deleted_by,
          cb.name, ub.name;
+
+-- ================================================================
+-- 15. UNIFIED DOCUMENT SYSTEM
+-- ================================================================
+
+-- Document visibility scope enum
+DO $$ BEGIN
+    CREATE TYPE visibility_scope AS ENUM ('private', 'team', 'department', 'division', 'public');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Document type enum
+DO $$ BEGIN
+    CREATE TYPE document_type AS ENUM (
+        'leave',            -- 연차/포상휴가
+        'overtime',         -- 야근수당 신청
+        'expense',          -- 지출결의서
+        'welfare',          -- 경조사비
+        'general',          -- 기타/일반
+        'budget',           -- 예산 신청서
+        'expense_proposal', -- 지출 품의서
+        'resignation',      -- 사직서
+        'overtime_report'   -- 연장 근로 보고
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Document Master table (공통 헤더)
+CREATE TABLE document_master (
+    id BIGSERIAL PRIMARY KEY,
+    document_number VARCHAR(50) UNIQUE,
+    requester_id UUID NOT NULL REFERENCES employee(id),
+    department_id BIGINT NOT NULL REFERENCES department(id),
+    visibility visibility_scope NOT NULL DEFAULT 'team',
+    is_confidential BOOLEAN DEFAULT FALSE,
+    doc_type document_type NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'approved', 'rejected', 'retrieved')),
+    summary_data JSONB,
+    current_step INTEGER DEFAULT 1,
+    drive_file_id TEXT,
+    drive_file_url TEXT,
+    pdf_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    approved_at TIMESTAMPTZ,
+    retrieved_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_doc_master_visibility ON document_master(visibility, department_id);
+CREATE INDEX idx_doc_master_requester ON document_master(requester_id);
+CREATE INDEX idx_doc_master_status ON document_master(status);
+CREATE INDEX idx_doc_master_created_at ON document_master(created_at DESC);
+CREATE INDEX idx_doc_master_doc_type ON document_master(doc_type);
+
+COMMENT ON TABLE document_master IS '통합 문서 마스터 테이블 - 모든 결재 문서의 공통 헤더';
+
+-- 휴가 신청 상세
+CREATE TABLE doc_leave (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    leave_type VARCHAR(50) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    days_count DECIMAL(4,1) NOT NULL,
+    half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
+    reason TEXT,
+    attachment_url VARCHAR(500),
+    deducted_from_grants JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_leave_dates ON doc_leave(start_date, end_date);
+CREATE INDEX idx_doc_leave_type ON doc_leave(leave_type);
+
+COMMENT ON TABLE doc_leave IS '휴가 신청 상세 (연차, 반차, 포상휴가)';
+
+-- 야근 수당 신청 상세
+CREATE TABLE doc_overtime (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    work_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    total_hours DECIMAL(4,1) NOT NULL,
+    work_content TEXT NOT NULL,
+    transportation_fee DECIMAL(10,0) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_overtime_date ON doc_overtime(work_date);
+
+COMMENT ON TABLE doc_overtime IS '야근 수당 신청 상세';
+
+-- 지출 결의서 상세
+CREATE TABLE doc_expense (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    expense_date DATE NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    amount DECIMAL(15,0) NOT NULL,
+    merchant_name VARCHAR(100),
+    usage_purpose TEXT,
+    receipt_url VARCHAR(500),
+    expense_items JSONB DEFAULT '[]'::jsonb,
+    payment_method VARCHAR(50) CHECK (payment_method IN ('corporate_card', 'bank_transfer', 'personal_card')),
+    bank_name VARCHAR(100),
+    account_number VARCHAR(50),
+    account_holder VARCHAR(100),
+    linked_proposal_id BIGINT REFERENCES document_master(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_expense_date ON doc_expense(expense_date);
+CREATE INDEX idx_doc_expense_category ON doc_expense(category);
+CREATE INDEX idx_doc_expense_payment ON doc_expense(payment_method);
+
+COMMENT ON TABLE doc_expense IS '지출 결의서 상세';
+COMMENT ON COLUMN doc_expense.payment_method IS '지급 방법: corporate_card(법인카드), bank_transfer(세금계산서/이체), personal_card(개인카드)';
+
+-- 경조사비 신청 상세
+CREATE TABLE doc_welfare (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    event_date DATE NOT NULL,
+    target_name VARCHAR(100),
+    relationship VARCHAR(50),
+    amount DECIMAL(15,0),
+    attachment_url VARCHAR(500),
+    approved_amount DECIMAL(15,0),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_welfare_date ON doc_welfare(event_date);
+CREATE INDEX idx_doc_welfare_type ON doc_welfare(event_type);
+
+COMMENT ON TABLE doc_welfare IS '경조사비 신청 상세';
+
+-- 기타 일반 문서 상세
+CREATE TABLE doc_general (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    content_body TEXT NOT NULL,
+    attachment_urls JSONB DEFAULT '[]'::jsonb,
+    template_type VARCHAR(50),
+    form_data JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE doc_general IS '기타/일반 문서 상세';
+
+-- 예산 신청서 상세
+CREATE TABLE doc_budget (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    budget_department_id BIGINT NOT NULL REFERENCES department(id),
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    calculation_basis TEXT NOT NULL,
+    total_amount DECIMAL(15,0) NOT NULL,
+    approved_amount DECIMAL(15,0),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT budget_period_valid CHECK (period_end >= period_start)
+);
+
+CREATE INDEX idx_doc_budget_dept ON doc_budget(budget_department_id);
+CREATE INDEX idx_doc_budget_period ON doc_budget(period_start, period_end);
+
+COMMENT ON TABLE doc_budget IS '예산 신청서 상세';
+
+-- 지출 품의서 상세
+CREATE TABLE doc_expense_proposal (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    expense_date DATE NOT NULL,
+    expense_reason TEXT NOT NULL,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    supply_amount DECIMAL(15,0) NOT NULL,
+    vat_amount DECIMAL(15,0) NOT NULL,
+    total_amount DECIMAL(15,0) NOT NULL,
+    vendor_name VARCHAR(200),
+    linked_expense_id BIGINT REFERENCES document_master(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_expense_proposal_date ON doc_expense_proposal(expense_date);
+
+COMMENT ON TABLE doc_expense_proposal IS '지출 품의서 상세';
+
+-- 사직서 상세
+CREATE TABLE doc_resignation (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    employment_date DATE NOT NULL,
+    resignation_date DATE NOT NULL,
+    resignation_type VARCHAR(50) NOT NULL CHECK (resignation_type IN ('personal', 'contract_end', 'recommended', 'other')),
+    detail_reason TEXT,
+    handover_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    confidentiality_agreed BOOLEAN NOT NULL DEFAULT FALSE,
+    voluntary_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    last_working_date DATE,
+    hr_processed_at TIMESTAMPTZ,
+    hr_processor_id UUID REFERENCES employee(id),
+    hr_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT resignation_date_valid CHECK (resignation_date > employment_date)
+);
+
+CREATE INDEX idx_doc_resignation_type ON doc_resignation(resignation_type);
+CREATE INDEX idx_doc_resignation_date ON doc_resignation(resignation_date);
+
+COMMENT ON TABLE doc_resignation IS '사직서 상세';
+
+-- 연장 근로 보고 상세
+CREATE TABLE doc_overtime_report (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    work_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    total_hours DECIMAL(4,1) NOT NULL,
+    work_content TEXT NOT NULL,
+    linked_overtime_request_id BIGINT REFERENCES document_master(id),
+    transportation_fee DECIMAL(10,0) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_doc_overtime_report_date ON doc_overtime_report(work_date);
+
+COMMENT ON TABLE doc_overtime_report IS '연장 근로 보고 상세';
+
+-- 문서 참조 관계
+CREATE TABLE document_reference (
+    id BIGSERIAL PRIMARY KEY,
+    source_doc_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
+    target_doc_id BIGINT NOT NULL REFERENCES document_master(id),
+    snapshot_title VARCHAR(255),
+    snapshot_content JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(source_doc_id, target_doc_id)
+);
+
+CREATE INDEX idx_doc_ref_source ON document_reference(source_doc_id);
+CREATE INDEX idx_doc_ref_target ON document_reference(target_doc_id);
+
+COMMENT ON TABLE document_reference IS '문서 참조 관계 (내용 스냅샷 포함)';
+
+-- 문서 접근 로그
+CREATE TABLE document_access_log (
+    id BIGSERIAL PRIMARY KEY,
+    document_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
+    viewer_id UUID NOT NULL REFERENCES employee(id),
+    viewed_at TIMESTAMPTZ DEFAULT NOW(),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    action_type VARCHAR(20) DEFAULT 'view' CHECK (action_type IN ('view', 'print', 'download'))
+);
+
+CREATE INDEX idx_doc_access_log_doc ON document_access_log(document_id);
+CREATE INDEX idx_doc_access_log_viewer ON document_access_log(viewer_id);
+CREATE INDEX idx_doc_access_log_time ON document_access_log(viewed_at DESC);
+
+COMMENT ON TABLE document_access_log IS '문서 접근 로그 (워터마킹/감사용)';
+
+-- 휴가 사용 내역 연결
+CREATE TABLE leave_usage_link (
+    id BIGSERIAL PRIMARY KEY,
+    document_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
+    grant_id BIGINT NOT NULL REFERENCES annual_leave_grant(id) ON DELETE CASCADE,
+    used_days DECIMAL(4,1) NOT NULL,
+    used_date DATE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(document_id, grant_id)
+);
+
+CREATE INDEX idx_leave_usage_doc ON leave_usage_link(document_id);
+CREATE INDEX idx_leave_usage_grant ON leave_usage_link(grant_id);
+
+COMMENT ON TABLE leave_usage_link IS '휴가 사용 내역 (document_master - annual_leave_grant 연결)';

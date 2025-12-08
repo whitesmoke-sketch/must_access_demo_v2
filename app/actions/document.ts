@@ -64,6 +64,10 @@ const docTypeLabels: Record<string, string> = {
   welfare: '경조사비',
   general: '일반문서',
   condolence: '경조사비',
+  budget: '예산 신청',
+  expense_proposal: '지출 품의',
+  resignation: '사직서',
+  overtime_report: '연장 근로 보고',
   other: '기타',
 }
 
@@ -106,6 +110,10 @@ export async function createDocument(
       welfare: 'welfare',
       condolence: 'welfare',
       general: 'general',
+      budget: 'budget',
+      expense_proposal: 'expense_proposal',
+      resignation: 'resignation',
+      overtime_report: 'overtime_report',
       other: 'general',
     }
 
@@ -305,6 +313,64 @@ async function createDocumentDetail(
           relationship: formData.relationship as string || null,
           amount: formData.amount as number,
           attachment_url: formData.attachment_url as string || null,
+        })
+        if (error) return { success: false, error: error.message }
+        break
+      }
+
+      case 'budget': {
+        const { error } = await supabase.from('doc_budget').insert({
+          document_id: documentId,
+          budget_department_id: formData.budget_department_id as number,
+          period_start: formData.period_start as string,
+          period_end: formData.period_end as string,
+          calculation_basis: formData.calculation_basis as string,
+          total_amount: formData.total_amount as number,
+        })
+        if (error) return { success: false, error: error.message }
+        break
+      }
+
+      case 'expense_proposal': {
+        const { error } = await supabase.from('doc_expense_proposal').insert({
+          document_id: documentId,
+          expense_date: formData.expense_date as string,
+          expense_reason: formData.expense_reason as string,
+          items: formData.items || [],
+          supply_amount: formData.supply_amount as number,
+          vat_amount: formData.vat_amount as number,
+          total_amount: formData.total_amount as number,
+          vendor_name: formData.vendor_name as string || null,
+        })
+        if (error) return { success: false, error: error.message }
+        break
+      }
+
+      case 'resignation': {
+        const { error } = await supabase.from('doc_resignation').insert({
+          document_id: documentId,
+          employment_date: formData.employment_date as string,
+          resignation_date: formData.resignation_date as string,
+          resignation_type: formData.resignation_type as string,
+          detail_reason: formData.detail_reason as string || null,
+          handover_confirmed: formData.handover_confirmed as boolean,
+          confidentiality_agreed: formData.confidentiality_agreed as boolean,
+          voluntary_confirmed: formData.voluntary_confirmed as boolean,
+        })
+        if (error) return { success: false, error: error.message }
+        break
+      }
+
+      case 'overtime_report': {
+        const { error } = await supabase.from('doc_overtime_report').insert({
+          document_id: documentId,
+          work_date: formData.work_date as string,
+          start_time: formData.start_time as string,
+          end_time: formData.end_time as string,
+          total_hours: formData.total_hours as number,
+          work_content: formData.work_content as string,
+          linked_overtime_request_id: formData.linked_overtime_request_id as number || null,
+          transportation_fee: formData.transportation_fee as number || 0,
         })
         if (error) return { success: false, error: error.message }
         break
@@ -689,6 +755,10 @@ export async function saveDraft(data: DocumentSubmissionData) {
       welfare: 'welfare',
       condolence: 'welfare',
       general: 'general',
+      budget: 'budget',
+      expense_proposal: 'expense_proposal',
+      resignation: 'resignation',
+      overtime_report: 'overtime_report',
       other: 'general',
     }
 

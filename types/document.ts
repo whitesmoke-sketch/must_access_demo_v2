@@ -9,7 +9,7 @@
 
 export type VisibilityScope = 'private' | 'team' | 'department' | 'division' | 'public'
 
-export type DocumentType = 'leave' | 'overtime' | 'expense' | 'welfare' | 'general'
+export type DocumentType = 'leave' | 'overtime' | 'expense' | 'welfare' | 'general' | 'budget' | 'expense_proposal' | 'resignation' | 'overtime_report'
 
 export type DocumentStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'retrieved'
 
@@ -134,6 +134,68 @@ export interface DocGeneral {
   created_at: string
 }
 
+// 예산 신청서 상세
+export interface DocBudget {
+  document_id: number
+  budget_department_id: number
+  period_start: string
+  period_end: string
+  calculation_basis: string
+  total_amount: number
+  approved_amount: number | null
+  created_at: string
+}
+
+// 지출 품의서 상세
+export interface DocExpenseProposal {
+  document_id: number
+  expense_date: string
+  expense_reason: string
+  items: Array<{
+    item: string
+    quantity: number
+    unit_price: number
+  }>
+  supply_amount: number
+  vat_amount: number
+  total_amount: number
+  vendor_name: string | null
+  linked_expense_id: number | null
+  created_at: string
+}
+
+// 사직서 상세
+export type ResignationType = 'personal' | 'contract_end' | 'recommended' | 'other'
+
+export interface DocResignation {
+  document_id: number
+  employment_date: string
+  resignation_date: string
+  resignation_type: ResignationType
+  detail_reason: string | null
+  handover_confirmed: boolean
+  confidentiality_agreed: boolean
+  voluntary_confirmed: boolean
+  last_working_date: string | null
+  hr_processed_at: string | null
+  hr_processor_id: string | null
+  hr_notes: string | null
+  created_at: string
+}
+
+// 연장 근로 보고 상세
+export interface DocOvertimeReport {
+  document_id: number
+  work_date: string
+  start_time: string
+  end_time: string
+  total_hours: number
+  work_content: string
+  linked_overtime_request_id: number | null
+  transportation_fee: number
+  created_at: string
+}
+
 // ================================================================
 // 통합 문서 타입 (Master + Detail)
 // ================================================================
@@ -158,6 +220,22 @@ export interface DocumentWithGeneral extends DocumentMasterWithRequester {
   doc_general: DocGeneral
 }
 
+export interface DocumentWithBudget extends DocumentMasterWithRequester {
+  doc_budget: DocBudget
+}
+
+export interface DocumentWithExpenseProposal extends DocumentMasterWithRequester {
+  doc_expense_proposal: DocExpenseProposal
+}
+
+export interface DocumentWithResignation extends DocumentMasterWithRequester {
+  doc_resignation: DocResignation
+}
+
+export interface DocumentWithOvertimeReport extends DocumentMasterWithRequester {
+  doc_overtime_report: DocOvertimeReport
+}
+
 // Union 타입
 export type DocumentWithDetail =
   | DocumentWithLeave
@@ -165,6 +243,10 @@ export type DocumentWithDetail =
   | DocumentWithExpense
   | DocumentWithWelfare
   | DocumentWithGeneral
+  | DocumentWithBudget
+  | DocumentWithExpenseProposal
+  | DocumentWithResignation
+  | DocumentWithOvertimeReport
 
 // ================================================================
 // 문서 참조
@@ -307,6 +389,52 @@ export interface CreateGeneralDocumentInput extends CreateDocumentInput {
   form_data?: Record<string, unknown>
 }
 
+// 예산 신청서 생성 입력
+export interface CreateBudgetDocumentInput extends CreateDocumentInput {
+  doc_type: 'budget'
+  budget_department_id: number
+  period_start: string
+  period_end: string
+  calculation_basis: string
+  total_amount: number
+}
+
+// 지출 품의서 생성 입력
+export interface CreateExpenseProposalDocumentInput extends CreateDocumentInput {
+  doc_type: 'expense_proposal'
+  expense_date: string
+  expense_reason: string
+  items: Array<{ item: string; quantity: number; unit_price: number }>
+  supply_amount: number
+  vat_amount: number
+  total_amount: number
+  vendor_name?: string
+}
+
+// 사직서 생성 입력
+export interface CreateResignationDocumentInput extends CreateDocumentInput {
+  doc_type: 'resignation'
+  employment_date: string
+  resignation_date: string
+  resignation_type: ResignationType
+  detail_reason?: string
+  handover_confirmed: boolean
+  confidentiality_agreed: boolean
+  voluntary_confirmed: boolean
+}
+
+// 연장 근로 보고 생성 입력
+export interface CreateOvertimeReportDocumentInput extends CreateDocumentInput {
+  doc_type: 'overtime_report'
+  work_date: string
+  start_time: string
+  end_time: string
+  total_hours: number
+  work_content: string
+  linked_overtime_request_id?: number
+  transportation_fee?: number
+}
+
 // Union 타입
 export type CreateDocumentDetailInput =
   | CreateLeaveDocumentInput
@@ -314,6 +442,10 @@ export type CreateDocumentDetailInput =
   | CreateExpenseDocumentInput
   | CreateWelfareDocumentInput
   | CreateGeneralDocumentInput
+  | CreateBudgetDocumentInput
+  | CreateExpenseProposalDocumentInput
+  | CreateResignationDocumentInput
+  | CreateOvertimeReportDocumentInput
 
 // 문서 목록 조회 필터
 export interface DocumentListFilter {
@@ -352,6 +484,10 @@ export const DocumentTypeLabels: Record<DocumentType, string> = {
   expense: '지출결의',
   welfare: '경조사비',
   general: '일반문서',
+  budget: '예산 신청',
+  expense_proposal: '지출 품의',
+  resignation: '사직서',
+  overtime_report: '연장 근로 보고',
 }
 
 // 휴가 유형별 한글 레이블
