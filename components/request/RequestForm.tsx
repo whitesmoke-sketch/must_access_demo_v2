@@ -319,6 +319,10 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [paymentMethod, setPaymentMethod] = useState('')
   const [expenseDate, setExpenseDate] = useState<Date>()
   const [expenseCategory, setExpenseCategory] = useState('')
+  // 세금계산서(이체) 선택 시 추가 필드
+  const [bankName, setBankName] = useState('')
+  const [accountNumber, setAccountNumber] = useState('')
+  const [accountHolder, setAccountHolder] = useState('')
 
   // 예산 신청서
   const [budgetDepartmentId, setBudgetDepartmentId] = useState('')
@@ -615,6 +619,21 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       if (!paymentMethod) {
         toast.error('결제수단을 선택해주세요')
         return false
+      }
+      // 세금계산서(이체) 선택 시 계좌 정보 필수
+      if (paymentMethod === 'tax_invoice') {
+        if (!bankName.trim()) {
+          toast.error('은행명을 입력해주세요')
+          return false
+        }
+        if (!accountNumber.trim()) {
+          toast.error('계좌번호를 입력해주세요')
+          return false
+        }
+        if (!accountHolder.trim()) {
+          toast.error('예금주명을 입력해주세요')
+          return false
+        }
       }
     }
 
@@ -948,6 +967,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           amount: parseFloat(item.amount),
         }))
         formData.payment_method = paymentMethod
+        // 세금계산서(이체) 선택 시 계좌 정보 추가
+        if (paymentMethod === 'tax_invoice') {
+          formData.bank_name = bankName
+          formData.account_number = accountNumber
+          formData.account_holder = accountHolder
+        }
       }
 
       if (documentType === 'budget') {
@@ -1156,6 +1181,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setExpenseDate(undefined)
           setExpenseCategory('')
           setPaymentMethod('')
+          setBankName('')
+          setAccountNumber('')
+          setAccountHolder('')
           // 예산 신청서 필드 초기화
           setBudgetDepartmentId('')
           setBudgetPeriodStart(undefined)
@@ -1790,17 +1818,61 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   {/* 결제수단 */}
                   <div className="space-y-2">
                     <Label htmlFor="paymentMethod">결제수단 *</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <Select value={paymentMethod} onValueChange={(value) => {
+                      setPaymentMethod(value)
+                      // 세금계산서(이체) 외 선택 시 계좌 정보 초기화
+                      if (value !== 'tax_invoice') {
+                        setBankName('')
+                        setAccountNumber('')
+                        setAccountHolder('')
+                      }
+                    }}>
                       <SelectTrigger id="paymentMethod">
                         <SelectValue placeholder="결제수단 선택" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="corporate_card">법인카드</SelectItem>
-                        <SelectItem value="cash">현금</SelectItem>
-                        <SelectItem value="transfer">계좌이체</SelectItem>
+                        <SelectItem value="personal_card">개인카드</SelectItem>
+                        <SelectItem value="tax_invoice">세금계산서(이체)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* 세금계산서(이체) 선택 시 계좌 정보 */}
+                  {paymentMethod === 'tax_invoice' && (
+                    <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                      <p className="text-sm font-medium text-muted-foreground">계좌 정보</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="bankName">은행명 *</Label>
+                          <Input
+                            id="bankName"
+                            value={bankName}
+                            onChange={(e) => setBankName(e.target.value)}
+                            placeholder="예: 국민은행"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="accountNumber">계좌번호 *</Label>
+                          <Input
+                            id="accountNumber"
+                            value={accountNumber}
+                            onChange={(e) => setAccountNumber(e.target.value)}
+                            placeholder="계좌번호 입력"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="accountHolder">예금주명 *</Label>
+                          <Input
+                            id="accountHolder"
+                            value={accountHolder}
+                            onChange={(e) => setAccountHolder(e.target.value)}
+                            placeholder="예금주명 입력"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 

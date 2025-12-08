@@ -95,6 +95,9 @@ export interface DocOvertime {
   created_at: string
 }
 
+// 결제수단 타입
+export type PaymentMethod = 'corporate_card' | 'personal_card' | 'tax_invoice'
+
 // 지출 결의서 상세
 export interface DocExpense {
   document_id: number
@@ -108,6 +111,10 @@ export interface DocExpense {
     item: string
     amount: number
   }>
+  payment_method: PaymentMethod | null
+  bank_name: string | null
+  account_number: string | null
+  account_holder: string | null
   created_at: string
 }
 
@@ -569,4 +576,11 @@ export const VisibilityLabels: Record<VisibilityScope, string> = {
   department: '부서',
   division: '본부',
   public: '전사',
+}
+
+// 결제수단별 한글 레이블
+export const PaymentMethodLabels: Record<PaymentMethod, string> = {
+  corporate_card: '법인카드',
+  personal_card: '개인카드',
+  tax_invoice: '세금계산서(이체)',
 }
