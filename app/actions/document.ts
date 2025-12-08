@@ -68,6 +68,7 @@ const docTypeLabels: Record<string, string> = {
   expense_proposal: '지출 품의',
   resignation: '사직서',
   overtime_report: '연장 근로 보고',
+  work_type_change: '근로형태 변경',
   other: '기타',
 }
 
@@ -114,6 +115,7 @@ export async function createDocument(
       expense_proposal: 'expense_proposal',
       resignation: 'resignation',
       overtime_report: 'overtime_report',
+      work_type_change: 'work_type_change',
       other: 'general',
     }
 
@@ -371,6 +373,18 @@ async function createDocumentDetail(
           work_content: formData.work_content as string,
           linked_overtime_request_id: formData.linked_overtime_request_id as number || null,
           transportation_fee: formData.transportation_fee as number || 0,
+        })
+        if (error) return { success: false, error: error.message }
+        break
+      }
+
+      case 'work_type_change': {
+        const { error } = await supabase.from('doc_work_type_change').insert({
+          document_id: documentId,
+          work_type: formData.work_type as string,
+          start_date: formData.start_date as string,
+          end_date: formData.end_date as string,
+          detail_description: formData.detail_description as string || null,
         })
         if (error) return { success: false, error: error.message }
         break
@@ -759,6 +773,7 @@ export async function saveDraft(data: DocumentSubmissionData) {
       expense_proposal: 'expense_proposal',
       resignation: 'resignation',
       overtime_report: 'overtime_report',
+      work_type_change: 'work_type_change',
       other: 'general',
     }
 

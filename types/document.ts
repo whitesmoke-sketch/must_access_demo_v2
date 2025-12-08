@@ -9,7 +9,7 @@
 
 export type VisibilityScope = 'private' | 'team' | 'department' | 'division' | 'public'
 
-export type DocumentType = 'leave' | 'overtime' | 'expense' | 'welfare' | 'general' | 'budget' | 'expense_proposal' | 'resignation' | 'overtime_report'
+export type DocumentType = 'leave' | 'overtime' | 'expense' | 'welfare' | 'general' | 'budget' | 'expense_proposal' | 'resignation' | 'overtime_report' | 'work_type_change'
 
 export type DocumentStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'retrieved'
 
@@ -196,6 +196,30 @@ export interface DocOvertimeReport {
   created_at: string
 }
 
+// 근로형태 변경 유형
+export type WorkType =
+  | 'unpaid_sick_leave'       // 무급병가 (연 60일)
+  | 'public_duty'             // 공가 휴가 (예비군/민방위 등)
+  | 'leave_of_absence'        // 휴직 (무급)
+  | 'parental_leave'          // 육아 휴직
+  | 'family_event_leave'      // 경조사 휴가
+  | 'maternity_leave'         // 출산전후 휴가 (90일)
+  | 'paternity_leave'         // 배우자출산휴가 (20일)
+  | 'pregnancy_reduced_hours' // 임신 중 단축근무
+  | 'work_schedule_change'    // 근무 변경 (재택 등)
+  | 'business_trip'           // 출장/외근
+  | 'menstrual_leave'         // 여성 보건 휴가
+
+// 근로형태 변경 신청 상세
+export interface DocWorkTypeChange {
+  document_id: number
+  work_type: WorkType
+  start_date: string
+  end_date: string
+  detail_description: string | null
+  created_at: string
+}
+
 // ================================================================
 // 통합 문서 타입 (Master + Detail)
 // ================================================================
@@ -236,6 +260,10 @@ export interface DocumentWithOvertimeReport extends DocumentMasterWithRequester 
   doc_overtime_report: DocOvertimeReport
 }
 
+export interface DocumentWithWorkTypeChange extends DocumentMasterWithRequester {
+  doc_work_type_change: DocWorkTypeChange
+}
+
 // Union 타입
 export type DocumentWithDetail =
   | DocumentWithLeave
@@ -247,6 +275,7 @@ export type DocumentWithDetail =
   | DocumentWithExpenseProposal
   | DocumentWithResignation
   | DocumentWithOvertimeReport
+  | DocumentWithWorkTypeChange
 
 // ================================================================
 // 문서 참조
@@ -435,6 +464,15 @@ export interface CreateOvertimeReportDocumentInput extends CreateDocumentInput {
   transportation_fee?: number
 }
 
+// 근로형태 변경 신청 생성 입력
+export interface CreateWorkTypeChangeDocumentInput extends CreateDocumentInput {
+  doc_type: 'work_type_change'
+  work_type: WorkType
+  start_date: string
+  end_date: string
+  detail_description?: string
+}
+
 // Union 타입
 export type CreateDocumentDetailInput =
   | CreateLeaveDocumentInput
@@ -446,6 +484,7 @@ export type CreateDocumentDetailInput =
   | CreateExpenseProposalDocumentInput
   | CreateResignationDocumentInput
   | CreateOvertimeReportDocumentInput
+  | CreateWorkTypeChangeDocumentInput
 
 // 문서 목록 조회 필터
 export interface DocumentListFilter {
@@ -488,6 +527,22 @@ export const DocumentTypeLabels: Record<DocumentType, string> = {
   expense_proposal: '지출 품의',
   resignation: '사직서',
   overtime_report: '연장 근로 보고',
+  work_type_change: '근로형태 변경',
+}
+
+// 근로형태 변경 유형별 한글 레이블
+export const WorkTypeLabels: Record<WorkType, string> = {
+  unpaid_sick_leave: '무급병가',
+  public_duty: '공가 휴가',
+  leave_of_absence: '휴직',
+  parental_leave: '육아 휴직',
+  family_event_leave: '경조사 휴가',
+  maternity_leave: '출산전후 휴가',
+  paternity_leave: '배우자출산휴가',
+  pregnancy_reduced_hours: '임신 중 단축근무',
+  work_schedule_change: '근무 변경',
+  business_trip: '출장/외근',
+  menstrual_leave: '여성 보건 휴가',
 }
 
 // 휴가 유형별 한글 레이블

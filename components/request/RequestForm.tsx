@@ -45,6 +45,7 @@ type DocumentType =
   | 'expense_proposal'
   | 'resignation'
   | 'overtime_report'
+  | 'work_type_change'
   | 'other'
 
 // 서버 액션에 전달할 타입
@@ -279,7 +280,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Validate and set initial document type
-  const validDocumentTypes: DocumentType[] = ['annual_leave', 'reward_leave', 'condolence', 'overtime', 'expense', 'budget', 'expense_proposal', 'resignation', 'overtime_report', 'other']
+  const validDocumentTypes: DocumentType[] = ['annual_leave', 'reward_leave', 'condolence', 'overtime', 'expense', 'budget', 'expense_proposal', 'resignation', 'overtime_report', 'work_type_change', 'other']
   const initialType = initialDocumentType && validDocumentTypes.includes(initialDocumentType as DocumentType)
     ? (initialDocumentType as DocumentType)
     : ''
@@ -353,6 +354,13 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [reportWorkContent, setReportWorkContent] = useState('')
   const [linkedOvertimeRequestId, setLinkedOvertimeRequestId] = useState('')
   const [reportTransportationFee, setReportTransportationFee] = useState('')
+
+  // 근로형태 변경 신청
+  type WorkType = 'unpaid_sick_leave' | 'public_duty' | 'leave_of_absence' | 'parental_leave' | 'family_event_leave' | 'maternity_leave' | 'paternity_leave' | 'pregnancy_reduced_hours' | 'work_schedule_change' | 'business_trip' | 'menstrual_leave'
+  const [workTypeChangeType, setWorkTypeChangeType] = useState<WorkType | ''>('')
+  const [workTypeStartDate, setWorkTypeStartDate] = useState<Date>()
+  const [workTypeEndDate, setWorkTypeEndDate] = useState<Date>()
+  const [workTypeDetail, setWorkTypeDetail] = useState('')
 
   // 첨부파일
   const [attachments, setAttachments] = useState<File[]>([])
@@ -686,6 +694,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       }
     }
 
+    // 근로형태 변경 신청 검증
+    if (documentType === 'work_type_change') {
+      if (!workTypeChangeType) {
+        toast.error('근로 형태를 선택해주세요')
+        return false
+      }
+      if (!workTypeStartDate || !workTypeEndDate) {
+        toast.error('시작일과 종료일을 선택해주세요')
+        return false
+      }
+    }
+
     if (approvalSteps.length === 0) {
       toast.error('최소 1명의 결재자를 지정해주세요')
       return false
@@ -989,6 +1009,13 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         formData.total_hours = Math.round((diffMinutes / 60) * 10) / 10
       }
 
+      if (documentType === 'work_type_change') {
+        formData.work_type = workTypeChangeType
+        formData.start_date = workTypeStartDate?.toISOString().split('T')[0]
+        formData.end_date = workTypeEndDate?.toISOString().split('T')[0]
+        formData.detail_description = workTypeDetail || null
+      }
+
       if (selectedExistingDocs.length > 0) {
         formData.attached_documents = selectedExistingDocs
       }
@@ -1102,6 +1129,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     'expense_proposal': '지출 품의',
     'resignation': '사직서',
     'overtime_report': '연장 근로 보고',
+    'work_type_change': '근로형태 변경',
     'other': '기타',
   }
 
@@ -1154,6 +1182,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setReportWorkContent('')
           setLinkedOvertimeRequestId('')
           setReportTransportationFee('')
+          // 근로형태 변경 신청 필드 초기화
+          setWorkTypeChangeType('')
+          setWorkTypeStartDate(undefined)
+          setWorkTypeEndDate(undefined)
+          setWorkTypeDetail('')
         }}
       />
 
@@ -2199,6 +2232,66 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       placeholder="교통비 (선택)"
                       value={reportTransportationFee}
                       onChange={(e) => setReportTransportationFee(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* 근로형태 변경 신청 */}
+              {documentType === 'work_type_change' && (
+                <>
+                  {/* 근로 형태 선택 */}
+                  <div className="space-y-2">
+                    <Label>근로 형태 *</Label>
+                    <Select value={workTypeChangeType} onValueChange={(v) => setWorkTypeChangeType(v as WorkType)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="근로 형태를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unpaid_sick_leave">무급병가 (연 60일)</SelectItem>
+                        <SelectItem value="public_duty">공가 휴가 (예비군/민방위 등)</SelectItem>
+                        <SelectItem value="leave_of_absence">휴직 (무급)</SelectItem>
+                        <SelectItem value="parental_leave">육아 휴직</SelectItem>
+                        <SelectItem value="family_event_leave">경조사 휴가</SelectItem>
+                        <SelectItem value="maternity_leave">출산전후 휴가 (90일)</SelectItem>
+                        <SelectItem value="paternity_leave">배우자출산휴가 (20일)</SelectItem>
+                        <SelectItem value="pregnancy_reduced_hours">임신 중 단축근무</SelectItem>
+                        <SelectItem value="work_schedule_change">근무 변경 (재택 등)</SelectItem>
+                        <SelectItem value="business_trip">출장/외근</SelectItem>
+                        <SelectItem value="menstrual_leave">여성 보건 휴가</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 시작일 / 종료일 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>시작일 *</Label>
+                      <DatePicker
+                        date={workTypeStartDate}
+                        onDateChange={setWorkTypeStartDate}
+                        placeholder="시작일 선택"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>종료일 *</Label>
+                      <DatePicker
+                        date={workTypeEndDate}
+                        onDateChange={setWorkTypeEndDate}
+                        placeholder="종료일 선택"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 상세 내역 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="workTypeDetail">상세 내역</Label>
+                    <Textarea
+                      id="workTypeDetail"
+                      placeholder="상세 내역을 입력하세요 (선택)"
+                      rows={3}
+                      value={workTypeDetail}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setWorkTypeDetail(e.target.value)}
                     />
                   </div>
                 </>
