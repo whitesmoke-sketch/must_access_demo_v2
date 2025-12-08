@@ -338,7 +338,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     unitPrice: string
   }
   const [proposalExpenseDate, setProposalExpenseDate] = useState<Date>()
-  const [expenseReason, setExpenseReason] = useState('')
   const [proposalItems, setProposalItems] = useState<ExpenseProposalItem[]>([{ item: '', quantity: '', unitPrice: '' }])
   const [vendorName, setVendorName] = useState('')
 
@@ -346,7 +345,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [employmentDate, setEmploymentDate] = useState<Date>()
   const [resignationDate, setResignationDate] = useState<Date>()
   const [resignationType, setResignationType] = useState<'personal' | 'contract_end' | 'recommended' | 'other'>('personal')
-  const [detailReason, setDetailReason] = useState('')
   const [handoverConfirmed, setHandoverConfirmed] = useState(false)
   const [confidentialityAgreed, setConfidentialityAgreed] = useState(false)
   const [voluntaryConfirmed, setVoluntaryConfirmed] = useState(false)
@@ -364,7 +362,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [workTypeChangeType, setWorkTypeChangeType] = useState<WorkType | ''>('')
   const [workTypeStartDate, setWorkTypeStartDate] = useState<Date>()
   const [workTypeEndDate, setWorkTypeEndDate] = useState<Date>()
-  const [workTypeDetail, setWorkTypeDetail] = useState('')
 
   // 첨부파일
   const [attachments, setAttachments] = useState<File[]>([])
@@ -551,7 +548,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       return false
     }
 
-    if (!reason.trim()) {
+    // 사유가 필요한 문서 유형에서만 검증
+    const reasonRequiredTypes = ['annual_leave', 'reward_leave', 'condolence', 'expense']
+    if (reasonRequiredTypes.includes(documentType) && !reason.trim()) {
       toast.error('사유를 입력해주세요')
       return false
     }
@@ -661,10 +660,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     if (documentType === 'expense_proposal') {
       if (!proposalExpenseDate) {
         toast.error('지출 예정일을 선택해주세요')
-        return false
-      }
-      if (!expenseReason.trim()) {
-        toast.error('지출 사유를 입력해주세요')
         return false
       }
       if (proposalItems.some(item => !item.item.trim() || !item.quantity.trim() || !item.unitPrice.trim())) {
@@ -990,7 +985,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
       if (documentType === 'expense_proposal') {
         formData.expense_date = proposalExpenseDate?.toISOString().split('T')[0]
-        formData.expense_reason = expenseReason
         formData.items = proposalItems.map(item => ({
           item: item.item,
           quantity: parseInt(item.quantity) || 1,
@@ -1007,7 +1001,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         formData.employment_date = employmentDate?.toISOString().split('T')[0]
         formData.resignation_date = resignationDate?.toISOString().split('T')[0]
         formData.resignation_type = resignationType
-        formData.detail_reason = detailReason || null
         formData.handover_confirmed = handoverConfirmed
         formData.confidentiality_agreed = confidentialityAgreed
         formData.voluntary_confirmed = voluntaryConfirmed
@@ -1042,7 +1035,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         formData.work_type = workTypeChangeType
         formData.start_date = workTypeStartDate?.toISOString().split('T')[0]
         formData.end_date = workTypeEndDate?.toISOString().split('T')[0]
-        formData.detail_description = workTypeDetail || null
       }
 
       if (selectedExistingDocs.length > 0) {
@@ -1196,14 +1188,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setBudgetAmount('')
           // 지출 품의서 필드 초기화
           setProposalExpenseDate(undefined)
-          setExpenseReason('')
           setProposalItems([{ item: '', quantity: '', unitPrice: '' }])
           setVendorName('')
           // 사직서 필드 초기화
           setEmploymentDate(undefined)
           setResignationDate(undefined)
           setResignationType('personal')
-          setDetailReason('')
           setHandoverConfirmed(false)
           setConfidentialityAgreed(false)
           setVoluntaryConfirmed(false)
@@ -1218,7 +1208,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setWorkTypeChangeType('')
           setWorkTypeStartDate(undefined)
           setWorkTypeEndDate(undefined)
-          setWorkTypeDetail('')
         }}
       />
 
@@ -1504,6 +1493,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       </div>
                     </div>
                   )}
+
+                  {/* 사유 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reason">사유 *</Label>
+                    <Textarea
+                      id="reason"
+                      placeholder="휴가 사유를 입력하세요"
+                      rows={3}
+                      value={reason}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+                    />
+                  </div>
                 </>
               )}
 
@@ -1557,6 +1558,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       </div>
                     </div>
                   )}
+
+                  {/* 사유 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reason">사유 *</Label>
+                    <Textarea
+                      id="reason"
+                      placeholder="포상휴가 사유를 입력하세요"
+                      rows={3}
+                      value={reason}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+                    />
+                  </div>
                 </>
               )}
 
@@ -1602,6 +1615,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         onChange={(e) => setRelationship(e.target.value)}
                       />
                     </div>
+                  </div>
+
+                  {/* 사유 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reason">사유 *</Label>
+                    <Textarea
+                      id="reason"
+                      placeholder="경조사 사유를 입력하세요"
+                      rows={3}
+                      value={reason}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+                    />
                   </div>
                 </>
               )}
@@ -1878,6 +1903,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       </div>
                     </div>
                   )}
+
+                  {/* 사유 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reason">사유 *</Label>
+                    <Textarea
+                      id="reason"
+                      placeholder="지출 사유를 입력하세요"
+                      rows={3}
+                      value={reason}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+                    />
+                  </div>
                 </>
               )}
 
@@ -1962,18 +1999,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       date={proposalExpenseDate}
                       onDateChange={setProposalExpenseDate}
                       placeholder="지출 예정일 선택"
-                    />
-                  </div>
-
-                  {/* 지출 사유 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="expenseReason">지출 사유 *</Label>
-                    <Textarea
-                      id="expenseReason"
-                      placeholder="지출 사유를 입력하세요"
-                      rows={3}
-                      value={expenseReason}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setExpenseReason(e.target.value)}
                     />
                   </div>
 
@@ -2120,18 +2145,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         <SelectItem value="other">기타</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  {/* 상세 사유 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="detailReason">상세 사유</Label>
-                    <Textarea
-                      id="detailReason"
-                      placeholder="퇴직 사유를 상세히 입력해주세요 (선택)"
-                      rows={3}
-                      value={detailReason}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDetailReason(e.target.value)}
-                    />
                   </div>
 
                   {/* 확약 사항 */}
@@ -2361,32 +2374,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       />
                     </div>
                   </div>
-
-                  {/* 상세 내역 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="workTypeDetail">상세 내역</Label>
-                    <Textarea
-                      id="workTypeDetail"
-                      placeholder="상세 내역을 입력하세요 (선택)"
-                      rows={3}
-                      value={workTypeDetail}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setWorkTypeDetail(e.target.value)}
-                    />
-                  </div>
                 </>
               )}
-
-              {/* 사유 */}
-              <div className="space-y-2">
-                <Label htmlFor="reason">사유 *</Label>
-                <Textarea
-                  id="reason"
-                  placeholder="신청 사유를 입력하세요"
-                  rows={4}
-                  value={reason}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
-                />
-              </div>
 
               {/* 첨부파일 */}
               <div className="space-y-2">

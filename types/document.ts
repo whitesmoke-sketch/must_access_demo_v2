@@ -157,7 +157,6 @@ export interface DocBudget {
 export interface DocExpenseProposal {
   document_id: number
   expense_date: string
-  expense_reason: string
   items: Array<{
     item: string
     quantity: number
@@ -177,7 +176,6 @@ export interface DocResignation {
   employment_date: string
   resignation_date: string
   resignation_type: ResignationType
-  detail_reason: string | null
   handover_confirmed: boolean
   confidentiality_agreed: boolean
   voluntary_confirmed: boolean
@@ -221,7 +219,6 @@ export interface DocWorkTypeChange {
   work_type: WorkType
   start_date: string
   end_date: string
-  detail_description: string | null
   created_at: string
 }
 
@@ -437,7 +434,6 @@ export interface CreateBudgetDocumentInput extends CreateDocumentInput {
 export interface CreateExpenseProposalDocumentInput extends CreateDocumentInput {
   doc_type: 'expense_proposal'
   expense_date: string
-  expense_reason: string
   items: Array<{ item: string; quantity: number; unit_price: number }>
   total_amount: number
   vendor_name: string
@@ -449,7 +445,6 @@ export interface CreateResignationDocumentInput extends CreateDocumentInput {
   employment_date: string
   resignation_date: string
   resignation_type: ResignationType
-  detail_reason?: string
   handover_confirmed: boolean
   confidentiality_agreed: boolean
   voluntary_confirmed: boolean
@@ -473,7 +468,6 @@ export interface CreateWorkTypeChangeDocumentInput extends CreateDocumentInput {
   work_type: WorkType
   start_date: string
   end_date: string
-  detail_description?: string
 }
 
 // Union 타입
