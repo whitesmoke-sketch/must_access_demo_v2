@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createApprovalSteps, ApprovalStepInput, ApprovalType } from './approval'
 import { createNotification } from './notification'
@@ -840,14 +840,15 @@ export async function searchAccessibleDocuments(options?: {
 }): Promise<{ success: boolean; data: AccessibleDocument[]; total: number; error?: string }> {
   try {
     const supabase = await createClient()
+    const adminSupabase = createAdminClient() // RLS 우회를 위해 admin client 사용
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return { success: false, error: '인증이 필요합니다', data: [], total: 0 }
     }
 
-    // 현재 사용자 정보 조회
-    const { data: currentEmployee } = await supabase
+    // 현재 사용자 정보 조회 (admin client로 RLS 우회)
+    const { data: currentEmployee } = await adminSupabase
       .from('employee')
       .select('id, department_id')
       .eq('id', user.id)
@@ -858,14 +859,14 @@ export async function searchAccessibleDocuments(options?: {
     }
 
     // 현재 사용자의 부서 계층 정보 조회
-    const { data: currentDept } = await supabase
+    const { data: currentDept } = await adminSupabase
       .from('department')
       .select('id, parent_department_id')
       .eq('id', currentEmployee.department_id)
       .single()
 
     // 같은 부서의 하위 부서들 (department 범위용)
-    const { data: childDepts } = await supabase
+    const { data: childDepts } = await adminSupabase
       .from('department')
       .select('id')
       .eq('parent_department_id', currentEmployee.department_id)
@@ -881,7 +882,7 @@ export async function searchAccessibleDocuments(options?: {
 
     if (currentDept?.parent_department_id) {
       // 같은 상위 부서를 가진 모든 부서
-      const { data: siblingDepts } = await supabase
+      const { data: siblingDepts } = await adminSupabase
         .from('department')
         .select('id')
         .eq('parent_department_id', currentDept.parent_department_id)
@@ -892,7 +893,7 @@ export async function searchAccessibleDocuments(options?: {
       divisionDeptIds.push(currentDept.parent_department_id)
 
       // 각 sibling의 하위 부서들도 포함
-      const { data: nephewDepts } = await supabase
+      const { data: nephewDepts } = await adminSupabase
         .from('department')
         .select('id')
         .in('parent_department_id', divisionDeptIds)
@@ -906,7 +907,7 @@ export async function searchAccessibleDocuments(options?: {
     }
 
     // 같은 팀(부서)의 직원 ID들
-    const { data: teamMembers } = await supabase
+    const { data: teamMembers } = await adminSupabase
       .from('employee')
       .select('id')
       .eq('department_id', currentEmployee.department_id)
@@ -915,7 +916,7 @@ export async function searchAccessibleDocuments(options?: {
     const teamMemberIds = teamMembers?.map(m => m.id) || []
 
     // 같은 부서 계열의 직원 ID들
-    const { data: deptMembers } = await supabase
+    const { data: deptMembers } = await adminSupabase
       .from('employee')
       .select('id')
       .in('department_id', departmentIds)
@@ -924,7 +925,7 @@ export async function searchAccessibleDocuments(options?: {
     const deptMemberIds = deptMembers?.map(m => m.id) || []
 
     // 같은 사업부 계열의 직원 ID들
-    const { data: divisionMembers } = await supabase
+    const { data: divisionMembers } = await adminSupabase
       .from('employee')
       .select('id')
       .in('department_id', divisionDeptIds)
@@ -937,9 +938,8 @@ export async function searchAccessibleDocuments(options?: {
     const from = (page - 1) * perPage
     const to = from + perPage - 1
 
-    // 문서 조회 - 공개 범위에 따른 필터링
-    // OR 조건으로 여러 케이스를 처리
-    let query = supabase
+    // 문서 조회 - 공개 범위에 따른 필터링 (RLS 우회)
+    let query = adminSupabase
       .from('document_master')
       .select(`
         id,
