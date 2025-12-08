@@ -198,8 +198,8 @@ export interface DocOvertimeReport {
   end_time: string
   total_hours: number
   work_content: string
-  linked_overtime_request_id: number | null
   transportation_fee: number
+  meal_fee: number
   created_at: string
 }
 
@@ -467,8 +467,8 @@ export interface CreateOvertimeReportDocumentInput extends CreateDocumentInput {
   end_time: string
   total_hours: number
   work_content: string
-  linked_overtime_request_id?: number
   transportation_fee?: number
+  meal_fee?: number
 }
 
 // 근로형태 변경 신청 생성 입력

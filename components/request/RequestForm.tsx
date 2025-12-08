@@ -356,8 +356,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [reportStartTime, setReportStartTime] = useState('')
   const [reportEndTime, setReportEndTime] = useState('')
   const [reportWorkContent, setReportWorkContent] = useState('')
-  const [linkedOvertimeRequestId, setLinkedOvertimeRequestId] = useState('')
   const [reportTransportationFee, setReportTransportationFee] = useState('')
+  const [reportMealFee, setReportMealFee] = useState('')
 
   // 근로형태 변경 신청
   type WorkType = 'unpaid_sick_leave' | 'public_duty' | 'leave_of_absence' | 'parental_leave' | 'family_event_leave' | 'maternity_leave' | 'paternity_leave' | 'pregnancy_reduced_hours' | 'work_schedule_change' | 'business_trip' | 'menstrual_leave'
@@ -1016,8 +1016,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           ? reportEndTime.slice(1)
           : reportEndTime
         formData.work_content = reportWorkContent
-        formData.linked_overtime_request_id = linkedOvertimeRequestId ? parseInt(linkedOvertimeRequestId) : null
         formData.transportation_fee = reportTransportationFee ? parseFloat(reportTransportationFee) : 0
+        formData.meal_fee = reportMealFee ? parseFloat(reportMealFee) : 0
 
         // 총 근로 시간 계산
         const startParts = reportStartTime.split(':').map(Number)
@@ -1208,8 +1208,8 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           setReportStartTime('')
           setReportEndTime('')
           setReportWorkContent('')
-          setLinkedOvertimeRequestId('')
           setReportTransportationFee('')
+          setReportMealFee('')
           // 근로형태 변경 신청 필드 초기화
           setWorkTypeChangeType('')
           setWorkTypeStartDate(undefined)
@@ -2283,18 +2283,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                     />
                   </div>
 
-                  {/* 연결된 연장근로 신청서 ID */}
-                  <div className="space-y-2">
-                    <Label htmlFor="linkedOvertimeRequestId">연결된 연장근로 신청서 ID</Label>
-                    <Input
-                      id="linkedOvertimeRequestId"
-                      type="number"
-                      placeholder="연결된 신청서 ID (선택)"
-                      value={linkedOvertimeRequestId}
-                      onChange={(e) => setLinkedOvertimeRequestId(e.target.value)}
-                    />
-                  </div>
-
                   {/* 교통비 */}
                   <div className="space-y-2">
                     <Label htmlFor="reportTransportationFee">교통비 (원)</Label>
@@ -2304,6 +2292,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       placeholder="교통비 (선택)"
                       value={reportTransportationFee}
                       onChange={(e) => setReportTransportationFee(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 식대 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reportMealFee">식대 (원)</Label>
+                    <Input
+                      id="reportMealFee"
+                      type="number"
+                      placeholder="식대 (선택)"
+                      value={reportMealFee}
+                      onChange={(e) => setReportMealFee(e.target.value)}
                     />
                   </div>
                 </>

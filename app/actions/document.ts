@@ -371,8 +371,8 @@ async function createDocumentDetail(
           end_time: formData.end_time as string,
           total_hours: formData.total_hours as number,
           work_content: formData.work_content as string,
-          linked_overtime_request_id: formData.linked_overtime_request_id as number || null,
           transportation_fee: formData.transportation_fee as number || 0,
+          meal_fee: formData.meal_fee as number || 0,
         })
         if (error) return { success: false, error: error.message }
         break
