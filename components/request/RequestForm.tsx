@@ -527,10 +527,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         toast.error('경조사 날짜를 선택해주세요')
         return false
       }
-      if (!welfareAmount || parseInt(welfareAmount.replace(/,/g, '')) <= 0) {
-        toast.error('신청 금액을 입력해주세요')
-        return false
-      }
     }
 
     // 야근수당 검증
@@ -771,7 +767,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         formData.event_date = welfareDate?.toISOString().split('T')[0]
         formData.target_name = targetName
         formData.relationship = relationship
-        formData.amount = parseInt(welfareAmount.replace(/,/g, '')) || 0
+        formData.amount = 0  // 금액은 관리자가 승인 시 결정
       }
 
       if (documentType === 'overtime') {
@@ -1304,33 +1300,13 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>경조사 날짜 *</Label>
-                      <DatePicker
-                        date={welfareDate}
-                        onDateChange={setWelfareDate}
-                        placeholder="경조사 날짜 선택"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="welfareAmount">신청 금액 *</Label>
-                      <Input
-                        id="welfareAmount"
-                        type="text"
-                        placeholder="예: 100,000"
-                        value={welfareAmount}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^\d,]/g, '')
-                          const numericValue = value.replace(/,/g, '')
-                          if (numericValue === '') {
-                            setWelfareAmount('')
-                          } else {
-                            setWelfareAmount(Number(numericValue).toLocaleString())
-                          }
-                        }}
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label>경조사 날짜 *</Label>
+                    <DatePicker
+                      date={welfareDate}
+                      onDateChange={setWelfareDate}
+                      placeholder="경조사 날짜 선택"
+                    />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
