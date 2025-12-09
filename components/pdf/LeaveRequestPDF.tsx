@@ -249,14 +249,14 @@ const styles = StyleSheet.create({
     minHeight: 28,
   },
   periodDateCell: {
-    flex: 2,
+    flex: 1,
     borderRightWidth: 1,
     borderColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },
   periodTypeCell: {
-    flex: 1.5,
+    width: 80,
     borderRightWidth: 1,
     borderColor: '#000',
     justifyContent: 'center',
