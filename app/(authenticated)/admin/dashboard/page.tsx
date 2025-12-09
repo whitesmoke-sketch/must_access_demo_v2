@@ -134,6 +134,21 @@ export default async function AdminDashboardPage() {
 
   // ========== 근무 현황 데이터 조회 ==========
 
+  // 0. 근로형태 변경 문서 조회 (모든 카테고리에서 재사용)
+  const { data: workTypeChangeRequests } = await supabase
+    .from('document_master')
+    .select(`
+      id,
+      doc_data,
+      requester:requester_id (
+        id,
+        name,
+        department:department_id (name)
+      )
+    `)
+    .eq('doc_type', 'work_type_change')
+    .eq('status', 'approved');
+
   // 1. 휴가 (doc_data JSONB - annual, half_day, award)
   const { data: vacationRequests } = await supabase
     .from('document_master')
@@ -175,7 +190,24 @@ export default async function AdminDashboardPage() {
     };
   });
 
-  // 2. 사외 근무 (work_request - field_work, business_trip)
+  // 2. 사외 근무 (document_master - work_type_change(business_trip) + work_request - field_work, business_trip)
+  // 2-1. document_master에서 출장/외근 조회
+  const filteredBusinessTripRequests = workTypeChangeRequests?.filter(req => {
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const workType = docData.work_type;
+    return docData.start_date <= today && docData.end_date >= today &&
+           workType === 'business_trip';
+  }) || [];
+
+  const businessTripFromDocMaster = filteredBusinessTripRequests.map(req => ({
+    id: req.id.toString(),
+    name: (req.requester as any)?.name || '알 수 없음',
+    department: (req.requester as any)?.department?.name || '',
+    status: '출장',
+  }));
+
+  // 2-2. 기존 work_request 테이블에서도 조회 (호환성 유지)
   const { data: fieldWorkRequests } = await supabase
     .from('work_request')
     .select(`
@@ -192,18 +224,46 @@ export default async function AdminDashboardPage() {
     .gte('end_date', today)
     .in('work_type', ['field_work', 'business_trip']);
 
-  const fieldWorkMembers = fieldWorkRequests?.map(req => ({
-    id: req.id.toString(),
+  const fieldWorkFromWorkRequest = fieldWorkRequests?.map(req => ({
+    id: `wr-${req.id.toString()}`,
     name: (req.employee as any)?.name || '알 수 없음',
     department: (req.employee as any)?.department?.name || '',
     status: req.work_type === 'field_work' ? '외근' : '출장',
   })) || [];
 
+  // 두 데이터 소스 병합
+  const fieldWorkMembers = [...businessTripFromDocMaster, ...fieldWorkFromWorkRequest];
+
   // 3. 휴직 (향후 별도 테이블 또는 employee 상태로 관리 예정)
   // 현재는 빈 배열
   const leaveOfAbsenceMembers: { id: string; name: string; department: string; status: string }[] = [];
 
-  // 4. 근무 변경 (work_request - remote)
+  // 4. 근무 변경 (document_master - work_type_change + work_request - remote)
+  // 오늘 날짜가 기간에 포함되고, work_type이 근무 변경 관련인 것만 필터링
+  const filteredWorkTypeChangeRequests = workTypeChangeRequests?.filter(req => {
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const workType = docData.work_type;
+    // work_schedule_change: 재택 등 근무 변경
+    return docData.start_date <= today && docData.end_date >= today &&
+           ['work_schedule_change', 'remote'].includes(workType);
+  }) || [];
+
+  const workTypeChangeMembers = filteredWorkTypeChangeRequests.map(req => {
+    const docData = req.doc_data || {};
+    const workTypeLabels: Record<string, string> = {
+      work_schedule_change: '재택',
+      remote: '재택',
+    };
+    return {
+      id: req.id.toString(),
+      name: (req.requester as any)?.name || '알 수 없음',
+      department: (req.requester as any)?.department?.name || '',
+      status: workTypeLabels[docData.work_type] || '근무 변경',
+    };
+  });
+
+  // 4-2. 기존 work_request 테이블에서도 remote 조회 (호환성 유지)
   const { data: remoteWorkRequests } = await supabase
     .from('work_request')
     .select(`
@@ -221,15 +281,39 @@ export default async function AdminDashboardPage() {
     .eq('work_type', 'remote');
 
   const remoteWorkMembers = remoteWorkRequests?.map(req => ({
-    id: req.id.toString(),
+    id: `wr-${req.id.toString()}`,
     name: (req.employee as any)?.name || '알 수 없음',
     department: (req.employee as any)?.department?.name || '',
     status: '재택',
   })) || [];
 
-  // 5. 출산/육아 (향후 별도 테이블로 관리 예정)
-  // 현재는 빈 배열
-  const parentalLeaveMembers: { id: string; name: string; department: string; status: string }[] = [];
+  // 두 데이터 소스 병합
+  const allRemoteWorkMembers = [...workTypeChangeMembers, ...remoteWorkMembers];
+
+  // 5. 출산/육아 (document_master - work_type_change)
+  const filteredParentalLeaveRequests = workTypeChangeRequests?.filter(req => {
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const workType = docData.work_type;
+    return docData.start_date <= today && docData.end_date >= today &&
+           ['parental_leave', 'maternity_leave', 'paternity_leave', 'pregnancy_reduced_hours'].includes(workType);
+  }) || [];
+
+  const parentalLeaveMembers = filteredParentalLeaveRequests.map(req => {
+    const docData = req.doc_data || {};
+    const workTypeLabels: Record<string, string> = {
+      parental_leave: '육아휴직',
+      maternity_leave: '출산휴가',
+      paternity_leave: '배우자출산휴가',
+      pregnancy_reduced_hours: '임신중단축근무',
+    };
+    return {
+      id: req.id.toString(),
+      name: (req.requester as any)?.name || '알 수 없음',
+      department: (req.requester as any)?.department?.name || '',
+      status: workTypeLabels[docData.work_type] || '출산/육아',
+    };
+  });
 
   // 6. 기타 (향후 확장 예정)
   // 현재는 빈 배열
@@ -239,7 +323,7 @@ export default async function AdminDashboardPage() {
     '휴가': vacationMembers,
     '사외 근무': fieldWorkMembers,
     '휴직': leaveOfAbsenceMembers,
-    '근무 변경': remoteWorkMembers,
+    '근무 변경': allRemoteWorkMembers,
     '출산/육아': parentalLeaveMembers,
     '기타': etcMembers,
   };
