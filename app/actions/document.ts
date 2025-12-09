@@ -1106,8 +1106,6 @@ interface LinkedDocumentDetail {
   doc_data: Record<string, unknown> | null
   current_step: number | null
   approved_at: string | null
-  rejected_at: string | null
-  retrieved_at: string | null
   approvalSteps: {
     id: string
     step_order: number
@@ -1232,8 +1230,6 @@ export async function getLinkedDocumentDetail(
         doc_data,
         current_step,
         approved_at,
-        rejected_at,
-        retrieved_at,
         requester:requester_id (id, name)
       `)
       .eq('id', linkedDocumentId)
@@ -1297,8 +1293,6 @@ export async function getLinkedDocumentDetail(
       doc_data: linkedDoc.doc_data,
       current_step: linkedDoc.current_step,
       approved_at: linkedDoc.approved_at,
-      rejected_at: linkedDoc.rejected_at,
-      retrieved_at: linkedDoc.retrieved_at,
       approvalSteps: (approvalSteps || []).map(step => ({
         id: step.id,
         step_order: step.step_order,

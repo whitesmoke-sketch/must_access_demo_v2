@@ -108,8 +108,6 @@ interface LinkedDocumentDetail {
   doc_data: Record<string, unknown> | null
   current_step: number | null
   approved_at: string | null
-  rejected_at: string | null
-  retrieved_at: string | null
   approvalSteps: {
     id: string
     step_order: number
@@ -653,40 +651,12 @@ export function ApprovalDocumentDetailModal({
                   </div>
                 </div>
 
-                {/* 승인/반려/회수 시간 */}
+                {/* 승인 시간 */}
                 {linkedDocDetail.approved_at && (
                   <div className="space-y-1">
                     <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>승인 시간</p>
                     <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
                       {new Date(linkedDocDetail.approved_at).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                )}
-                {linkedDocDetail.rejected_at && (
-                  <div className="space-y-1">
-                    <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>반려 시간</p>
-                    <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
-                      {new Date(linkedDocDetail.rejected_at).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                )}
-                {linkedDocDetail.retrieved_at && (
-                  <div className="space-y-1">
-                    <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>회수 시간</p>
-                    <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
-                      {new Date(linkedDocDetail.retrieved_at).toLocaleString('ko-KR', {
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',
