@@ -45,6 +45,7 @@ interface ApprovalDocument {
   retrieved_at: string | null
   current_step: number | null
   employee: EmployeeInfo | EmployeeInfo[] | null
+  doc_type?: string  // 문서 유형 (leave, expense, overtime 등)
 }
 
 interface ApprovalStep {
@@ -198,6 +199,9 @@ export function ApprovalDocumentDetailModal({
       const baseUrl = supabaseUrl.replace('/rest/v1', '')
       const edgeFunctionUrl = `${baseUrl}/functions/v1/get-approval-steps`
 
+      // 문서 유형 결정: doc_type이 있으면 사용, 없으면 'leave' 기본값
+      const requestType = document.doc_type || 'leave'
+
       const response = await fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
@@ -205,7 +209,7 @@ export function ApprovalDocumentDetailModal({
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          requestType: 'leave',
+          requestType,
           requestId: document.id
         })
       })
@@ -231,7 +235,9 @@ export function ApprovalDocumentDetailModal({
 
     setProcessing(true)
     try {
-      const result = await approveDocument(document.id, 'leave')
+      // 문서 유형 결정: doc_type이 있으면 사용, 없으면 'leave' 기본값
+      const docType = (document.doc_type || 'leave') as 'leave' | 'expense' | 'overtime' | 'welfare' | 'general'
+      const result = await approveDocument(document.id, docType)
 
       if (result.success) {
         toast.success('승인이 완료되었습니다')
@@ -261,7 +267,9 @@ export function ApprovalDocumentDetailModal({
 
     setProcessing(true)
     try {
-      const result = await rejectDocument(document.id, rejectReason, 'leave')
+      // 문서 유형 결정: doc_type이 있으면 사용, 없으면 'leave' 기본값
+      const docType = (document.doc_type || 'leave') as 'leave' | 'expense' | 'overtime' | 'welfare' | 'general'
+      const result = await rejectDocument(document.id, rejectReason, docType)
 
       if (result.success) {
         toast.error('반려가 완료되었습니다')

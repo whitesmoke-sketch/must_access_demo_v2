@@ -66,6 +66,7 @@ interface ApprovalDocument {
   retrieved_at?: string | null
   current_step: number | null
   employee: EmployeeInfo | EmployeeInfo[] | null
+  doc_type?: string  // 문서 유형 (leave, expense, overtime 등)
 }
 
 interface ApprovalStep {
@@ -102,6 +103,7 @@ interface ReferenceDocument {
   cc_id?: string
   read_at?: string | null
   readStatus: 'read' | 'unread'
+  doc_type?: string  // 문서 유형 (leave, expense, overtime 등)
 }
 
 interface CCPerson {
@@ -217,10 +219,12 @@ export function ApprovalDocumentsClient({
 
 
   // 참조 문서 열람 처리 (공통 함수)
-  const markAsReadIfReference = async (documentId: number) => {
+  const markAsReadIfReference = async (documentId: number, docType?: string) => {
     const refDoc = referenceDocuments.find(doc => doc.id === documentId)
     if (refDoc && refDoc.readStatus === 'unread') {
-      const result = await markApprovalCCAsRead('leave', documentId)
+      // 문서 유형 결정: doc_type이 있으면 사용, 없으면 'leave' 기본값
+      const requestType = (docType || refDoc.doc_type || 'leave') as 'leave' | 'document'
+      const result = await markApprovalCCAsRead(requestType, documentId)
       if (result.success) {
         setReferenceDocuments(prev =>
           prev.map(doc =>
@@ -236,7 +240,7 @@ export function ApprovalDocumentsClient({
   // 상세 보기 (전체/진행중/완료 탭)
   const handleViewDetail = async (document: ApprovalDocument) => {
     // 참조 문서인 경우 열람 처리
-    await markAsReadIfReference(document.id)
+    await markAsReadIfReference(document.id, document.doc_type)
     setSelectedDocument(document)
     setIsDetailDialogOpen(true)
   }
@@ -244,7 +248,7 @@ export function ApprovalDocumentsClient({
   // 참조 문서 상세 보기 (참조 탭)
   const handleViewReferenceDetail = async (document: ReferenceDocument) => {
     // 미열람 상태인 경우 열람 처리
-    await markAsReadIfReference(document.id)
+    await markAsReadIfReference(document.id, document.doc_type)
     // 상세 모달 열기 (ApprovalDocument 형식으로 변환)
     setSelectedDocument(document as unknown as ApprovalDocument)
     setIsDetailDialogOpen(true)
