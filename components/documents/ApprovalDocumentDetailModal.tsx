@@ -519,6 +519,11 @@ export function ApprovalDocumentDetailModal({
     return Array.isArray(employee) ? employee[0] || null : employee
   }
 
+  const getDepartmentName = (department: { name: string } | { name: string }[] | null | undefined): string => {
+    if (!department) return '-'
+    return Array.isArray(department) ? department[0]?.name || '-' : department.name
+  }
+
   // PDF 데이터 생성 함수
   const buildPDFData = (): LeaveRequestPDFData | null => {
     if (!document || !leaveBalance) return null
@@ -608,11 +613,6 @@ export function ApprovalDocumentDetailModal({
   // PDF 다운로드 가능 여부
   const isLeaveDocument = !document?.doc_type || document.doc_type === 'leave'
   const pdfData = isLeaveDocument ? buildPDFData() : null
-
-  const getDepartmentName = (department: { name: string } | { name: string }[] | null | undefined): string => {
-    if (!department) return '-'
-    return Array.isArray(department) ? department[0]?.name || '-' : department.name
-  }
 
   if (!document) return null
 
