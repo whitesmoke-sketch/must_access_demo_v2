@@ -3,6 +3,7 @@
 // ================================================================
 // 휴가신청서 PDF 컴포넌트
 // @react-pdf/renderer 사용
+// 피그마 디자인 기준 레이아웃
 // ================================================================
 
 import React from 'react'
@@ -13,6 +14,8 @@ import {
   Text,
   StyleSheet,
   Font,
+  Svg,
+  Rect,
 } from '@react-pdf/renderer'
 import {
   LeaveRequestPDFData,
@@ -27,7 +30,7 @@ import {
   formatDateKorean,
 } from './utils'
 
-// 한글 폰트 등록 (Noto Sans KR)
+// 한글 폰트 등록 (Spoqa Han Sans Neo)
 Font.register({
   family: 'NotoSansKR',
   fonts: [
@@ -48,72 +51,49 @@ Font.register({
 
 const styles = StyleSheet.create({
   page: {
-    padding: 20,
+    padding: 30,
     fontFamily: 'NotoSansKR',
     fontSize: 10,
     backgroundColor: '#ffffff',
   },
 
-  // 제목
-  titleContainer: {
-    borderWidth: 1,
-    borderColor: '#000',
-    padding: 15,
-    marginBottom: 10,
-  },
+  // 제목 (박스 없음)
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 20,
   },
 
-  // 결재란
+  // 결재란 (2x2 그리드)
   approvalSection: {
     flexDirection: 'row',
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    width: 120,
+    marginBottom: 15,
   },
   approvalBox: {
-    width: 56,
-    height: 90,
+    width: 60,
+    height: 50,
     borderWidth: 1,
     borderColor: '#000',
-    marginRight: -1, // 테두리 겹침 방지
-  },
-  approvalBoxLast: {
-    width: 56,
-    height: 90,
-    borderWidth: 1,
-    borderColor: '#000',
-  },
-  approvalHeader: {
-    height: 24,
-    borderBottomWidth: 1,
-    borderColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  approvalHeaderText: {
-    fontSize: 8,
-    fontWeight: 'bold',
+    marginRight: -1,
+    marginBottom: -1,
   },
   approvalSignArea: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  approvalSignText: {
-    fontSize: 8,
-    color: '#666',
+    borderBottomWidth: 1,
+    borderColor: '#000',
+    minHeight: 30,
   },
   approvalStatus: {
     fontSize: 9,
     fontWeight: 'bold',
   },
   approvalFooter: {
-    height: 20,
-    borderTopWidth: 1,
-    borderColor: '#000',
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -121,12 +101,12 @@ const styles = StyleSheet.create({
     fontSize: 7,
   },
 
-  // 참조자 섹션
+  // 참조자 섹션 (별도)
   ccSection: {
     flexDirection: 'row',
     borderWidth: 1,
     borderColor: '#000',
-    marginBottom: 10,
+    marginBottom: 15,
     minHeight: 32,
   },
   ccLabel: {
@@ -151,17 +131,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
 
-  // 신청자 정보
-  infoSection: {
-    flexDirection: 'row',
+  // 메인 컨테이너 (성명/소속부터 하단까지 연결)
+  mainContainer: {
     borderWidth: 1,
     borderColor: '#000',
-    marginBottom: 10,
+  },
+
+  // 성명/소속 행
+  infoRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#000',
+    minHeight: 36,
   },
   infoCell: {
     flex: 1,
     flexDirection: 'row',
-    minHeight: 40,
   },
   infoCellBorder: {
     borderRightWidth: 1,
@@ -188,21 +173,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
 
-  // 연차 정보
-  leaveInfoRow: {
+  // 보유연차 행
+  leaveBalanceRow: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#000',
-    borderTopWidth: 0,
-    minHeight: 32,
-  },
-  leaveInfoRowFirst: {
-    flexDirection: 'row',
-    borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: '#000',
     minHeight: 32,
   },
-  leaveInfoLabel: {
+  leaveBalanceLabel: {
     width: 80,
     borderRightWidth: 1,
     borderColor: '#000',
@@ -210,41 +188,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
   },
-  leaveInfoValue: {
+  leaveBalanceValue: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  // 휴가 기간 테이블
-  periodTable: {
-    borderWidth: 1,
+  // 휴가기간 테이블 (휴가기간 라벨 세로 병합)
+  periodSection: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
     borderColor: '#000',
-    marginBottom: 10,
+  },
+  periodLabelColumn: {
+    width: 80,
+    borderRightWidth: 1,
+    borderColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  periodLabelText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  periodTableColumn: {
+    flex: 1,
   },
   periodTableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderColor: '#000',
-    backgroundColor: '#f5f5f5',
     minHeight: 28,
   },
   periodTableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderColor: '#000',
-    minHeight: 32,
+    minHeight: 28,
   },
   periodTableRowLast: {
     flexDirection: 'row',
-    minHeight: 32,
-  },
-  periodLabelCell: {
-    width: 80,
-    borderRightWidth: 1,
-    borderColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
+    minHeight: 28,
   },
   periodDateCell: {
     flex: 2,
@@ -273,12 +258,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // 합계 행
+  // 잔여연차/총휴가일수 행
   summaryRow: {
     flexDirection: 'row',
-    borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: '#000',
-    borderTopWidth: 0,
     minHeight: 32,
   },
   summaryLabelCell: {
@@ -302,35 +286,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // 하단 영역
-  footer: {
-    marginTop: 30,
-    alignItems: 'center',
+  // 하단 영역 (박스 안에 포함)
+  footerSection: {
+    paddingVertical: 30,
+    paddingHorizontal: 20,
   },
   footerText: {
     fontSize: 11,
-    marginBottom: 30,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   footerDate: {
     fontSize: 10,
-    marginBottom: 40,
+    textAlign: 'center',
+    marginBottom: 30,
   },
   signatureSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    width: '100%',
-    paddingHorizontal: 20,
   },
   logoContainer: {
-    width: 120,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoBars: {
+    flexDirection: 'row',
+    marginRight: 8,
+  },
+  logoBar: {
+    width: 6,
+    height: 30,
+    marginRight: 2,
+  },
+  logoTextContainer: {
+    flexDirection: 'column',
   },
   logoText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   logoSubText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   signatureContainer: {
@@ -339,15 +336,6 @@ const styles = StyleSheet.create({
   },
   signatureLabel: {
     fontSize: 10,
-    marginRight: 10,
-  },
-  signatureBox: {
-    width: 56,
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 })
 
@@ -355,13 +343,13 @@ const styles = StyleSheet.create({
 // 컴포넌트
 // ================================================================
 
-// 결재란 박스
+// 결재란 박스 (2x2 그리드용)
 interface ApprovalBoxProps {
-  approver: ApproverInfo
-  isLast: boolean
+  approver?: ApproverInfo
+  isEmpty?: boolean
 }
 
-const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isLast }) => {
+const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isEmpty }) => {
   const getStatusColor = (status: ApproverInfo['status']) => {
     switch (status) {
       case 'approved':
@@ -375,11 +363,17 @@ const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isLast }) => {
     }
   }
 
-  return (
-    <View style={isLast ? styles.approvalBoxLast : styles.approvalBox}>
-      <View style={styles.approvalHeader}>
-        <Text style={styles.approvalHeaderText}>{approver.role}</Text>
+  if (isEmpty || !approver) {
+    return (
+      <View style={styles.approvalBox}>
+        <View style={styles.approvalSignArea} />
+        <View style={styles.approvalFooter} />
       </View>
+    )
+  }
+
+  return (
+    <View style={styles.approvalBox}>
       <View style={styles.approvalSignArea}>
         {approver.status === 'approved' || approver.status === 'rejected' ? (
           <Text
@@ -391,7 +385,7 @@ const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isLast }) => {
             {ApprovalStatusLabelMap[approver.status]}
           </Text>
         ) : (
-          <Text style={styles.approvalSignText}>
+          <Text style={[styles.approvalStatus, { color: '#999' }]}>
             {ApprovalStatusLabelMap[approver.status]}
           </Text>
         )}
@@ -419,21 +413,29 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
   // 참조자가 있는지 확인
   const hasCCList = data.ccList && data.ccList.length > 0
 
+  // 결재자 배열 (최대 4명, 2x2 그리드)
+  const approversForGrid = [...data.approvers.slice(0, 4)]
+  while (approversForGrid.length < 4) {
+    approversForGrid.push(undefined as unknown as ApproverInfo)
+  }
+
+  // 최소 5행 유지를 위한 빈 행 수 계산
+  const minRows = 5
+  const emptyRowCount = Math.max(0, minRows - periodRows.length)
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* 제목 */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>휴가신청서</Text>
-        </View>
+        {/* 제목 (박스 없음) */}
+        <Text style={styles.title}>휴가신청서</Text>
 
-        {/* 결재란 (동적 - 최대 10개) */}
+        {/* 결재란 (2x2 그리드) */}
         <View style={styles.approvalSection}>
-          {data.approvers.slice(0, 10).map((approver, index) => (
+          {approversForGrid.map((approver, index) => (
             <ApprovalBox
-              key={approver.id}
+              key={approver?.id || `empty-${index}`}
               approver={approver}
-              isLast={index === Math.min(data.approvers.length, 10) - 1}
+              isEmpty={!approver}
             />
           ))}
         </View>
@@ -452,131 +454,144 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
           </View>
         )}
 
-        {/* 신청자 정보 */}
-        <View style={styles.infoSection}>
-          <View style={[styles.infoCell, styles.infoCellBorder]}>
-            <View style={styles.infoLabel}>
-              <Text style={styles.infoLabelText}>성명</Text>
-            </View>
-            <View style={styles.infoValue}>
-              <Text style={styles.infoValueText}>{data.requester.name}</Text>
-            </View>
-          </View>
-          <View style={styles.infoCell}>
-            <View style={styles.infoLabel}>
-              <Text style={styles.infoLabelText}>소속</Text>
-            </View>
-            <View style={styles.infoValue}>
-              <Text style={styles.infoValueText}>{data.requester.department}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 보유연차 */}
-        <View style={styles.leaveInfoRowFirst}>
-          <View style={styles.leaveInfoLabel}>
-            <Text style={styles.infoLabelText}>보유연차</Text>
-          </View>
-          <View style={styles.leaveInfoValue}>
-            <Text style={styles.infoValueText}>{data.totalLeave}</Text>
-          </View>
-        </View>
-
-        {/* 휴가기간 테이블 */}
-        <View style={styles.periodTable}>
-          {/* 헤더 */}
-          <View style={styles.periodTableHeader}>
-            <View style={styles.periodLabelCell}>
-              <Text style={styles.periodCellTextBold}>휴가기간</Text>
-            </View>
-            <View style={styles.periodDateCell}>
-              <Text style={styles.periodCellTextBold}>일자</Text>
-            </View>
-            <View style={styles.periodTypeCell}>
-              <Text style={styles.periodCellTextBold}>유형</Text>
-            </View>
-            <View style={styles.periodDaysCell}>
-              <Text style={styles.periodCellTextBold}>기간</Text>
-            </View>
-          </View>
-
-          {/* 휴가 기간 행들 */}
-          {periodRows.map((period, index) => (
-            <View
-              key={index}
-              style={
-                index === periodRows.length - 1
-                  ? styles.periodTableRowLast
-                  : styles.periodTableRow
-              }
-            >
-              <View style={styles.periodLabelCell}>
-                {index === 0 && <Text style={styles.periodCellText}></Text>}
+        {/* 메인 컨테이너 (성명/소속부터 하단까지 연결된 박스) */}
+        <View style={styles.mainContainer}>
+          {/* 성명/소속 행 */}
+          <View style={styles.infoRow}>
+            <View style={[styles.infoCell, styles.infoCellBorder]}>
+              <View style={styles.infoLabel}>
+                <Text style={styles.infoLabelText}>성명</Text>
               </View>
-              <View style={styles.periodDateCell}>
-                <Text style={styles.periodCellText}>
-                  {formatDateRange(period.startDate, period.endDate)}
-                </Text>
-              </View>
-              <View style={styles.periodTypeCell}>
-                <Text style={styles.periodCellText}>
-                  {LeaveTypeLabelMap[period.leaveType]}
-                </Text>
-              </View>
-              <View style={styles.periodDaysCell}>
-                <Text style={styles.periodCellText}>
-                  {formatDaysCount(period.days)}
-                </Text>
+              <View style={styles.infoValue}>
+                <Text style={styles.infoValueText}>{data.requester.name}</Text>
               </View>
             </View>
-          ))}
-
-          {/* 빈 행 추가 (최소 6행 유지) */}
-          {Array.from({ length: Math.max(0, 6 - periodRows.length) }).map(
-            (_, index) => (
-              <View key={`empty-${index}`} style={styles.periodTableRow}>
-                <View style={styles.periodLabelCell} />
-                <View style={styles.periodDateCell} />
-                <View style={styles.periodTypeCell} />
-                <View style={styles.periodDaysCell} />
+            <View style={styles.infoCell}>
+              <View style={styles.infoLabel}>
+                <Text style={styles.infoLabelText}>소속</Text>
               </View>
-            )
-          )}
-        </View>
+              <View style={styles.infoValue}>
+                <Text style={styles.infoValueText}>{data.requester.department}</Text>
+              </View>
+            </View>
+          </View>
 
-        {/* 합계 행 */}
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryLabelCell}>
-            <Text style={styles.infoLabelText}>잔여연차</Text>
+          {/* 보유연차 행 */}
+          <View style={styles.leaveBalanceRow}>
+            <View style={styles.leaveBalanceLabel}>
+              <Text style={styles.infoLabelText}>보유연차</Text>
+            </View>
+            <View style={styles.leaveBalanceValue}>
+              <Text style={styles.infoValueText}>{data.totalLeave}</Text>
+            </View>
           </View>
-          <View style={styles.summaryValueCell}>
-            <Text style={styles.infoValueText}>{data.remainingLeave}</Text>
-          </View>
-          <View style={styles.summaryLabelCell}>
-            <Text style={styles.infoLabelText}>총휴가일수</Text>
-          </View>
-          <View style={styles.summaryValueCellLast}>
-            <Text style={styles.infoValueText}>{data.totalDays}</Text>
-          </View>
-        </View>
 
-        {/* 하단 - 신청 문구 및 서명 */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>위와 같이 휴가를 신청합니다.</Text>
-          <Text style={styles.footerDate}>{formatDateKorean(data.createdAt)}</Text>
-
-          <View style={styles.signatureSection}>
-            {/* 회사 로고 */}
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoText}>MUST</Text>
-              <Text style={styles.logoSubText}>COMPANY</Text>
+          {/* 휴가기간 테이블 (휴가기간 라벨 세로 병합) */}
+          <View style={styles.periodSection}>
+            {/* 왼쪽: 휴가기간 라벨 (세로 병합) */}
+            <View style={styles.periodLabelColumn}>
+              <Text style={styles.periodLabelText}>휴가기간</Text>
             </View>
 
-            {/* 신청인 서명 */}
-            <View style={styles.signatureContainer}>
-              <Text style={styles.signatureLabel}>신청인 :</Text>
-              <View style={styles.signatureBox}>
-                <Text style={{ fontSize: 8, color: '#666' }}>(인)</Text>
+            {/* 오른쪽: 일자/유형/기간 테이블 */}
+            <View style={styles.periodTableColumn}>
+              {/* 헤더 */}
+              <View style={styles.periodTableHeader}>
+                <View style={styles.periodDateCell}>
+                  <Text style={styles.periodCellTextBold}>일자</Text>
+                </View>
+                <View style={styles.periodTypeCell}>
+                  <Text style={styles.periodCellTextBold}>유형</Text>
+                </View>
+                <View style={styles.periodDaysCell}>
+                  <Text style={styles.periodCellTextBold}>기간</Text>
+                </View>
+              </View>
+
+              {/* 휴가 기간 행들 */}
+              {periodRows.map((period, index) => (
+                <View
+                  key={index}
+                  style={
+                    index === periodRows.length - 1 && emptyRowCount === 0
+                      ? styles.periodTableRowLast
+                      : styles.periodTableRow
+                  }
+                >
+                  <View style={styles.periodDateCell}>
+                    <Text style={styles.periodCellText}>
+                      {formatDateRange(period.startDate, period.endDate)}
+                    </Text>
+                  </View>
+                  <View style={styles.periodTypeCell}>
+                    <Text style={styles.periodCellText}>
+                      {LeaveTypeLabelMap[period.leaveType] || '연차'}
+                    </Text>
+                  </View>
+                  <View style={styles.periodDaysCell}>
+                    <Text style={styles.periodCellText}>
+                      {formatDaysCount(period.days)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+
+              {/* 빈 행 추가 (최소 5행 유지) */}
+              {Array.from({ length: emptyRowCount }).map((_, index) => (
+                <View
+                  key={`empty-${index}`}
+                  style={
+                    index === emptyRowCount - 1
+                      ? styles.periodTableRowLast
+                      : styles.periodTableRow
+                  }
+                >
+                  <View style={styles.periodDateCell} />
+                  <View style={styles.periodTypeCell} />
+                  <View style={styles.periodDaysCell} />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* 잔여연차/총휴가일수 행 */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLabelCell}>
+              <Text style={styles.infoLabelText}>잔여연차</Text>
+            </View>
+            <View style={styles.summaryValueCell}>
+              <Text style={styles.infoValueText}>{data.remainingLeave}</Text>
+            </View>
+            <View style={styles.summaryLabelCell}>
+              <Text style={styles.infoLabelText}>총휴가일수</Text>
+            </View>
+            <View style={styles.summaryValueCellLast}>
+              <Text style={styles.infoValueText}>{data.totalDays}</Text>
+            </View>
+          </View>
+
+          {/* 하단 영역 (박스 안에 포함) */}
+          <View style={styles.footerSection}>
+            <Text style={styles.footerText}>위와 같이 휴가를 신청합니다.</Text>
+            <Text style={styles.footerDate}>{formatDateKorean(data.createdAt)}</Text>
+
+            <View style={styles.signatureSection}>
+              {/* 회사 로고 (3개 막대 + 텍스트) */}
+              <View style={styles.logoContainer}>
+                <View style={styles.logoBars}>
+                  <View style={[styles.logoBar, { backgroundColor: '#000' }]} />
+                  <View style={[styles.logoBar, { backgroundColor: '#000' }]} />
+                  <View style={[styles.logoBar, { backgroundColor: '#2D8B4E' }]} />
+                </View>
+                <View style={styles.logoTextContainer}>
+                  <Text style={styles.logoText}>MUST</Text>
+                  <Text style={styles.logoSubText}>COMPANY</Text>
+                </View>
+              </View>
+
+              {/* 신청인 */}
+              <View style={styles.signatureContainer}>
+                <Text style={styles.signatureLabel}>신청인 :</Text>
               </View>
             </View>
           </View>
