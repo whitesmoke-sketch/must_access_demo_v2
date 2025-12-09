@@ -3,9 +3,15 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Check, X, CheckCircle, XCircle, Clock as ClockIcon, FileText, ArrowLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PDFDownloadButton } from '@/components/pdf'
+import dynamic from 'next/dynamic'
 import type { LeaveRequestPDFData, ApproverInfo, CCInfo } from '@/components/pdf/types'
 import type { DocumentStatus, LeaveType as PDFLeaveType } from '@/types/document'
+
+// PDF 컴포넌트는 클라이언트에서만 로드 (SSR 비활성화)
+const PDFDownloadButton = dynamic(
+  () => import('@/components/pdf/PDFDownloadButton').then(mod => mod.PDFDownloadButton),
+  { ssr: false, loading: () => <span className="text-sm text-gray-500">PDF 로딩중...</span> }
+)
 import {
   Dialog,
   DialogContent,
