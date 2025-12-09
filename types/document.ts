@@ -17,6 +17,23 @@ export type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 
 export type HalfDaySlot = 'morning' | 'afternoon'
 
+export type PaymentMethod = 'corporate_card' | 'personal_card' | 'tax_invoice'
+
+export type ResignationType = 'personal' | 'contract_end' | 'recommended' | 'other'
+
+export type WorkType =
+  | 'unpaid_sick_leave'       // 무급병가 (연 60일)
+  | 'public_duty'             // 공가 휴가 (예비군/민방위 등)
+  | 'leave_of_absence'        // 휴직 (무급)
+  | 'parental_leave'          // 육아 휴직
+  | 'family_event_leave'      // 경조사 휴가
+  | 'maternity_leave'         // 출산전후 휴가 (90일)
+  | 'paternity_leave'         // 배우자출산휴가 (20일)
+  | 'pregnancy_reduced_hours' // 임신 중 단축근무
+  | 'work_schedule_change'    // 근무 변경 (재택 등)
+  | 'business_trip'           // 출장/외근
+  | 'menstrual_leave'         // 여성 보건 휴가
+
 // ================================================================
 // Document Master (공통 헤더)
 // ================================================================
@@ -32,6 +49,7 @@ export interface DocumentMaster {
   title: string
   status: DocumentStatus
   summary_data: Record<string, unknown> | null
+  doc_data: DocDataUnion | null  // JSONB로 저장된 문서 상세 데이터
   current_step: number
   drive_file_id: string | null
   drive_file_url: string | null
@@ -40,6 +58,182 @@ export interface DocumentMaster {
   updated_at: string
   approved_at: string | null
   retrieved_at: string | null
+}
+
+// ================================================================
+// doc_data JSONB 타입 정의 (document_id, created_at 제외)
+// ================================================================
+
+// 휴가 데이터
+export interface DocLeaveData {
+  leave_type: LeaveType
+  start_date: string
+  end_date: string
+  days_count: number
+  half_day_slot: HalfDaySlot | null
+  reason: string | null
+  attachment_url: string | null
+  deducted_from_grants: Array<{ grant_id: number; days: number }>
+}
+
+// 야근수당 데이터
+export interface DocOvertimeData {
+  work_date: string
+  start_time: string
+  end_time: string
+  total_hours: number
+  work_content: string
+  transportation_fee: number
+}
+
+// 지출결의서 데이터
+export interface DocExpenseData {
+  expense_date: string
+  category: string
+  amount: number
+  merchant_name: string | null
+  usage_purpose: string | null
+  receipt_url: string | null
+  expense_items: Array<{ item: string; amount: number }>
+  payment_method: PaymentMethod | null
+  bank_name: string | null
+  account_number: string | null
+  account_holder: string | null
+}
+
+// 경조사비 데이터
+export interface DocWelfareData {
+  event_type: string
+  event_date: string
+  target_name: string | null
+  relationship: string | null
+  amount: number
+  attachment_url: string | null
+  approved_amount: number | null
+}
+
+// 일반문서 데이터
+export interface DocGeneralData {
+  content_body: string
+  attachment_urls: string[]
+  template_type: string | null
+  form_data: Record<string, unknown>
+}
+
+// 예산신청서 데이터
+export interface DocBudgetData {
+  budget_department_id: number
+  period_start: string
+  period_end: string
+  calculation_basis: string
+  total_amount: number
+  approved_amount: number | null
+}
+
+// 지출품의서 데이터
+export interface DocExpenseProposalData {
+  expense_date: string
+  items: Array<{ item: string; quantity: number; unit_price: number }>
+  total_amount: number
+  vendor_name: string
+}
+
+// 사직서 데이터
+export interface DocResignationData {
+  employment_date: string
+  resignation_date: string
+  resignation_type: ResignationType
+  handover_confirmed: boolean
+  confidentiality_agreed: boolean
+  voluntary_confirmed: boolean
+  last_working_date: string | null
+  hr_processed_at: string | null
+  hr_processor_id: string | null
+  hr_notes: string | null
+}
+
+// 연장근로보고 데이터
+export interface DocOvertimeReportData {
+  work_date: string
+  start_time: string
+  end_time: string
+  total_hours: number
+  work_content: string
+  transportation_fee: number
+  meal_fee: number
+}
+
+// 근로형태변경 데이터
+export interface DocWorkTypeChangeData {
+  work_type: WorkType
+  start_date: string
+  end_date: string
+}
+
+// doc_data Union 타입
+export type DocDataUnion =
+  | DocLeaveData
+  | DocOvertimeData
+  | DocExpenseData
+  | DocWelfareData
+  | DocGeneralData
+  | DocBudgetData
+  | DocExpenseProposalData
+  | DocResignationData
+  | DocOvertimeReportData
+  | DocWorkTypeChangeData
+
+// ================================================================
+// 타입 가드 함수
+// ================================================================
+
+export function isLeaveData(data: DocDataUnion | null, docType: DocumentType): data is DocLeaveData {
+  return docType === 'leave' && data !== null && 'leave_type' in data
+}
+
+export function isOvertimeData(data: DocDataUnion | null, docType: DocumentType): data is DocOvertimeData {
+  return docType === 'overtime' && data !== null && 'work_date' in data && 'work_content' in data && !('meal_fee' in data)
+}
+
+export function isExpenseData(data: DocDataUnion | null, docType: DocumentType): data is DocExpenseData {
+  return docType === 'expense' && data !== null && 'category' in data
+}
+
+export function isWelfareData(data: DocDataUnion | null, docType: DocumentType): data is DocWelfareData {
+  return docType === 'welfare' && data !== null && 'event_type' in data
+}
+
+export function isGeneralData(data: DocDataUnion | null, docType: DocumentType): data is DocGeneralData {
+  return docType === 'general' && data !== null && 'content_body' in data
+}
+
+export function isBudgetData(data: DocDataUnion | null, docType: DocumentType): data is DocBudgetData {
+  return docType === 'budget' && data !== null && 'budget_department_id' in data
+}
+
+export function isExpenseProposalData(data: DocDataUnion | null, docType: DocumentType): data is DocExpenseProposalData {
+  return docType === 'expense_proposal' && data !== null && 'expense_date' in data && 'items' in data
+}
+
+export function isResignationData(data: DocDataUnion | null, docType: DocumentType): data is DocResignationData {
+  return docType === 'resignation' && data !== null && 'resignation_type' in data
+}
+
+export function isOvertimeReportData(data: DocDataUnion | null, docType: DocumentType): data is DocOvertimeReportData {
+  return docType === 'overtime_report' && data !== null && 'meal_fee' in data
+}
+
+export function isWorkTypeChangeData(data: DocDataUnion | null, docType: DocumentType): data is DocWorkTypeChangeData {
+  return docType === 'work_type_change' && data !== null && 'work_type' in data
+}
+
+// doc_data에서 타입에 맞는 데이터 추출 유틸리티
+export function getDocData<T extends DocDataUnion>(
+  doc: DocumentMaster,
+  docType: DocumentType
+): T | null {
+  if (!doc.doc_data || doc.doc_type !== docType) return null
+  return doc.doc_data as T
 }
 
 // 조회용 확장 타입 (requester 정보 포함)
@@ -94,9 +288,6 @@ export interface DocOvertime {
   transportation_fee: number
   created_at: string
 }
-
-// 결제수단 타입
-export type PaymentMethod = 'corporate_card' | 'personal_card' | 'tax_invoice'
 
 // 지출 결의서 상세
 export interface DocExpense {
@@ -164,13 +355,10 @@ export interface DocExpenseProposal {
   }>
   total_amount: number
   vendor_name: string
-  linked_expense_id: number | null
   created_at: string
 }
 
 // 사직서 상세
-export type ResignationType = 'personal' | 'contract_end' | 'recommended' | 'other'
-
 export interface DocResignation {
   document_id: number
   employment_date: string
@@ -198,20 +386,6 @@ export interface DocOvertimeReport {
   meal_fee: number
   created_at: string
 }
-
-// 근로형태 변경 유형
-export type WorkType =
-  | 'unpaid_sick_leave'       // 무급병가 (연 60일)
-  | 'public_duty'             // 공가 휴가 (예비군/민방위 등)
-  | 'leave_of_absence'        // 휴직 (무급)
-  | 'parental_leave'          // 육아 휴직
-  | 'family_event_leave'      // 경조사 휴가
-  | 'maternity_leave'         // 출산전후 휴가 (90일)
-  | 'paternity_leave'         // 배우자출산휴가 (20일)
-  | 'pregnancy_reduced_hours' // 임신 중 단축근무
-  | 'work_schedule_change'    // 근무 변경 (재택 등)
-  | 'business_trip'           // 출장/외근
-  | 'menstrual_leave'         // 여성 보건 휴가
 
 // 근로형태 변경 신청 상세
 export interface DocWorkTypeChange {

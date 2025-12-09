@@ -26,7 +26,7 @@ export default async function DocumentsPage() {
       .select('role:role_id(code, approval_level)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 모든 결재 문서 조회 (새 시스템: document_master + doc_leave/doc_overtime)
+    // 모든 결재 문서 조회 (doc_data JSONB)
     supabase
       .from('document_master')
       .select(`
@@ -42,6 +42,7 @@ export default async function DocumentsPage() {
         created_at,
         approved_at,
         retrieved_at,
+        doc_data,
         requester:requester_id (
           id,
           name,
@@ -51,21 +52,6 @@ export default async function DocumentsPage() {
           role:role_id (
             name
           )
-        ),
-        doc_leave (
-          leave_type,
-          start_date,
-          end_date,
-          days_count,
-          half_day_slot,
-          reason
-        ),
-        doc_overtime (
-          work_date,
-          start_time,
-          end_time,
-          total_hours,
-          work_content
         )
       `)
       .order('created_at', { ascending: false }),
@@ -145,8 +131,7 @@ export default async function DocumentsPage() {
 
   // document_master 데이터를 기존 인터페이스에 맞게 변환
   const allDocuments = allDocumentsRaw.map(doc => {
-    const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
-    const docOvertime = Array.isArray(doc.doc_overtime) ? doc.doc_overtime[0] : doc.doc_overtime
+    const docData = doc.doc_data || {}
 
     // 기본 문서 정보
     const baseDoc = {
@@ -168,26 +153,26 @@ export default async function DocumentsPage() {
     if (doc.doc_type === 'leave') {
       return {
         ...baseDoc,
-        leave_type: docLeave?.leave_type || 'annual',
-        requested_days: docLeave?.days_count || 0,
-        start_date: docLeave?.start_date || '',
-        end_date: docLeave?.end_date || '',
-        reason: docLeave?.reason || null,
+        leave_type: docData.leave_type || 'annual',
+        requested_days: docData.days_count || 0,
+        start_date: docData.start_date || '',
+        end_date: docData.end_date || '',
+        reason: docData.reason || null,
       }
     } else if (doc.doc_type === 'overtime') {
       return {
         ...baseDoc,
         leave_type: 'overtime', // 문서 유형 식별용
-        work_date: docOvertime?.work_date || '',
-        start_time: docOvertime?.start_time || '',
-        end_time: docOvertime?.end_time || '',
-        total_hours: docOvertime?.total_hours || 0,
-        work_content: docOvertime?.work_content || '',
+        work_date: docData.work_date || '',
+        start_time: docData.start_time || '',
+        end_time: docData.end_time || '',
+        total_hours: docData.total_hours || 0,
+        work_content: docData.work_content || '',
         // 호환성을 위한 필드
-        start_date: docOvertime?.work_date || '',
-        end_date: docOvertime?.work_date || '',
-        requested_days: docOvertime?.total_hours || 0,
-        reason: docOvertime?.work_content || null,
+        start_date: docData.work_date || '',
+        end_date: docData.work_date || '',
+        requested_days: docData.total_hours || 0,
+        reason: docData.work_content || null,
       }
     } else {
       // 기타 문서 유형
@@ -244,7 +229,7 @@ export default async function DocumentsPage() {
   const myCCRequests = myCCRequestsResult.data || []
   const ccRequestIds = myCCRequests.map(cc => cc.request_id)
 
-  // 참조 문서의 상세 정보 조회 (document_master + 문서유형별 테이블 조인)
+  // 참조 문서의 상세 정보 조회 (doc_data JSONB)
   let referenceDocuments: any[] = []
   if (ccRequestIds.length > 0) {
     const { data: refDocs } = await supabase
@@ -258,6 +243,7 @@ export default async function DocumentsPage() {
         current_step,
         created_at,
         approved_at,
+        doc_data,
         requester:requester_id (
           id,
           name,
@@ -267,20 +253,6 @@ export default async function DocumentsPage() {
           role:role_id (
             name
           )
-        ),
-        doc_leave (
-          leave_type,
-          start_date,
-          end_date,
-          days_count,
-          reason
-        ),
-        doc_overtime (
-          work_date,
-          start_time,
-          end_time,
-          total_hours,
-          work_content
         )
       `)
       .in('id', ccRequestIds)
@@ -289,8 +261,7 @@ export default async function DocumentsPage() {
     // 참조 문서에 열람 상태 추가 및 형식 변환
     referenceDocuments = (refDocs || []).map(doc => {
       const ccRecord = myCCRequests.find(cc => cc.request_id === doc.id)
-      const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
-      const docOvertime = Array.isArray(doc.doc_overtime) ? doc.doc_overtime[0] : doc.doc_overtime
+      const docData = doc.doc_data || {}
 
       const baseRefDoc = {
         id: doc.id,
@@ -310,25 +281,25 @@ export default async function DocumentsPage() {
       if (doc.doc_type === 'leave') {
         return {
           ...baseRefDoc,
-          leave_type: docLeave?.leave_type || 'annual',
-          requested_days: docLeave?.days_count || 0,
-          start_date: docLeave?.start_date || '',
-          end_date: docLeave?.end_date || '',
-          reason: docLeave?.reason || null,
+          leave_type: docData.leave_type || 'annual',
+          requested_days: docData.days_count || 0,
+          start_date: docData.start_date || '',
+          end_date: docData.end_date || '',
+          reason: docData.reason || null,
         }
       } else if (doc.doc_type === 'overtime') {
         return {
           ...baseRefDoc,
           leave_type: 'overtime',
-          work_date: docOvertime?.work_date || '',
-          start_time: docOvertime?.start_time || '',
-          end_time: docOvertime?.end_time || '',
-          total_hours: docOvertime?.total_hours || 0,
-          work_content: docOvertime?.work_content || '',
-          start_date: docOvertime?.work_date || '',
-          end_date: docOvertime?.work_date || '',
-          requested_days: docOvertime?.total_hours || 0,
-          reason: docOvertime?.work_content || null,
+          work_date: docData.work_date || '',
+          start_time: docData.start_time || '',
+          end_time: docData.end_time || '',
+          total_hours: docData.total_hours || 0,
+          work_content: docData.work_content || '',
+          start_date: docData.work_date || '',
+          end_date: docData.work_date || '',
+          requested_days: docData.total_hours || 0,
+          reason: docData.work_content || null,
         }
       } else {
         return {

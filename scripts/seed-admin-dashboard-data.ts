@@ -65,8 +65,7 @@ async function main() {
   // 최근 데이터만 삭제 (실제 운영 데이터 보호)
   await supabase.from('seat_reservation').delete().gte('reservation_date', weekAgo).lte('reservation_date', weekLater)
   await supabase.from('meeting_room_booking').delete().gte('booking_date', weekAgo).lte('booking_date', weekLater)
-  // 새 시스템: document_master + doc_leave 삭제 (leave_request 대신)
-  await supabase.from('doc_leave').delete().gte('start_date', weekAgo).lte('start_date', weekLater)
+  // doc_data JSONB: document_master만 삭제
   await supabase.from('document_master').delete().eq('doc_type', 'leave').gte('created_at', new Date(weekAgo).toISOString())
   await supabase.from('work_request').delete().gte('start_date', weekAgo).lte('start_date', weekLater)
 
@@ -147,7 +146,7 @@ async function main() {
   if (bookingError) console.error('회의실 예약 삽입 에러:', bookingError.message)
   else console.log(`✅ 회의실 예약 ${meetingBookings.length}건 삽입 완료`)
 
-  // 5. 휴가 신청 데이터 (새 시스템: document_master + doc_leave)
+  // 5. 휴가 신청 데이터 (document_master.doc_data JSONB)
   console.log('🏖️  휴가 신청 데이터 삽입 중...')
 
   const leaveTypes = [
@@ -169,8 +168,8 @@ async function main() {
     const duration = leaveType.type === 'half_day' ? 1 : Math.floor(Math.random() * 3) + 1
     const daysCount = leaveType.type === 'half_day' ? 0.5 : duration
 
-    // 1. document_master 삽입
-    const { data: docMaster, error: docMasterError } = await supabase
+    // document_master에 doc_data JSONB로 직접 삽입
+    const { error: docMasterError } = await supabase
       .from('document_master')
       .insert({
         requester_id: emp.id,
@@ -179,30 +178,18 @@ async function main() {
         current_step: 1,
         created_at: new Date(Date.now() - (startOffset + 3) * 24 * 60 * 60 * 1000).toISOString(),
         approved_at: new Date(Date.now() - (startOffset + 2) * 24 * 60 * 60 * 1000).toISOString(),
+        doc_data: {
+          leave_type: leaveType.type,
+          start_date: getDateString(-startOffset),
+          end_date: getDateString(-startOffset + duration - 1),
+          days_count: daysCount,
+          half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
+          reason: `${leaveType.name} 신청`,
+        },
       })
-      .select('id')
-      .single()
 
     if (docMasterError) {
       console.error('document_master 삽입 에러:', docMasterError.message)
-      continue
-    }
-
-    // 2. doc_leave 삽입
-    const { error: docLeaveError } = await supabase
-      .from('doc_leave')
-      .insert({
-        document_id: docMaster.id,
-        leave_type: leaveType.type,
-        start_date: getDateString(-startOffset),
-        end_date: getDateString(-startOffset + duration - 1),
-        days_count: daysCount,
-        half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
-        reason: `${leaveType.name} 신청`,
-      })
-
-    if (docLeaveError) {
-      console.error('doc_leave 삽입 에러:', docLeaveError.message)
     } else {
       leaveInsertCount++
       approvedCount++
@@ -221,8 +208,8 @@ async function main() {
     const duration = leaveType.type === 'half_day' ? 1 : Math.floor(Math.random() * 3) + 1
     const daysCount = leaveType.type === 'half_day' ? 0.5 : duration
 
-    // 1. document_master 삽입
-    const { data: docMaster, error: docMasterError } = await supabase
+    // document_master에 doc_data JSONB로 직접 삽입
+    const { error: docMasterError } = await supabase
       .from('document_master')
       .insert({
         requester_id: emp.id,
@@ -230,30 +217,18 @@ async function main() {
         status: 'pending',
         current_step: 1,
         created_at: new Date().toISOString(),
+        doc_data: {
+          leave_type: leaveType.type,
+          start_date: getDateString(startOffset),
+          end_date: getDateString(startOffset + (leaveType.type === 'half_day' ? 0 : Math.floor(Math.random() * 2))),
+          days_count: daysCount,
+          half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
+          reason: `${leaveType.name} 신청`,
+        },
       })
-      .select('id')
-      .single()
 
     if (docMasterError) {
       console.error('document_master 삽입 에러:', docMasterError.message)
-      continue
-    }
-
-    // 2. doc_leave 삽입
-    const { error: docLeaveError } = await supabase
-      .from('doc_leave')
-      .insert({
-        document_id: docMaster.id,
-        leave_type: leaveType.type,
-        start_date: getDateString(startOffset),
-        end_date: getDateString(startOffset + (leaveType.type === 'half_day' ? 0 : Math.floor(Math.random() * 2))),
-        days_count: daysCount,
-        half_day_slot: leaveType.type === 'half_day' ? (Math.random() > 0.5 ? 'morning' : 'afternoon') : null,
-        reason: `${leaveType.name} 신청`,
-      })
-
-    if (docLeaveError) {
-      console.error('doc_leave 삽입 에러:', docLeaveError.message)
     } else {
       leaveInsertCount++
       pendingCount++

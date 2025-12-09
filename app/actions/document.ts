@@ -15,6 +15,17 @@ import type {
   CreateWelfareDocumentInput,
   CreateGeneralDocumentInput,
   DocumentTypeLabels,
+  DocDataUnion,
+  DocLeaveData,
+  DocOvertimeData,
+  DocExpenseData,
+  DocWelfareData,
+  DocGeneralData,
+  DocBudgetData,
+  DocExpenseProposalData,
+  DocResignationData,
+  DocOvertimeReportData,
+  DocWorkTypeChangeData,
 } from '@/types/document'
 
 // ================================================
@@ -121,7 +132,10 @@ export async function createDocument(
 
     const docType = docTypeMap[data.document_type] || 'general'
 
-    // 1. document_master 생성
+    // doc_data 구성 (문서 유형별)
+    const docData = buildDocData(docType, data.form_data)
+
+    // 1. document_master 생성 (doc_data 포함 - 단일 INSERT)
     const { data: docMaster, error: masterError } = await supabase
       .from('document_master')
       .insert({
@@ -134,6 +148,7 @@ export async function createDocument(
         is_confidential: data.is_confidential || (docType === 'overtime' || docType === 'welfare'),
         current_step: 1,
         summary_data: data.form_data,
+        doc_data: docData,  // JSONB로 직접 저장
       })
       .select('id')
       .single()
@@ -141,14 +156,6 @@ export async function createDocument(
     if (masterError) {
       console.error('[Document] Master creation error:', masterError)
       return { success: false, error: masterError.message }
-    }
-
-    // 2. 상세 테이블 생성
-    const detailResult = await createDocumentDetail(supabase, docMaster.id, docType, data.form_data)
-    if (!detailResult.success) {
-      // 롤백: master 삭제
-      await supabase.from('document_master').delete().eq('id', docMaster.id)
-      return { success: false, error: detailResult.error }
     }
 
     // 3. 결재선 생성
@@ -252,159 +259,120 @@ export async function createDocument(
 }
 
 /**
- * 문서 유형별 상세 테이블 생성
+ * 문서 유형별 doc_data 빌더
+ * JSONB로 저장할 상세 데이터를 구성
  */
-async function createDocumentDetail(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  documentId: number,
+function buildDocData(
   docType: DocumentType,
   formData: Record<string, unknown>
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    switch (docType) {
-      case 'leave': {
-        const { error } = await supabase.from('doc_leave').insert({
-          document_id: documentId,
-          leave_type: formData.leave_type as string,
-          start_date: formData.start_date as string,
-          end_date: formData.end_date as string,
-          days_count: formData.requested_days as number || formData.days_count as number,
-          half_day_slot: formData.half_day_slot as string || null,
-          reason: formData.reason as string || null,
-          attachment_url: formData.attachment_url as string || null,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+): DocDataUnion {
+  switch (docType) {
+    case 'leave':
+      return {
+        leave_type: formData.leave_type as string,
+        start_date: formData.start_date as string,
+        end_date: formData.end_date as string,
+        days_count: (formData.requested_days as number) || (formData.days_count as number),
+        half_day_slot: (formData.half_day_slot as string) || null,
+        reason: (formData.reason as string) || null,
+        attachment_url: (formData.attachment_url as string) || null,
+        deducted_from_grants: [],
+      } as DocLeaveData
 
-      case 'overtime': {
-        const { error } = await supabase.from('doc_overtime').insert({
-          document_id: documentId,
-          work_date: formData.work_date as string,
-          start_time: formData.start_time as string,
-          end_time: formData.end_time as string,
-          total_hours: formData.total_hours as number,
-          work_content: formData.work_content as string,
-          transportation_fee: formData.transportation_fee as number || 0,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'overtime':
+      return {
+        work_date: formData.work_date as string,
+        start_time: formData.start_time as string,
+        end_time: formData.end_time as string,
+        total_hours: formData.total_hours as number,
+        work_content: formData.work_content as string,
+        transportation_fee: (formData.transportation_fee as number) || 0,
+      } as DocOvertimeData
 
-      case 'expense': {
-        const { error } = await supabase.from('doc_expense').insert({
-          document_id: documentId,
-          expense_date: formData.expense_date as string,
-          category: formData.category as string,
-          amount: formData.amount as number,
-          merchant_name: formData.merchant_name as string || null,
-          usage_purpose: formData.usage_purpose as string || null,
-          receipt_url: formData.receipt_url as string || null,
-          expense_items: formData.expense_items || [],
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'expense':
+      return {
+        expense_date: formData.expense_date as string,
+        category: formData.category as string,
+        amount: formData.amount as number,
+        merchant_name: (formData.merchant_name as string) || null,
+        usage_purpose: (formData.usage_purpose as string) || null,
+        receipt_url: (formData.receipt_url as string) || null,
+        expense_items: (formData.expense_items as Array<{ item: string; amount: number }>) || [],
+        payment_method: (formData.payment_method as string) || null,
+        bank_name: (formData.bank_name as string) || null,
+        account_number: (formData.account_number as string) || null,
+        account_holder: (formData.account_holder as string) || null,
+      } as DocExpenseData
 
-      case 'welfare': {
-        const { error } = await supabase.from('doc_welfare').insert({
-          document_id: documentId,
-          event_type: formData.event_type as string,
-          event_date: formData.event_date as string,
-          target_name: formData.target_name as string || null,
-          relationship: formData.relationship as string || null,
-          amount: formData.amount as number,
-          attachment_url: formData.attachment_url as string || null,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'welfare':
+      return {
+        event_type: formData.event_type as string,
+        event_date: formData.event_date as string,
+        target_name: (formData.target_name as string) || null,
+        relationship: (formData.relationship as string) || null,
+        amount: formData.amount as number,
+        attachment_url: (formData.attachment_url as string) || null,
+        approved_amount: null,
+      } as DocWelfareData
 
-      case 'budget': {
-        const { error } = await supabase.from('doc_budget').insert({
-          document_id: documentId,
-          budget_department_id: formData.budget_department_id as number,
-          period_start: formData.period_start as string,
-          period_end: formData.period_end as string,
-          calculation_basis: formData.calculation_basis as string,
-          total_amount: formData.total_amount as number,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'budget':
+      return {
+        budget_department_id: formData.budget_department_id as number,
+        period_start: formData.period_start as string,
+        period_end: formData.period_end as string,
+        calculation_basis: formData.calculation_basis as string,
+        total_amount: formData.total_amount as number,
+        approved_amount: null,
+      } as DocBudgetData
 
-      case 'expense_proposal': {
-        const { error } = await supabase.from('doc_expense_proposal').insert({
-          document_id: documentId,
-          expense_date: formData.expense_date as string,
-          expense_reason: formData.expense_reason as string,
-          items: formData.items || [],
-          total_amount: formData.total_amount as number,
-          vendor_name: formData.vendor_name as string,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'expense_proposal':
+      return {
+        expense_date: formData.expense_date as string,
+        items: (formData.items as Array<{ item: string; quantity: number; unit_price: number }>) || [],
+        total_amount: formData.total_amount as number,
+        vendor_name: formData.vendor_name as string,
+      } as DocExpenseProposalData
 
-      case 'resignation': {
-        const { error } = await supabase.from('doc_resignation').insert({
-          document_id: documentId,
-          employment_date: formData.employment_date as string,
-          resignation_date: formData.resignation_date as string,
-          resignation_type: formData.resignation_type as string,
-          detail_reason: formData.detail_reason as string || null,
-          handover_confirmed: formData.handover_confirmed as boolean,
-          confidentiality_agreed: formData.confidentiality_agreed as boolean,
-          voluntary_confirmed: formData.voluntary_confirmed as boolean,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'resignation':
+      return {
+        employment_date: formData.employment_date as string,
+        resignation_date: formData.resignation_date as string,
+        resignation_type: formData.resignation_type as string,
+        handover_confirmed: (formData.handover_confirmed as boolean) || false,
+        confidentiality_agreed: (formData.confidentiality_agreed as boolean) || false,
+        voluntary_confirmed: (formData.voluntary_confirmed as boolean) || false,
+        last_working_date: null,
+        hr_processed_at: null,
+        hr_processor_id: null,
+        hr_notes: null,
+      } as DocResignationData
 
-      case 'overtime_report': {
-        const { error } = await supabase.from('doc_overtime_report').insert({
-          document_id: documentId,
-          work_date: formData.work_date as string,
-          start_time: formData.start_time as string,
-          end_time: formData.end_time as string,
-          total_hours: formData.total_hours as number,
-          work_content: formData.work_content as string,
-          transportation_fee: formData.transportation_fee as number || 0,
-          meal_fee: formData.meal_fee as number || 0,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'overtime_report':
+      return {
+        work_date: formData.work_date as string,
+        start_time: formData.start_time as string,
+        end_time: formData.end_time as string,
+        total_hours: formData.total_hours as number,
+        work_content: formData.work_content as string,
+        transportation_fee: (formData.transportation_fee as number) || 0,
+        meal_fee: (formData.meal_fee as number) || 0,
+      } as DocOvertimeReportData
 
-      case 'work_type_change': {
-        const { error } = await supabase.from('doc_work_type_change').insert({
-          document_id: documentId,
-          work_type: formData.work_type as string,
-          start_date: formData.start_date as string,
-          end_date: formData.end_date as string,
-          detail_description: formData.detail_description as string || null,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
+    case 'work_type_change':
+      return {
+        work_type: formData.work_type as string,
+        start_date: formData.start_date as string,
+        end_date: formData.end_date as string,
+      } as DocWorkTypeChangeData
 
-      case 'general':
-      default: {
-        const { error } = await supabase.from('doc_general').insert({
-          document_id: documentId,
-          content_body: formData.content_body as string || formData.reason as string || '',
-          attachment_urls: formData.attachment_urls || [],
-          template_type: formData.template_type as string || null,
-          form_data: formData,
-        })
-        if (error) return { success: false, error: error.message }
-        break
-      }
-    }
-
-    return { success: true }
-  } catch (error: unknown) {
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    case 'general':
+    default:
+      return {
+        content_body: (formData.content_body as string) || (formData.reason as string) || '',
+        attachment_urls: (formData.attachment_urls as string[]) || [],
+        template_type: (formData.template_type as string) || null,
+        form_data: formData,
+      } as DocGeneralData
   }
 }
 
@@ -453,12 +421,7 @@ export async function getDocuments(options?: {
           email,
           department:department_id (id, name, code),
           role:role_id (id, name, code, level)
-        ),
-        doc_leave (*),
-        doc_overtime (*),
-        doc_expense (*),
-        doc_welfare (*),
-        doc_general (*)
+        )
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
@@ -522,12 +485,7 @@ export async function getDocument(documentId: number) {
           email,
           department:department_id (id, name, code),
           role:role_id (id, name, code, level)
-        ),
-        doc_leave (*),
-        doc_overtime (*),
-        doc_expense (*),
-        doc_welfare (*),
-        doc_general (*)
+        )
       `)
       .eq('id', documentId)
       .single()
@@ -591,12 +549,7 @@ export async function getPendingApprovalsForMe() {
           email,
           department:department_id (id, name, code),
           role:role_id (id, name, code, level)
-        ),
-        doc_leave (*),
-        doc_overtime (*),
-        doc_expense (*),
-        doc_welfare (*),
-        doc_general (*)
+        )
       `)
       .in('id', documentIds)
       .order('created_at', { ascending: false })
@@ -777,7 +730,10 @@ export async function saveDraft(data: DocumentSubmissionData) {
 
     const docType = docTypeMap[data.document_type] || 'general'
 
-    // document_master 생성 (draft 상태)
+    // doc_data 구성 (문서 유형별)
+    const docData = buildDocData(docType, data.form_data)
+
+    // document_master 생성 (draft 상태, doc_data 포함 - 단일 INSERT)
     const { data: docMaster, error: masterError } = await supabase
       .from('document_master')
       .insert({
@@ -790,6 +746,7 @@ export async function saveDraft(data: DocumentSubmissionData) {
         is_confidential: data.is_confidential || false,
         current_step: 0,
         summary_data: data.form_data,
+        doc_data: docData,  // JSONB로 직접 저장
       })
       .select('id')
       .single()
@@ -797,9 +754,6 @@ export async function saveDraft(data: DocumentSubmissionData) {
     if (masterError) {
       return { success: false, error: masterError.message }
     }
-
-    // 상세 테이블 생성
-    await createDocumentDetail(supabase, docMaster.id, docType, data.form_data)
 
     revalidatePath('/documents')
 

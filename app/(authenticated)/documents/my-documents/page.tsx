@@ -9,7 +9,7 @@ export default async function MyDocumentsPage() {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/login')
 
-  // 내가 작성한 모든 문서 조회 (새 시스템: document_master + 문서유형별 테이블)
+  // 내가 작성한 모든 문서 조회 (doc_data JSONB)
   const { data: myDocumentsRaw, error: docError } = await supabase
     .from('document_master')
     .select(`
@@ -22,21 +22,7 @@ export default async function MyDocumentsPage() {
       created_at,
       approved_at,
       retrieved_at,
-      doc_leave (
-        leave_type,
-        start_date,
-        end_date,
-        days_count,
-        half_day_slot,
-        reason
-      ),
-      doc_overtime (
-        work_date,
-        start_time,
-        end_time,
-        total_hours,
-        work_content
-      )
+      doc_data
     `)
     .eq('requester_id', user.id)
     .order('created_at', { ascending: false })
@@ -47,8 +33,7 @@ export default async function MyDocumentsPage() {
 
   // document_master 데이터를 기존 인터페이스에 맞게 변환
   const myDocuments = (myDocumentsRaw || []).map(doc => {
-    const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
-    const docOvertime = Array.isArray(doc.doc_overtime) ? doc.doc_overtime[0] : doc.doc_overtime
+    const docData = doc.doc_data || {}
 
     // 기본 문서 정보
     const baseDoc = {
@@ -68,26 +53,26 @@ export default async function MyDocumentsPage() {
     if (doc.doc_type === 'leave') {
       return {
         ...baseDoc,
-        leave_type: docLeave?.leave_type || 'annual',
-        requested_days: docLeave?.days_count || 0,
-        start_date: docLeave?.start_date || '',
-        end_date: docLeave?.end_date || '',
-        reason: docLeave?.reason || '',
+        leave_type: docData.leave_type || 'annual',
+        requested_days: docData.days_count || 0,
+        start_date: docData.start_date || '',
+        end_date: docData.end_date || '',
+        reason: docData.reason || '',
       }
     } else if (doc.doc_type === 'overtime') {
       return {
         ...baseDoc,
         leave_type: 'overtime',
-        work_date: docOvertime?.work_date || '',
-        start_time: docOvertime?.start_time || '',
-        end_time: docOvertime?.end_time || '',
-        total_hours: docOvertime?.total_hours || 0,
-        work_content: docOvertime?.work_content || '',
+        work_date: docData.work_date || '',
+        start_time: docData.start_time || '',
+        end_time: docData.end_time || '',
+        total_hours: docData.total_hours || 0,
+        work_content: docData.work_content || '',
         // 호환성을 위한 필드
-        start_date: docOvertime?.work_date || '',
-        end_date: docOvertime?.work_date || '',
-        requested_days: docOvertime?.total_hours || 0,
-        reason: docOvertime?.work_content || '',
+        start_date: docData.work_date || '',
+        end_date: docData.work_date || '',
+        requested_days: docData.total_hours || 0,
+        reason: docData.work_content || '',
       }
     } else {
       // 기타 문서 유형

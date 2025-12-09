@@ -1189,13 +1189,15 @@ DO $$ BEGIN
         'budget',           -- 예산 신청서
         'expense_proposal', -- 지출 품의서
         'resignation',      -- 사직서
-        'overtime_report'   -- 연장 근로 보고
+        'overtime_report',  -- 연장 근로 보고
+        'work_type_change'  -- 근로형태 변경
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
 -- Document Master table (공통 헤더)
+-- doc_data JSONB에 문서 상세 정보를 저장 (doc_* 테이블 대체)
 CREATE TABLE document_master (
     id BIGSERIAL PRIMARY KEY,
     document_number VARCHAR(50) UNIQUE,
@@ -1207,6 +1209,7 @@ CREATE TABLE document_master (
     title VARCHAR(255) NOT NULL,
     status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'approved', 'rejected', 'retrieved')),
     summary_data JSONB,
+    doc_data JSONB DEFAULT '{}'::jsonb,  -- 문서 유형별 상세 데이터 (JSONB)
     current_step INTEGER DEFAULT 1,
     drive_file_id TEXT,
     drive_file_url TEXT,
@@ -1222,10 +1225,18 @@ CREATE INDEX idx_doc_master_requester ON document_master(requester_id);
 CREATE INDEX idx_doc_master_status ON document_master(status);
 CREATE INDEX idx_doc_master_created_at ON document_master(created_at DESC);
 CREATE INDEX idx_doc_master_doc_type ON document_master(doc_type);
+CREATE INDEX idx_doc_master_doc_data ON document_master USING GIN (doc_data);
 
 COMMENT ON TABLE document_master IS '통합 문서 마스터 테이블 - 모든 결재 문서의 공통 헤더';
+COMMENT ON COLUMN document_master.doc_data IS '문서 유형별 상세 데이터 (JSONB) - doc_type에 따라 구조가 다름';
 
--- 휴가 신청 상세
+-- ================================================================
+-- [DEPRECATED] 아래 doc_* 테이블들은 향후 제거 예정입니다.
+-- 새로운 코드에서는 document_master.doc_data JSONB를 사용하세요.
+-- 기존 데이터는 마이그레이션 스크립트로 doc_data로 이전됩니다.
+-- ================================================================
+
+-- 휴가 신청 상세 [DEPRECATED - use doc_data]
 CREATE TABLE doc_leave (
     document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
     leave_type VARCHAR(50) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
@@ -1274,7 +1285,6 @@ CREATE TABLE doc_expense (
     bank_name VARCHAR(100),
     account_number VARCHAR(50),
     account_holder VARCHAR(100),
-    linked_proposal_id BIGINT REFERENCES document_master(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -1334,22 +1344,19 @@ CREATE INDEX idx_doc_budget_period ON doc_budget(period_start, period_end);
 COMMENT ON TABLE doc_budget IS '예산 신청서 상세';
 
 -- 지출 품의서 상세
+-- [DEPRECATED] doc_data JSONB로 마이그레이션됨
 CREATE TABLE doc_expense_proposal (
     document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
     expense_date DATE NOT NULL,
-    expense_reason TEXT NOT NULL,
     items JSONB NOT NULL DEFAULT '[]'::jsonb,
-    supply_amount DECIMAL(15,0) NOT NULL,
-    vat_amount DECIMAL(15,0) NOT NULL,
     total_amount DECIMAL(15,0) NOT NULL,
-    vendor_name VARCHAR(200),
-    linked_expense_id BIGINT REFERENCES document_master(id),
+    vendor_name VARCHAR(200) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_doc_expense_proposal_date ON doc_expense_proposal(expense_date);
 
-COMMENT ON TABLE doc_expense_proposal IS '지출 품의서 상세';
+COMMENT ON TABLE doc_expense_proposal IS '지출 품의서 상세 [DEPRECATED] - document_master.doc_data 사용';
 
 -- 사직서 상세
 CREATE TABLE doc_resignation (
@@ -1382,14 +1389,28 @@ CREATE TABLE doc_overtime_report (
     end_time TIME NOT NULL,
     total_hours DECIMAL(4,1) NOT NULL,
     work_content TEXT NOT NULL,
-    linked_overtime_request_id BIGINT REFERENCES document_master(id),
     transportation_fee DECIMAL(10,0) DEFAULT 0,
+    meal_fee DECIMAL(10,0) DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_doc_overtime_report_date ON doc_overtime_report(work_date);
 
-COMMENT ON TABLE doc_overtime_report IS '연장 근로 보고 상세';
+COMMENT ON TABLE doc_overtime_report IS '연장 근로 보고 상세 [DEPRECATED - use doc_data]';
+
+-- 근로형태 변경 상세 [DEPRECATED - use doc_data]
+CREATE TABLE doc_work_type_change (
+    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
+    work_type VARCHAR(50) NOT NULL CHECK (work_type IN ('remote', 'office', 'hybrid', 'flexible')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT work_type_change_date_valid CHECK (end_date >= start_date)
+);
+
+CREATE INDEX idx_doc_work_type_change_date ON doc_work_type_change(start_date, end_date);
+
+COMMENT ON TABLE doc_work_type_change IS '근로형태 변경 상세 [DEPRECATED - use doc_data]';
 
 -- 문서 참조 관계
 CREATE TABLE document_reference (

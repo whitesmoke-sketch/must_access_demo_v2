@@ -41,24 +41,18 @@ export default async function RequestPage({
 
   const { data: rewardUsage } = await supabase
     .from('document_master')
-    .select(`
-      doc_leave!inner (
-        days_count,
-        leave_type,
-        start_date
-      )
-    `)
+    .select('doc_data')
     .eq('requester_id', user.id)
     .eq('doc_type', 'leave')
     .eq('status', 'approved')
 
   // leave_type이 award이고 올해 사용한 것만 합산
   const usedReward = rewardUsage?.reduce((sum, req) => {
-    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
-    if (docLeave?.leave_type === 'award') {
-      const startDate = docLeave?.start_date
+    const docData = req.doc_data || {}
+    if (docData.leave_type === 'award') {
+      const startDate = docData.start_date
       if (startDate && startDate >= yearStart && startDate <= yearEnd) {
-        return sum + (docLeave?.days_count || 0)
+        return sum + (docData.days_count || 0)
       }
     }
     return sum

@@ -45,15 +45,13 @@ Deno.serve(async (req) => {
 
     console.log('[연차 차감 Edge Function] 시작 - requestId:', requestId)
 
-    // 1. Get document_master + doc_leave details (새 시스템)
+    // 1. Get document_master details (doc_data JSONB에서 추출)
     const { data: documentData, error: docError } = await supabase
       .from('document_master')
       .select(`
         id,
         requester_id,
-        doc_leave (
-          days_count
-        )
+        doc_data
       `)
       .eq('id', requestId)
       .single()
@@ -63,16 +61,14 @@ Deno.serve(async (req) => {
       throw new Error(`문서 정보 조회 실패: ${docError?.message}`)
     }
 
-    // doc_leave 데이터 추출 (배열일 수 있음)
-    const docLeave = Array.isArray(documentData.doc_leave)
-      ? documentData.doc_leave[0]
-      : documentData.doc_leave
+    // doc_data JSONB에서 days_count 추출
+    const docData = documentData.doc_data || {}
 
-    if (!docLeave) {
+    if (!docData.days_count) {
       throw new Error('연차 상세 정보가 없습니다')
     }
 
-    console.log('[연차 차감] 문서 정보:', { requester_id: documentData.requester_id, days_count: docLeave.days_count })
+    console.log('[연차 차감] 문서 정보:', { requester_id: documentData.requester_id, days_count: docData.days_count })
 
     // 2. Check for existing usage records (idempotency)
     const { data: existingUsage } = await supabase
@@ -129,7 +125,7 @@ Deno.serve(async (req) => {
     }
 
     // 5. Deduct using FIFO (oldest expiration first)
-    let remainingToDeduct = Number(docLeave.days_count)
+    let remainingToDeduct = Number(docData.days_count)
     const usageRecords: Array<{ grant_id: number; used_days: number }> = []
 
     for (const grant of grants) {

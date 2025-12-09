@@ -79,7 +79,7 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
     }
     const title = `${employee.name}님 ${leaveTypeLabels[leaveType]} 신청 (${params.start_date})`
 
-    // 1. document_master 생성
+    // document_master 생성 (doc_data 포함 - 단일 INSERT)
     const { data: docMaster, error: masterError } = await supabase
       .from('document_master')
       .insert({
@@ -98,6 +98,17 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
           days_count: daysCount,
           reason: params.reason,
         },
+        // doc_data JSONB로 직접 저장
+        doc_data: {
+          leave_type: leaveType,
+          start_date: params.start_date,
+          end_date: params.end_date,
+          days_count: daysCount,
+          half_day_slot: params.half_day_slot as HalfDaySlot || null,
+          reason: params.reason,
+          attachment_url: null,
+          deducted_from_grants: [],
+        },
       })
       .select('id')
       .single()
@@ -105,26 +116,6 @@ export async function createLeaveRequest(params: CreateLeaveRequestParams) {
     if (masterError) {
       console.error('[Leave] Master creation error:', masterError)
       return { success: false, error: masterError.message }
-    }
-
-    // 2. doc_leave 생성
-    const { error: leaveError } = await supabase
-      .from('doc_leave')
-      .insert({
-        document_id: docMaster.id,
-        leave_type: leaveType,
-        start_date: params.start_date,
-        end_date: params.end_date,
-        days_count: daysCount,
-        half_day_slot: params.half_day_slot as HalfDaySlot || null,
-        reason: params.reason,
-      })
-
-    if (leaveError) {
-      // 롤백
-      await supabase.from('document_master').delete().eq('id', docMaster.id)
-      console.error('[Leave] Detail creation error:', leaveError)
-      return { success: false, error: leaveError.message }
     }
 
     // 3. PDF 생성 (Google Drive)
@@ -208,8 +199,7 @@ export async function getMyLeaveRequests(options?: {
       .from('document_master')
       .select(`
         *,
-        requester:requester_id (id, name, email),
-        doc_leave (*)
+        requester:requester_id (id, name, email)
       `, { count: 'exact' })
       .eq('requester_id', user.id)
       .eq('doc_type', 'leave')
@@ -231,7 +221,7 @@ export async function getMyLeaveRequests(options?: {
       return { success: false, error: error.message, data: [] }
     }
 
-    // LeaveRequest 형식으로 변환
+    // LeaveRequest 형식으로 변환 (doc_data JSONB에서 추출)
     const leaveRequests: LeaveRequest[] = (data || []).map(doc => toLeaveRequest({
       id: doc.id,
       document_number: doc.document_number,
@@ -243,7 +233,7 @@ export async function getMyLeaveRequests(options?: {
       pdf_url: doc.pdf_url,
       drive_file_url: doc.drive_file_url,
       requester: doc.requester,
-      doc_leave: doc.doc_leave,
+      doc_data: doc.doc_data,  // JSONB에서 직접 사용
     }))
 
     return {
@@ -275,8 +265,7 @@ export async function getLeaveRequest(documentId: number) {
       .from('document_master')
       .select(`
         *,
-        requester:requester_id (id, name, email),
-        doc_leave (*)
+        requester:requester_id (id, name, email)
       `)
       .eq('id', documentId)
       .eq('doc_type', 'leave')

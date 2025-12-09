@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   // 오늘 날짜
   const today = new Date().toISOString().split('T')[0]
 
-  // Parallel queries for better performance (새 시스템: document_master + doc_leave)
+  // Parallel queries for better performance (doc_data JSONB)
   const [employeeResult, myRequestsResult, employeeRoleResult, todayLeaveResult] = await Promise.all([
     // 사용자 정보 조회
     supabase
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       .select('id, name, department:department_id(name)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 내가 요청한 문서 (최근 3건) - 새 시스템
+    // 내가 요청한 문서 (최근 3건) - doc_data JSONB
     supabase
       .from('document_master')
       .select(`
@@ -36,14 +36,8 @@ export default async function DashboardPage() {
         current_step,
         created_at,
         approved_at,
-        requester:requester_id(id, name, department:department_id(name), role:role_id(name)),
-        doc_leave (
-          leave_type,
-          start_date,
-          end_date,
-          days_count,
-          reason
-        )
+        doc_data,
+        requester:requester_id(id, name, department:department_id(name), role:role_id(name))
       `)
       .eq('requester_id', user.id)
       .eq('doc_type', 'leave')
@@ -55,18 +49,14 @@ export default async function DashboardPage() {
       .select('role:role_id(code)')
       .eq('id', user.id)
       .maybeSingle(),
-    // 오늘 연차인 멤버 조회 (승인된 연차만) - 새 시스템
+    // 오늘 연차인 멤버 조회 (승인된 연차만) - doc_data JSONB
     supabase
       .from('document_master')
       .select(`
         id,
         requester_id,
-        requester:requester_id(id, name, department:department_id(name)),
-        doc_leave!inner (
-          leave_type,
-          start_date,
-          end_date
-        )
+        doc_data,
+        requester:requester_id(id, name, department:department_id(name))
       `)
       .eq('doc_type', 'leave')
       .eq('status', 'approved')
@@ -76,17 +66,17 @@ export default async function DashboardPage() {
   const myRequestsRaw = myRequestsResult.data || []
   const todayLeaveRequests = todayLeaveResult.data || []
 
-  // document_master + doc_leave → LeaveRequest 형태로 변환
+  // document_master.doc_data → LeaveRequest 형태로 변환
   const myRequests = myRequestsRaw.map(req => {
-    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+    const docData = req.doc_data || {}
     return {
       id: req.id,
       employee_id: req.requester_id,
-      leave_type: docLeave?.leave_type || 'annual',
-      requested_days: docLeave?.days_count || 0,
-      start_date: docLeave?.start_date || '',
-      end_date: docLeave?.end_date || '',
-      reason: docLeave?.reason || null,
+      leave_type: docData.leave_type || 'annual',
+      requested_days: docData.days_count || 0,
+      start_date: docData.start_date || '',
+      end_date: docData.end_date || '',
+      reason: docData.reason || null,
       status: req.status,
       requested_at: req.created_at,
       approved_at: req.approved_at,
@@ -95,13 +85,13 @@ export default async function DashboardPage() {
     }
   })
 
-  // 오늘 연차인 멤버 데이터 처리 (새 시스템: document_master + doc_leave)
+  // 오늘 연차인 멤버 데이터 처리 (doc_data JSONB)
   const todayOnLeaveMembers = todayLeaveRequests
     .filter((request) => {
-      // doc_leave에서 오늘 날짜가 연차 기간에 포함되는지 확인
-      const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave
-      if (!docLeave) return false
-      return docLeave.start_date <= today && docLeave.end_date >= today
+      // doc_data에서 오늘 날짜가 연차 기간에 포함되는지 확인
+      const docData = request.doc_data || {}
+      if (!docData.start_date || !docData.end_date) return false
+      return docData.start_date <= today && docData.end_date >= today
     })
     .map((request) => {
       const emp = request.requester as { id: string; name: string; department?: { name: string } | { name: string }[] | null } | { id: string; name: string }[] | null
@@ -112,14 +102,14 @@ export default async function DashboardPage() {
       const dept = 'department' in empData ? empData.department : null
       const deptName = dept ? (Array.isArray(dept) ? dept[0]?.name : (dept as { name: string })?.name) || '' : ''
 
-      const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave
+      const docData = request.doc_data || {}
 
       return {
         id: empData.id,
         name: empData.name,
         department: deptName,
         team: '', // team 정보가 없으면 빈 문자열
-        leaveType: docLeave?.leave_type || 'annual',
+        leaveType: docData.leave_type || 'annual',
       }
     })
     .filter((m): m is NonNullable<typeof m> => m !== null)
@@ -154,7 +144,7 @@ export default async function DashboardPage() {
     if (!stepsError && myPendingSteps && myPendingSteps.length > 0) {
       const requestIds = myPendingSteps.map(step => step.request_id)
 
-      // 병렬로 document_master + doc_leave와 approval_steps 조회 (새 시스템)
+      // 병렬로 document_master + approval_steps 조회 (doc_data JSONB)
       const [leaveResult, stepsResult] = await Promise.all([
         supabase
           .from('document_master')
@@ -165,14 +155,8 @@ export default async function DashboardPage() {
             current_step,
             created_at,
             approved_at,
-            requester:requester_id(id, name, department:department_id(name), role:role_id(name)),
-            doc_leave (
-              leave_type,
-              start_date,
-              end_date,
-              days_count,
-              reason
-            )
+            doc_data,
+            requester:requester_id(id, name, department:department_id(name), role:role_id(name))
           `)
           .eq('doc_type', 'leave')
           .in('id', requestIds)
@@ -186,17 +170,17 @@ export default async function DashboardPage() {
           .order('step_order', { ascending: true })
       ])
 
-      // document_master + doc_leave → LeaveRequest 형태로 변환
+      // document_master.doc_data → LeaveRequest 형태로 변환
       pendingRequests = (leaveResult.data || []).map(req => {
-        const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+        const docData = req.doc_data || {}
         return {
           id: req.id,
           employee_id: req.requester_id,
-          leave_type: docLeave?.leave_type || 'annual',
-          requested_days: docLeave?.days_count || 0,
-          start_date: docLeave?.start_date || '',
-          end_date: docLeave?.end_date || '',
-          reason: docLeave?.reason || null,
+          leave_type: docData.leave_type || 'annual',
+          requested_days: docData.days_count || 0,
+          start_date: docData.start_date || '',
+          end_date: docData.end_date || '',
+          reason: docData.reason || null,
           status: req.status,
           requested_at: req.created_at,
           approved_at: req.approved_at,

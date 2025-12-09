@@ -46,7 +46,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // 연차 신청 정보 조회 (새 시스템: document_master + doc_leave)
+    // 연차 신청 정보 조회 (doc_data JSONB에서 추출)
     const { data: documentData, error: fetchError } = await supabase
       .from('document_master')
       .select(`
@@ -54,18 +54,12 @@ serve(async (req) => {
         requester_id,
         created_at,
         status,
+        doc_data,
         requester:requester_id (
           id,
           name,
           email,
           department:department_id (name)
-        ),
-        doc_leave (
-          leave_type,
-          start_date,
-          end_date,
-          days_count,
-          reason
         )
       `)
       .eq('id', leaveRequestId)
@@ -82,21 +76,19 @@ serve(async (req) => {
       )
     }
 
-    // doc_leave 데이터 추출 및 leaveRequest 형식으로 변환
-    const docLeave = Array.isArray(documentData.doc_leave)
-      ? documentData.doc_leave[0]
-      : documentData.doc_leave
+    // doc_data JSONB에서 휴가 데이터 추출
+    const docData = documentData.doc_data || {}
 
     const leaveRequest = {
       id: documentData.id,
       created_at: documentData.created_at,
       status: documentData.status,
       employee: documentData.requester,
-      leave_type: docLeave?.leave_type || 'annual',
-      start_date: docLeave?.start_date,
-      end_date: docLeave?.end_date,
-      number_of_days: docLeave?.days_count || 1,
-      reason: docLeave?.reason,
+      leave_type: docData.leave_type || 'annual',
+      start_date: docData.start_date,
+      end_date: docData.end_date,
+      number_of_days: docData.days_count || 1,
+      reason: docData.reason,
     }
 
     // 결재선 조회 (approval_step 테이블 사용)
@@ -139,18 +131,17 @@ serve(async (req) => {
       await shareWithApprovers(driveResponse.id, approverEmails, accessToken)
     }
 
-    // DB에 드라이브 정보 저장 (doc_leave에 저장)
+    // DB에 드라이브 정보 저장 (document_master에 저장)
     const { error: updateError } = await supabase
-      .from('doc_leave')
+      .from('document_master')
       .update({
         drive_file_id: driveResponse.id,
         drive_file_url: driveResponse.webViewLink,
-        drive_shared_with: approverEmails,
       })
-      .eq('document_id', leaveRequestId)
+      .eq('id', leaveRequestId)
 
     if (updateError) {
-      console.error('Failed to update doc_leave:', updateError)
+      console.error('Failed to update document_master:', updateError)
     }
 
     return new Response(

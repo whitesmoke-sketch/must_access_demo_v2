@@ -26,20 +26,12 @@ interface ApprovalStatusProps {
 export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
   const supabase = await createClient()
 
-  // Parallel queries for better performance (새 시스템: document_master + doc_leave)
+  // Parallel queries for better performance (doc_data JSONB)
   const [myRequestsResult, employeeResult] = await Promise.all([
-    // 내가 요청한 문서 (최근 3건) - 새 시스템
+    // 내가 요청한 문서 (최근 3건) - doc_data JSONB
     supabase
       .from('document_master')
-      .select(`
-        id,
-        status,
-        doc_leave (
-          leave_type,
-          start_date,
-          end_date
-        )
-      `)
+      .select('id, status, doc_data')
       .eq('requester_id', employeeId)
       .eq('doc_type', 'leave')
       .order('created_at', { ascending: false })
@@ -52,14 +44,14 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
       .maybeSingle()
   ])
 
-  // 데이터 변환 (document_master + doc_leave → LeaveRequest 형태)
+  // 데이터 변환 (doc_data JSONB → LeaveRequest 형태)
   const myRequests: LeaveRequest[] = (myRequestsResult.data || []).map(req => {
-    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+    const docData = req.doc_data || {}
     return {
       id: req.id,
-      leave_type: (docLeave?.leave_type || 'annual') as LeaveType,
-      start_date: docLeave?.start_date || '',
-      end_date: docLeave?.end_date || '',
+      leave_type: (docData.leave_type || 'annual') as LeaveType,
+      start_date: docData.start_date || '',
+      end_date: docData.end_date || '',
       status: req.status as LeaveStatus,
     }
   })
@@ -87,31 +79,22 @@ export async function ApprovalStatus({ employeeId }: ApprovalStatusProps) {
 
 
   if (myApprovalSteps && myApprovalSteps.length > 0) {
-    // approval_step의 request_id로 document_master + doc_leave 조회 (새 시스템)
+    // approval_step의 request_id로 document_master 조회 (doc_data JSONB)
     const requestIds = myApprovalSteps.map(s => s.request_id)
     const { data: leaveRequests } = await supabase
       .from('document_master')
-      .select(`
-        id,
-        status,
-        requester:requester_id(name),
-        doc_leave (
-          leave_type,
-          start_date,
-          end_date
-        )
-      `)
+      .select('id, status, doc_data, requester:requester_id(name)')
       .eq('doc_type', 'leave')
       .in('id', requestIds)
 
     if (leaveRequests) {
       pendingRequests = leaveRequests.map(req => {
-        const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
+        const docData = req.doc_data || {}
         return {
           id: req.id,
-          leave_type: (docLeave?.leave_type || 'annual') as LeaveType,
-          start_date: docLeave?.start_date || '',
-          end_date: docLeave?.end_date || '',
+          leave_type: (docData.leave_type || 'annual') as LeaveType,
+          start_date: docData.start_date || '',
+          end_date: docData.end_date || '',
           status: req.status as LeaveStatus,
           requester: req.requester,
         }

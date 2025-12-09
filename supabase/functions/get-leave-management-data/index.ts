@@ -76,18 +76,16 @@ Deno.serve(async (req) => {
         .select('employee_id, granted_days')
         .in('grant_type', ['award_overtime', 'award_attendance'])
         .eq('approval_status', 'approved'),
-      // Fetch reward leave usage (새 시스템: document_master + doc_leave)
+      // Fetch reward leave usage (doc_data JSONB에서 추출)
       supabase
         .from('document_master')
         .select(`
           requester_id,
-          doc_leave!inner (
-            days_count
-          )
+          doc_data
         `)
         .eq('doc_type', 'leave')
         .eq('status', 'approved'),
-      // Fetch all leave requests (새 시스템: document_master + doc_leave)
+      // Fetch all leave requests (doc_data JSONB에서 추출)
       supabase
         .from('document_master')
         .select(`
@@ -97,14 +95,8 @@ Deno.serve(async (req) => {
           current_step,
           created_at,
           approved_at,
-          requester:requester_id(id, name),
-          doc_leave (
-            leave_type,
-            start_date,
-            end_date,
-            days_count,
-            reason
-          )
+          doc_data,
+          requester:requester_id(id, name)
         `)
         .eq('doc_type', 'leave')
         .order('created_at', { ascending: false }),
@@ -160,9 +152,9 @@ Deno.serve(async (req) => {
     })
 
     rewardUsage?.forEach(usage => {
-      const docLeave = Array.isArray(usage.doc_leave) ? usage.doc_leave[0] : usage.doc_leave
+      const docData = usage.doc_data || {}
       const current = rewardUsageMap.get(usage.requester_id) || 0
-      rewardUsageMap.set(usage.requester_id, current + Number(docLeave?.days_count || 0))
+      rewardUsageMap.set(usage.requester_id, current + Number(docData.days_count || 0))
     })
 
     // Map to Member format
@@ -177,10 +169,10 @@ Deno.serve(async (req) => {
       usedRewardLeave: rewardUsageMap.get(emp.id) || 0,
     })) || []
 
-    // Map to LeaveRequest format (새 시스템)
+    // Map to LeaveRequest format (doc_data JSONB에서 추출)
     const leaveRequestsFormatted = leaveRequests?.map(req => {
-      const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave
-      const detailedLeaveType = docLeave?.leave_type || 'annual'
+      const docData = req.doc_data || {}
+      const detailedLeaveType = docData.leave_type || 'annual'
 
       // 통계용 매핑 (annual 또는 reward)
       let mappedLeaveType: 'annual' | 'reward' | 'sick' | 'other' = 'annual'
@@ -199,10 +191,10 @@ Deno.serve(async (req) => {
         memberName: req.requester?.name || '알 수 없음',
         leaveType: mappedLeaveType,
         detailedLeaveType, // 상세 휴가 타입 (annual, half_day, quarter_day, award)
-        startDate: docLeave?.start_date,
-        endDate: docLeave?.end_date,
-        days: Number(docLeave?.days_count) || 0,
-        reason: docLeave?.reason || undefined,
+        startDate: docData.start_date,
+        endDate: docData.end_date,
+        days: Number(docData.days_count) || 0,
+        reason: docData.reason || undefined,
         status: req.status,
         submittedAt: req.created_at,
         reviewedAt: req.approved_at || undefined,

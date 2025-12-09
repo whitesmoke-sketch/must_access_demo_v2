@@ -134,20 +134,16 @@ export default async function AdminDashboardPage() {
 
   // ========== 근무 현황 데이터 조회 ==========
 
-  // 1. 휴가 (새 시스템: document_master + doc_leave - annual, half_day, award)
+  // 1. 휴가 (doc_data JSONB - annual, half_day, award)
   const { data: vacationRequests } = await supabase
     .from('document_master')
     .select(`
       id,
+      doc_data,
       requester:requester_id (
         id,
         name,
         department:department_id (name)
-      ),
-      doc_leave!inner (
-        leave_type,
-        start_date,
-        end_date
       )
     `)
     .eq('doc_type', 'leave')
@@ -155,16 +151,16 @@ export default async function AdminDashboardPage() {
 
   // 오늘 날짜가 연차 기간에 포함되고, leave_type이 annual, half_day, quarter_day, award인 것만 필터링
   const filteredVacationRequests = vacationRequests?.filter(req => {
-    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave;
-    if (!docLeave) return false;
-    const leaveType = docLeave.leave_type;
-    return docLeave.start_date <= today && docLeave.end_date >= today &&
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const leaveType = docData.leave_type;
+    return docData.start_date <= today && docData.end_date >= today &&
            ['annual', 'half_day', 'quarter_day', 'award'].includes(leaveType);
   }) || [];
 
   const vacationMembers = filteredVacationRequests.map(req => {
-    const docLeave = Array.isArray(req.doc_leave) ? req.doc_leave[0] : req.doc_leave;
-    const leaveType = docLeave?.leave_type;
+    const docData = req.doc_data || {};
+    const leaveType = docData.leave_type;
     const leaveTypeLabels: Record<string, string> = {
       annual: '연차',
       half_day: '반차',
@@ -265,19 +261,14 @@ export default async function AdminDashboardPage() {
     status: 'available',
   };
 
-  // ========== 승인 대기 목록 (새 시스템: document_master + doc_leave) ==========
+  // ========== 승인 대기 목록 (doc_data JSONB) ==========
   const { data: pendingRequests } = await supabase
     .from('document_master')
     .select(`
       id,
       created_at,
-      requester:requester_id(name),
-      doc_leave (
-        leave_type,
-        start_date,
-        end_date,
-        days_count
-      )
+      doc_data,
+      requester:requester_id(name)
     `)
     .eq('doc_type', 'leave')
     .eq('status', 'pending')
@@ -285,8 +276,8 @@ export default async function AdminDashboardPage() {
     .limit(5);
 
   const approvalQueue = pendingRequests?.map(request => {
-    const docLeave = Array.isArray(request.doc_leave) ? request.doc_leave[0] : request.doc_leave;
-    const leaveType = docLeave?.leave_type;
+    const docData = request.doc_data || {};
+    const leaveType = docData.leave_type;
     const leaveTypeLabels: Record<string, string> = {
       annual: '연차',
       half_day: '반차',
@@ -298,9 +289,9 @@ export default async function AdminDashboardPage() {
       userName: (request.requester as any)?.name || '알 수 없음',
       type: leaveTypeLabels[leaveType] || '연차',
       requestDate: request.created_at,
-      startDate: docLeave?.start_date,
-      endDate: docLeave?.end_date,
-      days: docLeave?.days_count || 1,
+      startDate: docData.start_date,
+      endDate: docData.end_date,
+      days: docData.days_count || 1,
     };
   }) || [];
 

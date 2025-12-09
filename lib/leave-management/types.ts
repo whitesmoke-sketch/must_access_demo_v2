@@ -79,7 +79,8 @@ export interface LeaveRequest {
   driveFileUrl?: string
 }
 
-// document_master + doc_leave 조회 결과를 LeaveRequest로 변환하는 헬퍼
+// document_master 조회 결과를 LeaveRequest로 변환하는 헬퍼
+// doc_data JSONB에서 휴가 정보를 추출
 export function toLeaveRequest(doc: {
   id: number
   document_number: string | null
@@ -94,14 +95,15 @@ export function toLeaveRequest(doc: {
     id: string
     name: string
   }
-  doc_leave?: {
-    leave_type: DocLeaveType
-    start_date: string
-    end_date: string
-    days_count: number
-    half_day_slot: HalfDaySlot | null
-    reason: string | null
-  }
+  // doc_data JSONB (leave 타입)
+  doc_data?: {
+    leave_type?: DocLeaveType
+    start_date?: string
+    end_date?: string
+    days_count?: number
+    half_day_slot?: HalfDaySlot | null
+    reason?: string | null
+  } | null
 }): LeaveRequest {
   const leaveTypeMap: Record<DocLeaveType, LeaveType> = {
     annual: 'annual',
@@ -110,17 +112,19 @@ export function toLeaveRequest(doc: {
     award: 'reward',
   }
 
+  const docData = doc.doc_data || {}
+
   return {
     id: doc.id,
     memberId: doc.requester_id,
     memberName: doc.requester?.name || '',
-    leaveType: doc.doc_leave ? leaveTypeMap[doc.doc_leave.leave_type] : 'annual',
-    detailedLeaveType: (doc.doc_leave?.leave_type || 'annual') as DetailedLeaveType,
-    startDate: doc.doc_leave?.start_date || '',
-    endDate: doc.doc_leave?.end_date || '',
-    days: doc.doc_leave?.days_count || 0,
-    halfDaySlot: doc.doc_leave?.half_day_slot || undefined,
-    reason: doc.doc_leave?.reason || undefined,
+    leaveType: docData.leave_type ? leaveTypeMap[docData.leave_type] : 'annual',
+    detailedLeaveType: (docData.leave_type || 'annual') as DetailedLeaveType,
+    startDate: docData.start_date || '',
+    endDate: docData.end_date || '',
+    days: docData.days_count || 0,
+    halfDaySlot: docData.half_day_slot || undefined,
+    reason: docData.reason || undefined,
     status: doc.status as LeaveRequest['status'],
     submittedAt: doc.created_at,
     reviewedAt: doc.approved_at || undefined,

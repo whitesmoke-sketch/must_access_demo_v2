@@ -211,15 +211,13 @@ Deno.serve(async (req) => {
 
     // 4. Check if this is the last step
     if (currentStep.is_last_step) {
-      // Get document info from document_master + doc_leave
+      // Get document info from document_master (doc_data JSONB)
       const { data: documentData, error: docError } = await supabase
         .from('document_master')
         .select(`
           id,
           requester_id,
-          doc_leave (
-            days_count
-          )
+          doc_data
         `)
         .eq('id', leaveRequestId)
         .single()
@@ -242,11 +240,9 @@ Deno.serve(async (req) => {
         throw new Error('최종 승인 업데이트 실패')
       }
 
-      // Get days_count from doc_leave
-      const docLeave = Array.isArray(documentData.doc_leave)
-        ? documentData.doc_leave[0]
-        : documentData.doc_leave
-      const requestedDays = docLeave?.days_count || 0
+      // Get days_count from doc_data JSONB
+      const docData = documentData.doc_data || {}
+      const requestedDays = docData.days_count || 0
 
       // Deduct leave balance directly (no HTTP call)
       if (requestedDays > 0) {

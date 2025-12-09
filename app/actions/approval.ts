@@ -925,15 +925,10 @@ async function completeApproval(
       .update({ status: 'approved', approved_at: new Date().toISOString() })
       .eq('id', requestId)
 
-    // 2. 문서 정보 조회 (새 시스템: document_master + doc_leave)
+    // 2. 문서 정보 조회 (doc_data JSONB에서 추출)
     const { data: documentData, error: docError } = await supabase
       .from('document_master')
-      .select(`
-        requester_id,
-        doc_leave (
-          days_count
-        )
-      `)
+      .select('requester_id, doc_data')
       .eq('id', requestId)
       .single()
 
@@ -942,10 +937,8 @@ async function completeApproval(
     }
 
     if (documentData) {
-      const docLeave = Array.isArray(documentData.doc_leave)
-        ? documentData.doc_leave[0]
-        : documentData.doc_leave
-      const requestedDays = docLeave?.days_count || 0
+      const docData = documentData.doc_data || {}
+      const requestedDays = docData.days_count || 0
 
       console.log('[연차 차감] 문서 정보:', { requester_id: documentData.requester_id, days_count: requestedDays })
 

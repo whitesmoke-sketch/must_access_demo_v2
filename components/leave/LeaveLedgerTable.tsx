@@ -109,7 +109,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
       if (grantsError) throw new Error(`연차 부여 이력 조회 실패: ${grantsError.message}`)
 
-      // 연차 신청 이력 조회 (새 시스템: document_master + doc_leave)
+      // 연차 신청 이력 조회 (doc_data JSONB)
       const { data: requestsRaw, error: requestsError } = await supabase
         .from('document_master')
         .select(`
@@ -119,13 +119,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
           created_at,
           approved_at,
           drive_file_url,
-          doc_leave (
-            leave_type,
-            start_date,
-            end_date,
-            days_count,
-            reason
-          )
+          doc_data
         `)
         .eq('requester_id', employeeId)
         .eq('doc_type', 'leave')
@@ -135,18 +129,18 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
       // 데이터 형식 변환
       const requests = (requestsRaw || []).map(doc => {
-        const docLeave = Array.isArray(doc.doc_leave) ? doc.doc_leave[0] : doc.doc_leave
+        const docData = doc.doc_data || {}
         return {
           id: doc.id,
-          start_date: docLeave?.start_date || '',
-          end_date: docLeave?.end_date || '',
-          leave_type: docLeave?.leave_type || 'annual',
-          requested_days: docLeave?.days_count || 0,
+          start_date: docData.start_date || '',
+          end_date: docData.end_date || '',
+          leave_type: docData.leave_type || 'annual',
+          requested_days: docData.days_count || 0,
           status: doc.status,
           created_at: doc.created_at,
           approved_at: doc.approved_at,
           drive_file_url: doc.drive_file_url,
-          reason: docLeave?.reason || '',
+          reason: docData.reason || '',
           approver: null, // 승인자 정보는 approval_step에서 조회
         }
       })
@@ -220,7 +214,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
     try {
       const supabase = createClient()
 
-      // 연차 신청 상세 조회 (새 시스템: document_master + doc_leave)
+      // 연차 신청 상세 조회 (doc_data JSONB)
       const { data: document, error: requestError } = await supabase
         .from('document_master')
         .select(`
@@ -230,16 +224,10 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
           created_at,
           approved_at,
           drive_file_url,
+          doc_data,
           requester:requester_id (
             id,
             name
-          ),
-          doc_leave (
-            leave_type,
-            start_date,
-            end_date,
-            days_count,
-            reason
           )
         `)
         .eq('id', requestId)
@@ -248,7 +236,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
 
       if (requestError) throw requestError
 
-      const docLeave = Array.isArray(document.doc_leave) ? document.doc_leave[0] : document.doc_leave
+      const docData = document.doc_data || {}
 
       // 승인 단계 조회
       const { data: steps, error: stepsError } = await supabase
@@ -281,11 +269,11 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
         id: document.id,
         employee_id: document.requester_id,
         employee_name: (document.requester as any)?.name || '알 수 없음',
-        leave_type: docLeave?.leave_type || 'annual',
-        start_date: docLeave?.start_date || '',
-        end_date: docLeave?.end_date || '',
-        requested_days: docLeave?.days_count || 0,
-        reason: docLeave?.reason || '',
+        leave_type: docData.leave_type || 'annual',
+        start_date: docData.start_date || '',
+        end_date: docData.end_date || '',
+        requested_days: docData.days_count || 0,
+        reason: docData.reason || '',
         status: document.status,
         created_at: document.created_at,
         approved_at: document.approved_at,
