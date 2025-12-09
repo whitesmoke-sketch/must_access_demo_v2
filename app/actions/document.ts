@@ -1143,13 +1143,18 @@ export async function getLinkedDocumentDetail(
   linkedDocumentId: number
 ): Promise<{ success: boolean; data?: LinkedDocumentDetail; error?: string }> {
   try {
+    console.log('[getLinkedDocumentDetail] Start - originalDocId:', originalDocumentId, 'linkedDocId:', linkedDocumentId)
+
     const supabase = await createClient()
     const adminSupabase = createAdminClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
+      console.error('[getLinkedDocumentDetail] No user')
       return { success: false, error: '인증이 필요합니다' }
     }
+
+    console.log('[getLinkedDocumentDetail] User:', user.id)
 
     // 1. 원본 문서 정보 조회
     const { data: originalDoc, error: origError } = await adminSupabase
@@ -1158,14 +1163,23 @@ export async function getLinkedDocumentDetail(
       .eq('id', originalDocumentId)
       .single()
 
-    if (origError || !originalDoc) {
+    if (origError) {
+      console.error('[getLinkedDocumentDetail] Original doc error:', origError)
+      return { success: false, error: `원본 문서 조회 오류: ${origError.message}` }
+    }
+
+    if (!originalDoc) {
+      console.error('[getLinkedDocumentDetail] Original doc not found')
       return { success: false, error: '원본 문서를 찾을 수 없습니다' }
     }
 
+    console.log('[getLinkedDocumentDetail] Original doc found:', originalDoc.id, originalDoc.doc_type)
+
     // 2. 원본 문서의 결재 참여자 여부 확인
     const isRequester = originalDoc.requester_id === user.id
+    console.log('[getLinkedDocumentDetail] isRequester:', isRequester)
 
-    const { data: approverStep } = await adminSupabase
+    const { data: approverStep, error: approverError } = await adminSupabase
       .from('approval_step')
       .select('id')
       .eq('request_type', originalDoc.doc_type)
@@ -1173,9 +1187,14 @@ export async function getLinkedDocumentDetail(
       .eq('approver_id', user.id)
       .maybeSingle()
 
-    const isApprover = !!approverStep
+    if (approverError) {
+      console.error('[getLinkedDocumentDetail] Approver check error:', approverError)
+    }
 
-    const { data: ccRecord } = await adminSupabase
+    const isApprover = !!approverStep
+    console.log('[getLinkedDocumentDetail] isApprover:', isApprover)
+
+    const { data: ccRecord, error: ccError } = await adminSupabase
       .from('approval_cc')
       .select('id')
       .eq('request_type', originalDoc.doc_type)
@@ -1183,13 +1202,23 @@ export async function getLinkedDocumentDetail(
       .eq('employee_id', user.id)
       .maybeSingle()
 
+    if (ccError) {
+      console.error('[getLinkedDocumentDetail] CC check error:', ccError)
+    }
+
     const isCC = !!ccRecord
+    console.log('[getLinkedDocumentDetail] isCC:', isCC)
 
     if (!isRequester && !isApprover && !isCC) {
+      console.error('[getLinkedDocumentDetail] User is not a participant')
       return { success: false, error: '해당 문서의 결재 참여자만 첨부 문서를 볼 수 있습니다' }
     }
 
+    console.log('[getLinkedDocumentDetail] User is participant, fetching linked doc')
+
     // 3. 첨부 문서 상세 조회
+    console.log('[getLinkedDocumentDetail] Fetching linked document:', linkedDocumentId)
+
     const { data: linkedDoc, error: linkedError } = await adminSupabase
       .from('document_master')
       .select(`
@@ -1210,9 +1239,17 @@ export async function getLinkedDocumentDetail(
       .eq('id', linkedDocumentId)
       .single()
 
-    if (linkedError || !linkedDoc) {
+    if (linkedError) {
+      console.error('[getLinkedDocumentDetail] Error fetching linked doc:', linkedError)
+      return { success: false, error: `첨부 문서 조회 오류: ${linkedError.message}` }
+    }
+
+    if (!linkedDoc) {
+      console.error('[getLinkedDocumentDetail] Linked doc not found:', linkedDocumentId)
       return { success: false, error: '첨부 문서를 찾을 수 없습니다' }
     }
+
+    console.log('[getLinkedDocumentDetail] Found linked doc:', linkedDoc.id, linkedDoc.title)
 
     // 4. 첨부 문서의 결재선 조회
     const { data: approvalSteps } = await adminSupabase
