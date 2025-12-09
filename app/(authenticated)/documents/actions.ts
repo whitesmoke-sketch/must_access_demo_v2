@@ -145,7 +145,7 @@ export async function approveDocument(documentId: number, docType?: DocumentType
       }
 
       // current_step 업데이트
-      const { error: updateDocError } = await supabase
+      const { error: updateDocError } = await adminSupabase
         .from('document_master')
         .update({ current_step: nextStepOrder })
         .eq('id', documentId)
