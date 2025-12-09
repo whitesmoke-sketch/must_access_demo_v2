@@ -454,19 +454,6 @@ export type DocumentWithDetail =
   | DocumentWithWorkTypeChange
 
 // ================================================================
-// 문서 참조
-// ================================================================
-
-export interface DocumentReference {
-  id: number
-  source_doc_id: number
-  target_doc_id: number
-  snapshot_title: string | null
-  snapshot_content: Record<string, unknown> | null
-  created_at: string
-}
-
-// ================================================================
 // 접근 로그
 // ================================================================
 

@@ -967,3 +967,125 @@ export async function searchAccessibleDocuments(options?: {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [], total: 0 }
   }
 }
+
+// ================================================
+// 첨부 문서 조회 (결재 참여자용 - visibility 무시)
+// ================================================
+
+interface LinkedDocument {
+  id: number
+  title: string
+  doc_type: string
+  status: string
+  created_at: string
+  requester_name: string
+  summary_data: Record<string, unknown> | null
+}
+
+/**
+ * 결재 문서에 첨부된 기존 문서 조회
+ * - 결재 참여자(requester, approver, cc)인 경우 visibility 무시하고 조회
+ * - 참여자가 아닌 경우 에러 반환
+ */
+export async function getLinkedDocumentsForParticipant(
+  documentId: number
+): Promise<{ success: boolean; data: LinkedDocument[]; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const adminSupabase = createAdminClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: '인증이 필요합니다', data: [] }
+    }
+
+    // 1. 문서 정보 조회 (summary_data에서 attached_documents 가져오기)
+    const { data: document, error: docError } = await adminSupabase
+      .from('document_master')
+      .select('id, requester_id, doc_type, summary_data')
+      .eq('id', documentId)
+      .single()
+
+    if (docError || !document) {
+      return { success: false, error: '문서를 찾을 수 없습니다', data: [] }
+    }
+
+    // 2. 결재 참여자 여부 확인
+    const isRequester = document.requester_id === user.id
+
+    // 결재자 확인
+    const { data: approverStep } = await adminSupabase
+      .from('approval_step')
+      .select('id')
+      .eq('request_type', document.doc_type)
+      .eq('request_id', documentId)
+      .eq('approver_id', user.id)
+      .maybeSingle()
+
+    const isApprover = !!approverStep
+
+    // 참조자 확인
+    const { data: ccRecord } = await adminSupabase
+      .from('approval_cc')
+      .select('id')
+      .eq('request_type', document.doc_type)
+      .eq('request_id', documentId)
+      .eq('employee_id', user.id)
+      .maybeSingle()
+
+    const isCC = !!ccRecord
+
+    // 참여자가 아니면 에러
+    if (!isRequester && !isApprover && !isCC) {
+      return { success: false, error: '해당 문서의 결재 참여자만 첨부 문서를 볼 수 있습니다', data: [] }
+    }
+
+    // 3. 첨부 문서 ID 목록 가져오기
+    const attachedDocIds = (document.summary_data as any)?.attached_documents as string[] | undefined
+
+    if (!attachedDocIds || attachedDocIds.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    // 4. 첨부 문서 상세 조회 (admin client로 visibility 무시)
+    const numericIds = attachedDocIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
+
+    if (numericIds.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    const { data: linkedDocs, error: linkedError } = await adminSupabase
+      .from('document_master')
+      .select(`
+        id,
+        title,
+        doc_type,
+        status,
+        created_at,
+        summary_data,
+        requester:requester_id (name)
+      `)
+      .in('id', numericIds)
+
+    if (linkedError) {
+      console.error('[Document] Get linked documents error:', linkedError)
+      return { success: false, error: linkedError.message, data: [] }
+    }
+
+    // 5. 결과 변환
+    const result: LinkedDocument[] = (linkedDocs || []).map(doc => ({
+      id: doc.id,
+      title: doc.title,
+      doc_type: doc.doc_type,
+      status: doc.status,
+      created_at: doc.created_at,
+      requester_name: (doc.requester as any)?.name || '알 수 없음',
+      summary_data: doc.summary_data,
+    }))
+
+    return { success: true, data: result }
+  } catch (error: unknown) {
+    console.error('[Document] Get linked documents error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] }
+  }
+}

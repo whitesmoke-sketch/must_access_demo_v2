@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Check, X, CheckCircle, XCircle, Clock as ClockIcon } from 'lucide-react'
+import { Check, X, CheckCircle, XCircle, Clock as ClockIcon, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { approveDocument, rejectDocument } from '@/app/(authenticated)/documents/actions'
+import { getLinkedDocumentsForParticipant } from '@/app/actions/document'
 
 type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
 type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
@@ -83,6 +84,16 @@ interface CCPerson {
   }[] | null
   read_at: string | null
   created_at: string
+}
+
+interface LinkedDocument {
+  id: number
+  title: string
+  doc_type: string
+  status: string
+  created_at: string
+  requester_name: string
+  summary_data: Record<string, unknown> | null
 }
 
 interface ApprovalDocumentDetailModalProps {
@@ -190,6 +201,8 @@ export function ApprovalDocumentDetailModal({
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [linkedDocuments, setLinkedDocuments] = useState<LinkedDocument[]>([])
+  const [linkedDocsLoading, setLinkedDocsLoading] = useState(false)
 
   // initialApprovalSteps가 변경되면 상태 업데이트
   useEffect(() => {
@@ -204,6 +217,31 @@ export function ApprovalDocumentDetailModal({
       fetchApprovalSteps()
     }
   }, [open, document, initialApprovalSteps])
+
+  // 첨부 문서 조회
+  useEffect(() => {
+    if (open && document) {
+      fetchLinkedDocuments()
+    } else {
+      setLinkedDocuments([])
+    }
+  }, [open, document])
+
+  const fetchLinkedDocuments = async () => {
+    if (!document) return
+
+    setLinkedDocsLoading(true)
+    try {
+      const result = await getLinkedDocumentsForParticipant(document.id)
+      if (result.success) {
+        setLinkedDocuments(result.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch linked documents:', error)
+    } finally {
+      setLinkedDocsLoading(false)
+    }
+  }
 
   const fetchApprovalSteps = async () => {
     if (!document) return
@@ -680,6 +718,69 @@ export function ApprovalDocumentDetailModal({
                     )
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* 첨부 문서 */}
+            {linkedDocuments.length > 0 && (
+              <div className="space-y-3 pt-5" style={{ borderTop: '1px solid #E5E8EB' }}>
+                <p style={{ fontSize: '16px', fontWeight: 500, lineHeight: '24px', color: '#29363D' }}>
+                  첨부 문서 ({linkedDocuments.length}건)
+                </p>
+                <div className="space-y-2">
+                  {linkedDocuments.map((linkedDoc) => (
+                    <div
+                      key={linkedDoc.id}
+                      className="flex items-center justify-between p-3 rounded-lg"
+                      style={{ backgroundColor: '#F6F8F9' }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex items-center justify-center shrink-0"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '16px',
+                            backgroundColor: 'rgba(99,91,255,0.1)',
+                          }}
+                        >
+                          <FileText className="w-4 h-4" style={{ color: '#635BFF' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p style={{
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            lineHeight: '21px',
+                            color: '#29363D',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {linkedDoc.title}
+                          </p>
+                          <p style={{ fontSize: '12px', lineHeight: '18px', color: '#5B6A72' }}>
+                            {getDocTypeLabel(linkedDoc.doc_type)} · {linkedDoc.requester_name} · {new Date(linkedDoc.created_at).toLocaleDateString('ko-KR')}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge style={{
+                        backgroundColor: linkedDoc.status === 'approved' ? 'rgba(76, 212, 113, 0.1)' : '#FFF8E5',
+                        color: linkedDoc.status === 'approved' ? '#4CD471' : '#FFAE1F',
+                        fontSize: '12px',
+                        lineHeight: '16px',
+                        fontWeight: 600,
+                        padding: '2px 8px'
+                      }}>
+                        {linkedDoc.status === 'approved' ? '승인' : linkedDoc.status === 'pending' ? '대기' : linkedDoc.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {linkedDocsLoading && (
+              <div className="pt-5" style={{ borderTop: '1px solid #E5E8EB' }}>
+                <p style={{ fontSize: '14px', color: '#5B6A72' }}>첨부 문서 로딩 중...</p>
               </div>
             )}
             </div>
