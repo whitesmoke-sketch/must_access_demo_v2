@@ -310,6 +310,20 @@ export function MyDocumentsClient({
     }
   }
 
+  // 문서 유형 라벨
+  const getDocTypeLabel = (docType: string | undefined): string => {
+    const labels: Record<string, string> = {
+      leave: '연차 신청서',
+      expense: '지출결의서',
+      overtime: '야근 수당 신청서',
+      welfare: '복리후생 신청서',
+      general: '일반 문서',
+      budget: '예산 신청서',
+      resignation: '퇴직 신청서',
+    }
+    return labels[docType || 'leave'] || docType || '문서'
+  }
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -753,7 +767,7 @@ export function MyDocumentsClient({
                           color: 'var(--foreground)',
                           lineHeight: 1.5,
                         }}>
-                          연차 신청서 작성
+                          {getDocTypeLabel(selectedDocument.doc_type)} 작성
                         </p>
                       </div>
                     </div>

@@ -135,6 +135,32 @@ const getLeaveTypeLabel = (type: LeaveType): string => {
   return labels[type] || type || '기타'
 }
 
+// 문서 유형 라벨
+const getDocTypeLabel = (docType: string): string => {
+  const labels: Record<string, string> = {
+    leave: '연차 신청',
+    expense: '지출결의서',
+    overtime: '야근 수당 신청',
+    welfare: '복리후생 신청',
+    general: '일반 문서',
+    budget: '예산 신청',
+    resignation: '퇴직 신청',
+  }
+  return labels[docType] || docType || '문서'
+}
+
+// 문서 유형별 신청 유형 필드명
+const getDocTypeFieldLabel = (docType: string): string => {
+  const labels: Record<string, string> = {
+    leave: '연차 유형',
+    expense: '신청 유형',
+    overtime: '신청 유형',
+    welfare: '신청 유형',
+    general: '문서 유형',
+  }
+  return labels[docType] || '신청 유형'
+}
+
 const getHistoryEventInfo = (status: string) => {
   switch (status) {
     case 'waiting':
@@ -333,76 +359,81 @@ export function ApprovalDocumentDetailModal({
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: '#29363D' }}>
-              연차 신청 상세
+              문서 상세
             </DialogTitle>
             <DialogDescription style={{ fontSize: '16px', lineHeight: 1.5, color: '#5B6A72' }}>
-              문서 상세 정보를 확인하세요
+              문서 정보를 확인하세요
             </DialogDescription>
           </DialogHeader>
 
           <Card className="overflow-y-auto max-h-[calc(90vh-180px)]">
             <div className="space-y-4 p-6">
-            {/* 신청자 / 연차 유형 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>신청자</p>
-                <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                  {employee?.name || '알 수 없음'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>연차 유형</p>
-                <div className="mt-1">
-                  <Badge style={{ backgroundColor: 'rgba(99,91,255,0.1)', color: '#635BFF', fontSize: '12px', lineHeight: 1.33, fontWeight: 600, padding: '2px 8px' }}>
-                    {getLeaveTypeLabel(document.leave_type)}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
-            {/* 소속 */}
+            {/* 신청 유형 */}
             <div className="space-y-1">
-              <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>소속</p>
-              <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                {getDepartmentName(employee?.department)}
-              </p>
-            </div>
-
-            {/* 시작일 / 종료일 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>시작일</p>
-                <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                  {new Date(document.start_date).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  }).replace(/\. /g, '-').replace('.', '')}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>종료일</p>
-                <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                  {new Date(document.end_date).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  }).replace(/\. /g, '-').replace('.', '')}
-                </p>
+              <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>신청 유형</p>
+              <div className="mt-1">
+                <Badge style={{ backgroundColor: 'rgba(99,91,255,0.1)', color: '#635BFF', fontSize: '12px', lineHeight: 1.33, fontWeight: 600, padding: '2px 8px' }}>
+                  {document.doc_type || 'leave'}
+                </Badge>
               </div>
             </div>
 
-            {/* 사용일수 */}
-            <div className="space-y-1">
-              <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>사용일수</p>
-              <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
-                {document.requested_days}일
-              </p>
-            </div>
+            {/* 연차 문서인 경우에만 연차 유형, 시작일, 종료일, 사용일수 표시 */}
+            {(document.doc_type === 'leave' || !document.doc_type) && (
+              <>
+                {/* 연차 유형 */}
+                {document.leave_type && (
+                  <div className="space-y-1">
+                    <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>연차 유형</p>
+                    <div className="mt-1">
+                      <Badge style={{ backgroundColor: 'rgba(76, 212, 113, 0.1)', color: '#4CD471', fontSize: '12px', lineHeight: 1.33, fontWeight: 600, padding: '2px 8px' }}>
+                        {getLeaveTypeLabel(document.leave_type)}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
 
-            {/* 사유 */}
+                {/* 시작일 / 종료일 */}
+                {document.start_date && document.end_date && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>시작일</p>
+                      <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
+                        {new Date(document.start_date).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        }).replace(/\. /g, '-').replace('.', '')}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>종료일</p>
+                      <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
+                        {new Date(document.end_date).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        }).replace(/\. /g, '-').replace('.', '')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 사용일수 */}
+                {document.requested_days !== undefined && (
+                  <div className="space-y-1">
+                    <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>사용일수</p>
+                    <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.5, color: '#29363D' }}>
+                      {document.requested_days}일
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* 신청 사유 */}
             <div className="space-y-1">
-              <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>사유</p>
+              <p style={{ fontSize: '14px', lineHeight: 1.5, color: '#5B6A72' }}>신청 사유</p>
               <p style={{ fontSize: '16px', lineHeight: 1.5, color: '#29363D' }}>
                 {document.reason || '-'}
               </p>
@@ -693,7 +724,7 @@ export function ApprovalDocumentDetailModal({
               반려 사유 입력
             </DialogTitle>
             <DialogDescription style={{ fontSize: '14px', lineHeight: 1.5 }}>
-              {employee?.name}님의 연차 신청 반려 사유를 입력해주세요
+              {employee?.name}님의 {getDocTypeLabel(document?.doc_type || 'leave')} 반려 사유를 입력해주세요
             </DialogDescription>
           </DialogHeader>
 
