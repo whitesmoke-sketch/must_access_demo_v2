@@ -118,7 +118,7 @@ export async function approveDocument(documentId: number, docType?: DocumentType
       // 다음 단계 활성화
       const nextStepOrder = myStep.step_order + 1
 
-      const { data: nextStepApprovers, error: nextStepError } = await supabase
+      const { data: nextStepApprovers, error: nextStepError } = await adminSupabase
         .from('approval_step')
         .select('id')
         .eq('request_type', requestType)

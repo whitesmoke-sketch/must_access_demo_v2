@@ -88,6 +88,74 @@ const { error: activateError } = await adminSupabase
 - [ ] rejectDocument 함수에도 유사한 이슈가 있는지 확인 → ✅ 없음 (본인 step만 업데이트)
 - [ ] 다른 approval_step UPDATE 쿼리 확인 → ✅ 없음
 - [ ] document_master UPDATE RLS 정책 확인 → ✅ 문제 없음 (결재자도 업데이트 가능)
+- [x] **다음 단계 조회 시 RLS 문제** → ❌ 발견! (Issue #2 참조)
+
+---
+
+## Issue #2: 다음 결재 단계 조회 실패 (SELECT RLS)
+
+**발견일:** 2025-12-09
+**심각도:** 🔴 Critical
+**상태:** ✅ 수정 완료
+
+### 문제 설명
+
+Issue #1을 수정한 후에도, 다음 단계 활성화가 작동하지 않는 문제. UPDATE는 adminSupabase로 수정했지만, SELECT 쿼리도 RLS에 막혀서 다음 단계를 찾지 못함.
+
+### 근본 원인
+
+**파일:** `app/(authenticated)/documents/actions.ts:121`
+
+```typescript
+// ❌ 문제 코드: 다음 단계 조회 시 일반 supabase 사용
+const { data: nextStepApprovers, error: nextStepError } = await supabase
+  .from('approval_step')
+  .select('id')
+  .eq('step_order', nextStepOrder)
+  .eq('status', 'waiting')
+```
+
+**RLS SELECT 정책:**
+```sql
+CREATE POLICY approval_step_select_approver
+ON approval_step FOR SELECT
+USING (approver_id = auth.uid());
+```
+
+### 문제 발생 흐름
+
+1. 최부장이 2단계 승인
+2. 시스템이 3단계 approval_step을 SELECT하려 시도
+   - Step 3: `approver_id = 시스템 관리자`
+   - 현재 사용자 = 최부장
+   - RLS 체크: `approver_id = auth.uid()` → **FALSE**
+   - **SELECT 차단!** ❌
+
+3. `nextStepApprovers` = 빈 배열
+4. `if (nextStepApprovers && nextStepApprovers.length > 0)` → FALSE
+5. UPDATE 코드 실행 안됨 → Step 3이 활성화되지 않음
+
+### 해결 방법
+
+SELECT 쿼리도 `adminSupabase` 사용:
+
+```typescript
+// ✅ 수정된 코드
+const { data: nextStepApprovers, error: nextStepError } = await adminSupabase
+  .from('approval_step')
+  .select('id')
+  .eq('step_order', nextStepOrder)
+  .eq('status', 'waiting')
+```
+
+### 교훈
+
+결재 워크플로우에서 다음 단계 처리 시:
+1. **SELECT 쿼리**: adminSupabase 사용 (다른 사용자의 step 조회)
+2. **UPDATE 쿼리**: adminSupabase 사용 (다른 사용자의 step 수정)
+3. **본인 step 처리**: supabase 사용 가능
+
+**모든 "다음 단계" 관련 쿼리는 adminSupabase를 사용해야 합니다!**
 
 ---
 
