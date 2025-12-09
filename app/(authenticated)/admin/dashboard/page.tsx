@@ -234,9 +234,59 @@ export default async function AdminDashboardPage() {
   // 두 데이터 소스 병합
   const fieldWorkMembers = [...businessTripFromDocMaster, ...fieldWorkFromWorkRequest];
 
-  // 3. 휴직 (향후 별도 테이블 또는 employee 상태로 관리 예정)
-  // 현재는 빈 배열
-  const leaveOfAbsenceMembers: { id: string; name: string; department: string; status: string }[] = [];
+  // 3. 휴직 (document_master - leave(sick) + work_type_change(unpaid_leave, leave_of_absence))
+  // 3-1. leave 문서에서 병가 조회
+  const filteredSickLeaveRequests = vacationRequests?.filter(req => {
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const leaveType = docData.leave_type;
+    return docData.start_date <= today && docData.end_date >= today &&
+           ['sick', 'unpaid'].includes(leaveType);
+  }) || [];
+
+  const sickLeaveMembers = filteredSickLeaveRequests.map(req => {
+    const docData = req.doc_data || {};
+    const leaveTypeLabels: Record<string, string> = {
+      sick: '병가',
+      unpaid: '무급휴직',
+    };
+    return {
+      id: req.id.toString(),
+      name: (req.requester as any)?.name || '알 수 없음',
+      department: (req.requester as any)?.department?.name || '',
+      status: leaveTypeLabels[docData.leave_type] || '휴직',
+    };
+  });
+
+  // 3-2. work_type_change 문서에서 휴직 관련 조회
+  const filteredLeaveOfAbsenceRequests = workTypeChangeRequests?.filter(req => {
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const workType = docData.work_type;
+    return docData.start_date <= today && docData.end_date >= today &&
+           ['unpaid_leave', 'leave_of_absence', 'sick_leave', 'unpaid_sick_leave', 'public_duty', 'family_event_leave'].includes(workType);
+  }) || [];
+
+  const leaveOfAbsenceFromWorkType = filteredLeaveOfAbsenceRequests.map(req => {
+    const docData = req.doc_data || {};
+    const workTypeLabels: Record<string, string> = {
+      unpaid_leave: '무급휴직',
+      leave_of_absence: '휴직',
+      sick_leave: '병가',
+      unpaid_sick_leave: '무급병가',
+      public_duty: '공가',
+      family_event_leave: '경조사휴가',
+    };
+    return {
+      id: req.id.toString(),
+      name: (req.requester as any)?.name || '알 수 없음',
+      department: (req.requester as any)?.department?.name || '',
+      status: workTypeLabels[docData.work_type] || '휴직',
+    };
+  });
+
+  // 병합
+  const leaveOfAbsenceMembers = [...sickLeaveMembers, ...leaveOfAbsenceFromWorkType];
 
   // 4. 근무 변경 (document_master - work_type_change + work_request - remote)
   // 오늘 날짜가 기간에 포함되고, work_type이 근무 변경 관련인 것만 필터링
@@ -315,9 +365,27 @@ export default async function AdminDashboardPage() {
     };
   });
 
-  // 6. 기타 (향후 확장 예정)
-  // 현재는 빈 배열
-  const etcMembers: { id: string; name: string; department: string; status: string }[] = [];
+  // 6. 기타 (document_master - work_type_change(menstrual_leave 등))
+  const filteredEtcRequests = workTypeChangeRequests?.filter(req => {
+    const docData = req.doc_data || {};
+    if (!docData.start_date || !docData.end_date) return false;
+    const workType = docData.work_type;
+    return docData.start_date <= today && docData.end_date >= today &&
+           ['menstrual_leave'].includes(workType);
+  }) || [];
+
+  const etcMembers = filteredEtcRequests.map(req => {
+    const docData = req.doc_data || {};
+    const workTypeLabels: Record<string, string> = {
+      menstrual_leave: '여성보건휴가',
+    };
+    return {
+      id: req.id.toString(),
+      name: (req.requester as any)?.name || '알 수 없음',
+      department: (req.requester as any)?.department?.name || '',
+      status: workTypeLabels[docData.work_type] || '기타',
+    };
+  });
 
   const workStatusData = {
     '휴가': vacationMembers,
