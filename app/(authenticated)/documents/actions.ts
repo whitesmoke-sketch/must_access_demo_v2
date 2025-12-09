@@ -133,7 +133,7 @@ export async function approveDocument(documentId: number, docType?: DocumentType
 
       if (nextStepApprovers && nextStepApprovers.length > 0) {
         const nextStepIds = nextStepApprovers.map(s => s.id)
-        const { error: activateError } = await supabase
+        const { error: activateError } = await adminSupabase
           .from('approval_step')
           .update({ status: 'pending' })
           .in('id', nextStepIds)
