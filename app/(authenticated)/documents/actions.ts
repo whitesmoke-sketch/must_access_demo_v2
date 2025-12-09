@@ -97,7 +97,8 @@ export async function approveDocument(documentId: number, docType?: DocumentType
 
     if (isLastStep) {
       // 최종 승인 → document_master 상태 변경
-      const { error: updateDocError } = await supabase
+      // RLS 정책으로 인해 결재자는 document_master를 직접 수정할 수 없으므로 adminSupabase 사용
+      const { error: updateDocError } = await adminSupabase
         .from('document_master')
         .update({
           status: 'approved',
@@ -222,7 +223,9 @@ export async function rejectDocument(documentId: number, rejectReason: string, d
     }
 
     // document_master 상태 업데이트
-    const { error: updateDocError } = await supabase
+    // RLS 정책으로 인해 결재자는 document_master를 직접 수정할 수 없으므로 adminSupabase 사용
+    const adminSupabase = createAdminClient()
+    const { error: updateDocError } = await adminSupabase
       .from('document_master')
       .update({
         status: 'rejected',
