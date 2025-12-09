@@ -173,22 +173,39 @@ export default async function AdminDashboardPage() {
            ['annual', 'half_day', 'quarter_day', 'award'].includes(leaveType);
   }) || [];
 
-  const vacationMembers = filteredVacationRequests.map(req => {
+  // 1-2. 경조사 휴가 (work_type_change - family_event_leave)
+  const filteredFamilyEventRequests = workTypeChangeRequests?.filter(req => {
     const docData = req.doc_data || {};
-    const leaveType = docData.leave_type;
-    const leaveTypeLabels: Record<string, string> = {
-      annual: '연차',
-      half_day: '반차',
-      quarter_day: '반반차',
-      award: '포상휴가',
-    };
-    return {
+    if (!docData.start_date || !docData.end_date) return false;
+    const workType = docData.work_type;
+    return docData.start_date <= today && docData.end_date >= today &&
+           workType === 'family_event_leave';
+  }) || [];
+
+  const vacationMembers = [
+    ...filteredVacationRequests.map(req => {
+      const docData = req.doc_data || {};
+      const leaveType = docData.leave_type;
+      const leaveTypeLabels: Record<string, string> = {
+        annual: '연차',
+        half_day: '반차',
+        quarter_day: '반반차',
+        award: '포상휴가',
+      };
+      return {
+        id: req.id.toString(),
+        name: (req.requester as any)?.name || '알 수 없음',
+        department: (req.requester as any)?.department?.name || '',
+        status: leaveTypeLabels[leaveType] || '연차',
+      };
+    }),
+    ...filteredFamilyEventRequests.map(req => ({
       id: req.id.toString(),
       name: (req.requester as any)?.name || '알 수 없음',
       department: (req.requester as any)?.department?.name || '',
-      status: leaveTypeLabels[leaveType] || '연차',
-    };
-  });
+      status: '경조사휴가',
+    })),
+  ];
 
   // 2. 사외 근무 (document_master - work_type_change(business_trip) + work_request - field_work, business_trip)
   // 2-1. document_master에서 출장/외근 조회
@@ -258,13 +275,13 @@ export default async function AdminDashboardPage() {
     };
   });
 
-  // 3-2. work_type_change 문서에서 휴직 관련 조회
+  // 3-2. work_type_change 문서에서 휴직 관련 조회 (휴직만 - 기타 카테고리 제외)
   const filteredLeaveOfAbsenceRequests = workTypeChangeRequests?.filter(req => {
     const docData = req.doc_data || {};
     if (!docData.start_date || !docData.end_date) return false;
     const workType = docData.work_type;
     return docData.start_date <= today && docData.end_date >= today &&
-           ['unpaid_leave', 'leave_of_absence', 'sick_leave', 'unpaid_sick_leave', 'public_duty', 'family_event_leave'].includes(workType);
+           ['unpaid_leave', 'leave_of_absence', 'sick_leave'].includes(workType);
   }) || [];
 
   const leaveOfAbsenceFromWorkType = filteredLeaveOfAbsenceRequests.map(req => {
@@ -273,9 +290,6 @@ export default async function AdminDashboardPage() {
       unpaid_leave: '무급휴직',
       leave_of_absence: '휴직',
       sick_leave: '병가',
-      unpaid_sick_leave: '무급병가',
-      public_duty: '공가',
-      family_event_leave: '경조사휴가',
     };
     return {
       id: req.id.toString(),
@@ -365,19 +379,21 @@ export default async function AdminDashboardPage() {
     };
   });
 
-  // 6. 기타 (document_master - work_type_change(menstrual_leave 등))
+  // 6. 기타 (document_master - work_type_change(menstrual_leave, unpaid_sick_leave, public_duty))
   const filteredEtcRequests = workTypeChangeRequests?.filter(req => {
     const docData = req.doc_data || {};
     if (!docData.start_date || !docData.end_date) return false;
     const workType = docData.work_type;
     return docData.start_date <= today && docData.end_date >= today &&
-           ['menstrual_leave'].includes(workType);
+           ['menstrual_leave', 'unpaid_sick_leave', 'public_duty'].includes(workType);
   }) || [];
 
   const etcMembers = filteredEtcRequests.map(req => {
     const docData = req.doc_data || {};
     const workTypeLabels: Record<string, string> = {
       menstrual_leave: '여성보건휴가',
+      unpaid_sick_leave: '무급병가',
+      public_duty: '공가휴가',
     };
     return {
       id: req.id.toString(),
