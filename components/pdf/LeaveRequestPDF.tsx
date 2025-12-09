@@ -139,10 +139,20 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
 
-  // 메인 컨테이너 (성명/소속부터 하단까지 연결)
+  // 메인 컨테이너 (성명/소속부터 하단까지 연결, 페이지 끝까지 채움)
   mainContainer: {
+    flex: 1,
     borderWidth: 1,
     borderColor: '#000',
+  },
+  // 메인 컨테이너 내부 콘텐츠 영역
+  mainContent: {
+    flexDirection: 'column',
+  },
+  // 메인 컨테이너 내부 푸터 영역 (하단 고정)
+  mainFooterWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
 
   // 성명/소속 행
@@ -448,144 +458,149 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
           </View>
         )}
 
-        {/* 메인 컨테이너 (성명/소속부터 하단까지 연결된 박스) */}
+        {/* 메인 컨테이너 (성명/소속부터 하단까지 연결된 박스, 페이지 끝까지 채움) */}
         <View style={styles.mainContainer}>
-          {/* 성명/소속 행 */}
-          <View style={styles.infoRow}>
-            <View style={[styles.infoCell, styles.infoCellBorder]}>
-              <View style={styles.infoLabel}>
-                <Text style={styles.infoLabelText}>성명</Text>
-              </View>
-              <View style={styles.infoValue}>
-                <Text style={styles.infoValueText}>{data.requester.name}</Text>
-              </View>
-            </View>
-            <View style={styles.infoCell}>
-              <View style={styles.infoLabel}>
-                <Text style={styles.infoLabelText}>소속</Text>
-              </View>
-              <View style={styles.infoValue}>
-                <Text style={styles.infoValueText}>{data.requester.department}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 보유연차 행 */}
-          <View style={styles.leaveBalanceRow}>
-            <View style={styles.leaveBalanceLabel}>
-              <Text style={styles.infoLabelText}>보유연차</Text>
-            </View>
-            <View style={styles.leaveBalanceValue}>
-              <Text style={styles.infoValueText}>{data.totalLeave}</Text>
-            </View>
-          </View>
-
-          {/* 휴가기간 테이블 (휴가기간 라벨 세로 병합) */}
-          <View style={styles.periodSection}>
-            {/* 왼쪽: 휴가기간 라벨 (세로 병합) */}
-            <View style={styles.periodLabelColumn}>
-              <Text style={styles.periodLabelText}>휴가기간</Text>
-            </View>
-
-            {/* 오른쪽: 일자/유형/기간 테이블 */}
-            <View style={styles.periodTableColumn}>
-              {/* 헤더 */}
-              <View style={styles.periodTableHeader}>
-                <View style={styles.periodDateCell}>
-                  <Text style={styles.periodCellTextBold}>일자</Text>
+          {/* 콘텐츠 영역 (성명/소속 ~ 잔여연차/총휴가일수) */}
+          <View style={styles.mainContent}>
+            {/* 성명/소속 행 */}
+            <View style={styles.infoRow}>
+              <View style={[styles.infoCell, styles.infoCellBorder]}>
+                <View style={styles.infoLabel}>
+                  <Text style={styles.infoLabelText}>성명</Text>
                 </View>
-                <View style={styles.periodTypeCell}>
-                  <Text style={styles.periodCellTextBold}>유형</Text>
-                </View>
-                <View style={styles.periodDaysCell}>
-                  <Text style={styles.periodCellTextBold}>기간</Text>
+                <View style={styles.infoValue}>
+                  <Text style={styles.infoValueText}>{data.requester.name}</Text>
                 </View>
               </View>
+              <View style={styles.infoCell}>
+                <View style={styles.infoLabel}>
+                  <Text style={styles.infoLabelText}>소속</Text>
+                </View>
+                <View style={styles.infoValue}>
+                  <Text style={styles.infoValueText}>{data.requester.department}</Text>
+                </View>
+              </View>
+            </View>
 
-              {/* 휴가 기간 행들 */}
-              {periodRows.map((period, index) => (
-                <View
-                  key={index}
-                  style={
-                    index === periodRows.length - 1 && emptyRowCount === 0
-                      ? styles.periodTableRowLast
-                      : styles.periodTableRow
-                  }
-                >
+            {/* 보유연차 행 */}
+            <View style={styles.leaveBalanceRow}>
+              <View style={styles.leaveBalanceLabel}>
+                <Text style={styles.infoLabelText}>보유연차</Text>
+              </View>
+              <View style={styles.leaveBalanceValue}>
+                <Text style={styles.infoValueText}>{data.totalLeave}</Text>
+              </View>
+            </View>
+
+            {/* 휴가기간 테이블 (휴가기간 라벨 세로 병합) */}
+            <View style={styles.periodSection}>
+              {/* 왼쪽: 휴가기간 라벨 (세로 병합) */}
+              <View style={styles.periodLabelColumn}>
+                <Text style={styles.periodLabelText}>휴가기간</Text>
+              </View>
+
+              {/* 오른쪽: 일자/유형/기간 테이블 */}
+              <View style={styles.periodTableColumn}>
+                {/* 헤더 */}
+                <View style={styles.periodTableHeader}>
                   <View style={styles.periodDateCell}>
-                    <Text style={styles.periodCellText}>
-                      {formatDateRange(period.startDate, period.endDate)}
-                    </Text>
+                    <Text style={styles.periodCellTextBold}>일자</Text>
                   </View>
                   <View style={styles.periodTypeCell}>
-                    <Text style={styles.periodCellText}>
-                      {LeaveTypeLabelMap[period.leaveType] || '연차'}
-                    </Text>
+                    <Text style={styles.periodCellTextBold}>유형</Text>
                   </View>
                   <View style={styles.periodDaysCell}>
-                    <Text style={styles.periodCellText}>
-                      {formatDaysCount(period.days)}
-                    </Text>
+                    <Text style={styles.periodCellTextBold}>기간</Text>
                   </View>
                 </View>
-              ))}
 
-              {/* 빈 행 추가 (최소 5행 유지) */}
-              {Array.from({ length: emptyRowCount }).map((_, index) => (
-                <View
-                  key={`empty-${index}`}
-                  style={
-                    index === emptyRowCount - 1
-                      ? styles.periodTableRowLast
-                      : styles.periodTableRow
-                  }
-                >
-                  <View style={styles.periodDateCell} />
-                  <View style={styles.periodTypeCell} />
-                  <View style={styles.periodDaysCell} />
-                </View>
-              ))}
-            </View>
-          </View>
+                {/* 휴가 기간 행들 */}
+                {periodRows.map((period, index) => (
+                  <View
+                    key={index}
+                    style={
+                      index === periodRows.length - 1 && emptyRowCount === 0
+                        ? styles.periodTableRowLast
+                        : styles.periodTableRow
+                    }
+                  >
+                    <View style={styles.periodDateCell}>
+                      <Text style={styles.periodCellText}>
+                        {formatDateRange(period.startDate, period.endDate)}
+                      </Text>
+                    </View>
+                    <View style={styles.periodTypeCell}>
+                      <Text style={styles.periodCellText}>
+                        {LeaveTypeLabelMap[period.leaveType] || '연차'}
+                      </Text>
+                    </View>
+                    <View style={styles.periodDaysCell}>
+                      <Text style={styles.periodCellText}>
+                        {formatDaysCount(period.days)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
 
-          {/* 잔여연차/총휴가일수 행 */}
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryLabelCell}>
-              <Text style={styles.infoLabelText}>잔여연차</Text>
-            </View>
-            <View style={styles.summaryValueCell}>
-              <Text style={styles.infoValueText}>{data.remainingLeave}</Text>
-            </View>
-            <View style={styles.summaryLabelCell}>
-              <Text style={styles.infoLabelText}>총휴가일수</Text>
-            </View>
-            <View style={styles.summaryValueCellLast}>
-              <Text style={styles.infoValueText}>{data.totalDays}</Text>
-            </View>
-          </View>
-
-          {/* 하단 영역 (박스 안에 포함) */}
-          <View style={styles.footerSection}>
-            <Text style={styles.footerText}>위와 같이 휴가를 신청합니다.</Text>
-            <Text style={styles.footerDate}>{formatDateKorean(data.createdAt)}</Text>
-
-            <View style={styles.signatureSection}>
-              {/* 회사 로고 (3개 막대 + 텍스트) */}
-              <View style={styles.logoContainer}>
-                <View style={styles.logoBars}>
-                  <View style={[styles.logoBar, { backgroundColor: '#000' }]} />
-                  <View style={[styles.logoBar, { backgroundColor: '#000' }]} />
-                  <View style={[styles.logoBar, { backgroundColor: '#2D8B4E' }]} />
-                </View>
-                <View style={styles.logoTextContainer}>
-                  <Text style={styles.logoText}>MUST</Text>
-                  <Text style={styles.logoSubText}>COMPANY</Text>
-                </View>
+                {/* 빈 행 추가 (최소 5행 유지) */}
+                {Array.from({ length: emptyRowCount }).map((_, index) => (
+                  <View
+                    key={`empty-${index}`}
+                    style={
+                      index === emptyRowCount - 1
+                        ? styles.periodTableRowLast
+                        : styles.periodTableRow
+                    }
+                  >
+                    <View style={styles.periodDateCell} />
+                    <View style={styles.periodTypeCell} />
+                    <View style={styles.periodDaysCell} />
+                  </View>
+                ))}
               </View>
+            </View>
 
-              {/* 신청인 */}
-              <View style={styles.signatureContainer}>
-                <Text style={styles.signatureLabel}>신청인 :</Text>
+            {/* 잔여연차/총휴가일수 행 */}
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryLabelCell}>
+                <Text style={styles.infoLabelText}>잔여연차</Text>
+              </View>
+              <View style={styles.summaryValueCell}>
+                <Text style={styles.infoValueText}>{data.remainingLeave}</Text>
+              </View>
+              <View style={styles.summaryLabelCell}>
+                <Text style={styles.infoLabelText}>총휴가일수</Text>
+              </View>
+              <View style={styles.summaryValueCellLast}>
+                <Text style={styles.infoValueText}>{data.totalDays}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 하단 영역 (flex로 남은 공간 채우고 하단 정렬) */}
+          <View style={styles.mainFooterWrapper}>
+            <View style={styles.footerSection}>
+              <Text style={styles.footerText}>위와 같이 휴가를 신청합니다.</Text>
+              <Text style={styles.footerDate}>{formatDateKorean(data.createdAt)}</Text>
+
+              <View style={styles.signatureSection}>
+                {/* 회사 로고 (3개 막대 + 텍스트) */}
+                <View style={styles.logoContainer}>
+                  <View style={styles.logoBars}>
+                    <View style={[styles.logoBar, { backgroundColor: '#000' }]} />
+                    <View style={[styles.logoBar, { backgroundColor: '#000' }]} />
+                    <View style={[styles.logoBar, { backgroundColor: '#2D8B4E' }]} />
+                  </View>
+                  <View style={styles.logoTextContainer}>
+                    <Text style={styles.logoText}>MUST</Text>
+                    <Text style={styles.logoSubText}>COMPANY</Text>
+                  </View>
+                </View>
+
+                {/* 신청인 */}
+                <View style={styles.signatureContainer}>
+                  <Text style={styles.signatureLabel}>신청인 :</Text>
+                </View>
               </View>
             </View>
           </View>
