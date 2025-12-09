@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { WorkStatusCard } from '@/components/dashboard/WorkStatusCard'
 import { LeaveBalanceCard } from '@/components/dashboard/LeaveBalanceCard'
@@ -10,6 +10,7 @@ import { StudioAccessCard } from '@/components/dashboard/StudioAccessCard'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
   // 인증 확인
   const { data: { user }, error } = await supabase.auth.getUser()
@@ -162,7 +163,7 @@ export default async function DashboardPage() {
           .in('id', requestIds)
           .order('created_at', { ascending: true })
           .limit(3),
-        supabase
+        adminSupabase
           .from('approval_step')
           .select('request_id, step_order, status, approver_id, approved_at, comment, approver:approver_id(id, name)')
           .eq('request_type', 'leave')
@@ -206,7 +207,7 @@ export default async function DashboardPage() {
   // 내 요청 문서들의 approval steps도 조회
   if (myRequests.length > 0) {
     const myRequestIds = myRequests.map(r => r.id)
-    const { data: mySteps } = await supabase
+    const { data: mySteps } = await adminSupabase
       .from('approval_step')
       .select('request_id, step_order, status, approver_id, approved_at, comment, approver:approver_id(id, name)')
       .eq('request_type', 'leave')
