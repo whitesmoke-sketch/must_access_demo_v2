@@ -154,10 +154,10 @@ BEGIN
     AND expiration_date >= CURRENT_DATE
     AND approval_status = 'approved';
 
-  -- 2. Calculate total used days from usage records
+  -- 2. Calculate total used days from usage records (leave_usage_link 사용)
   SELECT COALESCE(SUM(u.used_days), 0)
   INTO v_used
-  FROM annual_leave_usage u
+  FROM leave_usage_link u
   JOIN annual_leave_grant g ON u.grant_id = g.id
   WHERE g.employee_id = p_employee_id;
 
@@ -171,7 +171,7 @@ BEGIN
   FROM annual_leave_grant g
   LEFT JOIN (
     SELECT grant_id, SUM(used_days) as total_used
-    FROM annual_leave_usage
+    FROM leave_usage_link
     GROUP BY grant_id
   ) usage ON g.id = usage.grant_id
   WHERE g.employee_id = p_employee_id
@@ -212,3 +212,96 @@ GRANT EXECUTE ON FUNCTION update_leave_balance(UUID) TO service_role;
 GRANT EXECUTE ON FUNCTION update_leave_balance(UUID) TO authenticated;
 
 COMMENT ON FUNCTION update_leave_balance IS 'Recalculates and updates leave balance for an employee based on grants and usage';
+
+-- ================================================================
+-- 4. WORK REQUEST FUNCTIONS
+-- ================================================================
+
+-- updated_at 자동 업데이트 트리거 함수
+CREATE OR REPLACE FUNCTION update_work_request_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 트리거 생성 (이미 존재하면 무시)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_work_request_updated_at') THEN
+        CREATE TRIGGER trigger_update_work_request_updated_at
+            BEFORE UPDATE ON work_request
+            FOR EACH ROW
+            EXECUTE FUNCTION update_work_request_updated_at();
+    END IF;
+END $$;
+
+COMMENT ON FUNCTION update_work_request_updated_at IS 'Automatically updates updated_at timestamp for work_request table';
+
+-- ================================================================
+-- 5. STUDIO ACCESS FUNCTIONS
+-- ================================================================
+
+-- updated_at 자동 업데이트 트리거 함수
+CREATE OR REPLACE FUNCTION update_studio_access_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 트리거 생성 (이미 존재하면 무시)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'studio_access_updated_at') THEN
+        CREATE TRIGGER studio_access_updated_at
+            BEFORE UPDATE ON studio_access
+            FOR EACH ROW
+            EXECUTE FUNCTION update_studio_access_updated_at();
+    END IF;
+END $$;
+
+COMMENT ON FUNCTION update_studio_access_updated_at IS 'Automatically updates updated_at timestamp for studio_access table';
+
+-- ================================================================
+-- 6. DEPARTMENT PATH FUNCTION
+-- ================================================================
+
+-- 부서 경로 조회 함수 (department_with_stats 뷰에서 사용)
+CREATE OR REPLACE FUNCTION get_department_path(p_department_id BIGINT)
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+  v_path TEXT := '';
+  v_current_id BIGINT := p_department_id;
+  v_name TEXT;
+  v_parent_id BIGINT;
+BEGIN
+  WHILE v_current_id IS NOT NULL LOOP
+    SELECT name, parent_department_id
+    INTO v_name, v_parent_id
+    FROM department
+    WHERE id = v_current_id;
+
+    IF v_path = '' THEN
+      v_path := v_name;
+    ELSE
+      v_path := v_name || ' > ' || v_path;
+    END IF;
+
+    v_current_id := v_parent_id;
+  END LOOP;
+
+  RETURN v_path;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_department_path(BIGINT) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_department_path(BIGINT) TO anon;
+GRANT EXECUTE ON FUNCTION get_department_path(BIGINT) TO service_role;
+
+COMMENT ON FUNCTION get_department_path IS 'Returns full path of department from root to given department_id';

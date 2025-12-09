@@ -1,8 +1,11 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Check, X, CheckCircle, XCircle, Clock as ClockIcon, FileText, ArrowLeft, ChevronRight } from 'lucide-react'
+import { Check, X, CheckCircle, XCircle, Clock as ClockIcon, FileText, ArrowLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PDFDownloadButton } from '@/components/pdf'
+import type { LeaveRequestPDFData, ApproverInfo, CCInfo } from '@/components/pdf/types'
+import type { DocumentStatus, LeaveType as PDFLeaveType } from '@/types/document'
 import {
   Dialog,
   DialogContent,
@@ -247,6 +250,13 @@ export function ApprovalDocumentDetailModal({
   const [linkedDocDetail, setLinkedDocDetail] = useState<LinkedDocumentDetail | null>(null)
   const [linkedDocDetailLoading, setLinkedDocDetailLoading] = useState(false)
 
+  // PDF용 연차 잔여일수 정보
+  const [leaveBalance, setLeaveBalance] = useState<{
+    total_days: number
+    used_days: number
+    remaining_days: number
+  } | null>(null)
+
   // initialApprovalSteps가 변경되면 상태 업데이트
   useEffect(() => {
     if (initialApprovalSteps) {
@@ -269,6 +279,41 @@ export function ApprovalDocumentDetailModal({
       setLinkedDocuments([])
     }
   }, [open, document])
+
+  // 연차 잔여일수 조회 (leave 문서일 때만)
+  useEffect(() => {
+    if (open && document && (document.doc_type === 'leave' || !document.doc_type)) {
+      fetchLeaveBalance()
+    } else {
+      setLeaveBalance(null)
+    }
+  }, [open, document])
+
+  const fetchLeaveBalance = async () => {
+    if (!document?.employee_id) return
+
+    const supabase = createClient()
+    try {
+      // 신청자의 연차 잔여일수 조회
+      const { data, error } = await supabase
+        .from('annual_leave')
+        .select('total_days, used_days, remaining_days')
+        .eq('employee_id', document.employee_id)
+        .eq('year', new Date().getFullYear())
+        .single()
+
+      if (error) {
+        console.error('Failed to fetch leave balance:', error)
+        // 기본값 설정
+        setLeaveBalance({ total_days: 15, used_days: 0, remaining_days: 15 })
+      } else {
+        setLeaveBalance(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch leave balance:', error)
+      setLeaveBalance({ total_days: 15, used_days: 0, remaining_days: 15 })
+    }
+  }
 
   const fetchLinkedDocuments = async () => {
     if (!document) return
@@ -467,6 +512,96 @@ export function ApprovalDocumentDetailModal({
     if (!employee) return null
     return Array.isArray(employee) ? employee[0] || null : employee
   }
+
+  // PDF 데이터 생성 함수
+  const buildPDFData = (): LeaveRequestPDFData | null => {
+    if (!document || !leaveBalance) return null
+    if (document.doc_type && document.doc_type !== 'leave') return null
+
+    const emp = getEmployee(document.employee)
+    if (!emp) return null
+
+    // 결재자 정보 변환
+    const approvers: ApproverInfo[] = approvalSteps.map((step) => {
+      let approverName = '알 수 없음'
+      if (step.employee) {
+        approverName = Array.isArray(step.employee) ? step.employee[0]?.name || '알 수 없음' : step.employee.name || '알 수 없음'
+      } else if (step.approver) {
+        approverName = Array.isArray(step.approver) ? step.approver[0]?.name || '알 수 없음' : step.approver.name || '알 수 없음'
+      }
+
+      return {
+        id: step.approver_id || step.id || `step-${step.step_order}`,
+        name: approverName,
+        role: '',
+        department: '',
+        status: step.status as 'pending' | 'approved' | 'rejected' | 'waiting',
+        comment: step.comment || undefined,
+        approvedAt: step.approved_at || undefined,
+      }
+    })
+
+    // 참조자 정보 변환
+    const ccListData: CCInfo[] | undefined = ccList.length > 0
+      ? ccList.map((cc) => {
+          const ccEmployee = cc.employee
+            ? Array.isArray(cc.employee) ? cc.employee[0] : cc.employee
+            : null
+          return {
+            id: cc.employee_id,
+            name: ccEmployee?.name || '알 수 없음',
+            role: ccEmployee?.role
+              ? Array.isArray(ccEmployee.role) ? ccEmployee.role[0]?.name || '' : ccEmployee.role.name
+              : '',
+            department: ccEmployee?.department
+              ? Array.isArray(ccEmployee.department) ? ccEmployee.department[0]?.name || '' : ccEmployee.department.name
+              : '',
+          }
+        })
+      : undefined
+
+    // 잔여 연차 계산
+    const remainingAfterRequest = leaveBalance.remaining_days - (document.requested_days || 0)
+
+    // status 매핑 (cancelled -> rejected로 변환)
+    const statusMap: Record<string, DocumentStatus> = {
+      pending: 'pending',
+      approved: 'approved',
+      rejected: 'rejected',
+      cancelled: 'rejected',
+      retrieved: 'retrieved',
+      draft: 'draft',
+    }
+    const mappedStatus = statusMap[document.status] || 'pending'
+
+    return {
+      documentNumber: undefined,
+      createdAt: document.requested_at,
+      status: mappedStatus,
+      requester: {
+        id: emp.id,
+        name: emp.name,
+        department: getDepartmentName(emp.department),
+        role: emp.role
+          ? Array.isArray(emp.role) ? emp.role[0]?.name || '' : emp.role.name
+          : '',
+      },
+      totalLeave: leaveBalance.total_days,
+      usedLeave: leaveBalance.used_days,
+      remainingLeave: remainingAfterRequest,
+      leaveType: (document.leave_type || 'annual') as PDFLeaveType,
+      startDate: document.start_date,
+      endDate: document.end_date,
+      totalDays: document.requested_days || 0,
+      reason: document.reason || undefined,
+      approvers,
+      ccList: ccListData,
+    }
+  }
+
+  // PDF 다운로드 가능 여부
+  const isLeaveDocument = !document?.doc_type || document.doc_type === 'leave'
+  const pdfData = isLeaveDocument ? buildPDFData() : null
 
   const getDepartmentName = (department: { name: string } | { name: string }[] | null | undefined): string => {
     if (!department) return '-'
@@ -1219,33 +1354,48 @@ export function ApprovalDocumentDetailModal({
             )}
           </Card>
 
-          <DialogFooter>
-            {canApprove && !viewingLinkedDoc && (
-              <>
-                <Button
-                  onClick={handleApprove}
-                  disabled={processing}
-                  style={{
-                    backgroundColor: '#10B981',
-                    color: 'white',
-                  }}
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  승인
-                </Button>
-                <Button
-                  onClick={handleRejectClick}
-                  disabled={processing}
-                  style={{
-                    backgroundColor: '#EF4444',
-                    color: 'white',
-                  }}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  반려
-                </Button>
-              </>
+          <DialogFooter className="flex justify-between">
+            {/* PDF 다운로드 버튼 (연차 문서일 때만) */}
+            {!viewingLinkedDoc && isLeaveDocument && pdfData && (
+              <PDFDownloadButton
+                data={pdfData}
+                fileName={`휴가신청서_${getEmployee(document?.employee)?.name || '신청자'}_${document?.start_date || ''}.pdf`}
+                variant="outline"
+                size="md"
+              >
+                PDF 다운로드
+              </PDFDownloadButton>
             )}
+
+            {/* 승인/반려 버튼 */}
+            <div className="flex gap-2">
+              {canApprove && !viewingLinkedDoc && (
+                <>
+                  <Button
+                    onClick={handleApprove}
+                    disabled={processing}
+                    style={{
+                      backgroundColor: '#10B981',
+                      color: 'white',
+                    }}
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    승인
+                  </Button>
+                  <Button
+                    onClick={handleRejectClick}
+                    disabled={processing}
+                    style={{
+                      backgroundColor: '#EF4444',
+                      color: 'white',
+                    }}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    반려
+                  </Button>
+                </>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

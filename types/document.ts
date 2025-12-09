@@ -13,7 +13,7 @@ export type DocumentType = 'leave' | 'overtime' | 'expense' | 'welfare' | 'gener
 
 export type DocumentStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'retrieved'
 
-export type LeaveType = 'annual' | 'half_day' | 'quarter_day' | 'award'
+export type LeaveType = 'annual' | 'half_day' | 'half_day_am' | 'half_day_pm' | 'quarter_day' | 'award' | 'sick' | 'special'
 
 export type HalfDaySlot = 'morning' | 'afternoon'
 

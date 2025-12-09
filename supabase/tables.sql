@@ -195,135 +195,14 @@ COMMENT ON COLUMN invited_employees.status IS 'pending: awaiting registration, r
 COMMENT ON COLUMN invited_employees.invited_by IS 'Employee who created the invitation (usually HR)';
 
 -- ================================================================
--- 2. DOCUMENT TEMPLATE & APPROVAL WORKFLOW
+-- [REMOVED] DOCUMENT TEMPLATE & SUBMISSION TABLES
+-- document_template, document_submission, document_approval_line,
+-- document_approval_instance 테이블들은 원격 DB에서 삭제됨
+-- document_master + approval_step 시스템으로 대체됨
 -- ================================================================
 
--- Document template table
-CREATE TABLE document_template (
-  id BIGSERIAL PRIMARY KEY,
-  template_name VARCHAR(100) NOT NULL,
-  template_type VARCHAR(20) NOT NULL,
-  category VARCHAR(50),
-  description TEXT,
-
-  -- Notion integration
-  notion_page_id VARCHAR(100),
-  notion_url VARCHAR(500),
-
-  is_active BOOLEAN DEFAULT TRUE,
-  version VARCHAR(20),
-
-  -- Approval related
-  requires_approval BOOLEAN DEFAULT TRUE,
-  min_approvers INT DEFAULT 1,
-  max_approvers INT DEFAULT 10,
-
-  -- Action processing
-  action_type VARCHAR(50) CHECK (action_type IN ('deduct_leave', 'grant_leave', 'process_welfare', 'none', 'custom')),
-  action_config JSONB,
-
-  created_by UUID REFERENCES employee(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_doctemp_type ON document_template(template_type);
-CREATE INDEX idx_doctemp_category ON document_template(category);
-CREATE INDEX idx_doctemp_active ON document_template(is_active);
-
--- Document submission table
-CREATE TABLE document_submission (
-  id BIGSERIAL PRIMARY KEY,
-  template_id BIGINT NOT NULL REFERENCES document_template(id),
-  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-  submission_title VARCHAR(255) NOT NULL,
-
-  -- Form data
-  form_data JSONB NOT NULL DEFAULT '{}',
-
-  -- Approval line history
-  original_approval_line JSONB,
-  modified_approval_line JSONB,
-  modification_reason TEXT,
-
-  -- Notion integration
-  notion_page_id VARCHAR(100),
-  notion_url VARCHAR(500),
-
-  -- Status
-  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'processing', 'completed', 'rejected', 'error')),
-  reviewer_id UUID REFERENCES employee(id),
-  review_comment TEXT,
-
-  submitted_at TIMESTAMPTZ,
-  reviewed_at TIMESTAMPTZ,
-
-  -- Processing completion
-  processed_at TIMESTAMPTZ,
-  error_message TEXT,
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_docsub_template ON document_submission(template_id);
-CREATE INDEX idx_docsub_employee ON document_submission(employee_id);
-CREATE INDEX idx_docsub_status ON document_submission(status);
-
--- Document approval line table
-CREATE TABLE document_approval_line (
-  id BIGSERIAL PRIMARY KEY,
-  template_id BIGINT NOT NULL REFERENCES document_template(id) ON DELETE CASCADE,
-  step_order INT NOT NULL,
-
-  -- How to find approver
-  approver_type VARCHAR(50) NOT NULL CHECK (approver_type IN ('direct_manager', 'department_manager', 'role_based', 'fixed_user')),
-  approver_value VARCHAR(255),
-
-  -- Constraints
-  is_required BOOLEAN DEFAULT TRUE,
-  can_parallel BOOLEAN DEFAULT FALSE,
-
-  display_name VARCHAR(100),
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(template_id, step_order)
-);
-
-CREATE INDEX idx_approval_line_template ON document_approval_line(template_id);
-
--- Document approval instance table
-CREATE TABLE document_approval_instance (
-  id BIGSERIAL PRIMARY KEY,
-  submission_id BIGINT NOT NULL REFERENCES document_submission(id) ON DELETE CASCADE,
-  step_order INT NOT NULL,
-
-  -- Actual approver
-  approver_id UUID NOT NULL REFERENCES employee(id),
-
-  -- Approval status
-  status VARCHAR(20) NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'pending', 'approved', 'rejected', 'skipped')),
-
-  -- Approval/rejection information
-  comment TEXT,
-  approved_at TIMESTAMPTZ,
-  rejected_at TIMESTAMPTZ,
-
-  -- Notification
-  notified_at TIMESTAMPTZ,
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(submission_id, step_order)
-);
-
-CREATE INDEX idx_approval_inst_submission ON document_approval_instance(submission_id);
-CREATE INDEX idx_approval_inst_approver ON document_approval_instance(approver_id);
-CREATE INDEX idx_approval_inst_status ON document_approval_instance(status);
-
 -- ================================================================
--- 3. GENERIC APPROVAL SYSTEM
+-- 2. GENERIC APPROVAL SYSTEM
 -- ================================================================
 
 -- Approval template table (user-saved approval lines)
@@ -559,23 +438,10 @@ CREATE INDEX idx_grant_expiry ON annual_leave_grant(expiration_date);
 -- - doc_leave.days_count = leave_request.requested_days
 -- - doc_leave.leave_type = leave_request.leave_type
 
--- Annual leave usage table
--- 변경: leave_request_id → document_id (document_master 참조)
-CREATE TABLE annual_leave_usage (
-  id BIGSERIAL PRIMARY KEY,
-  document_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
-  grant_id BIGINT NOT NULL REFERENCES annual_leave_grant(id) ON DELETE CASCADE,
-  used_days DECIMAL(4,1) NOT NULL,
-  used_date DATE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_usage_document ON annual_leave_usage(document_id);
-CREATE INDEX idx_usage_grant ON annual_leave_usage(grant_id);
-CREATE INDEX idx_usage_date ON annual_leave_usage(used_date);
-
-COMMENT ON TABLE annual_leave_usage IS 'Annual leave usage records - references document_master';
-COMMENT ON COLUMN annual_leave_usage.document_id IS 'References document_master.id (휴가 문서)';
+-- ================================================================
+-- [REMOVED] annual_leave_usage 테이블은 leave_usage_link로 대체됨
+-- leave_usage_link 테이블은 15. UNIFIED DOCUMENT SYSTEM 섹션에 정의됨
+-- ================================================================
 
 -- Annual leave balance table
 CREATE TABLE annual_leave_balance (
@@ -949,43 +815,10 @@ CREATE INDEX idx_pm_user ON project_member(user_id);
 CREATE INDEX idx_pm_project ON project_member(project_id);
 
 -- ================================================================
--- 11. WELFARE
+-- [REMOVED] 11. WELFARE TABLES
+-- welfare_request, welfare_approval 테이블은 원격 DB에서 삭제됨
+-- document_master + doc_welfare (doc_data JSONB) 시스템으로 대체됨
 -- ================================================================
-
--- Welfare request table
-CREATE TABLE welfare_request (
-  id BIGSERIAL PRIMARY KEY,
-  employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-  welfare_type VARCHAR(20) NOT NULL,
-  event_type VARCHAR(50),
-  event_date DATE NOT NULL,
-  requested_amount DECIMAL(10,2),
-  reason TEXT,
-  attachment_url VARCHAR(500),
-  status VARCHAR(20) DEFAULT 'pending',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_welfare_employee ON welfare_request(employee_id);
-CREATE INDEX idx_welfare_type ON welfare_request(welfare_type);
-CREATE INDEX idx_welfare_status ON welfare_request(status);
-
--- Welfare approval table
-CREATE TABLE welfare_approval (
-  id BIGSERIAL PRIMARY KEY,
-  welfare_request_id BIGINT NOT NULL REFERENCES welfare_request(id) ON DELETE CASCADE,
-  approver_id UUID NOT NULL REFERENCES employee(id),
-  approval_step INT NOT NULL,
-  approved_amount DECIMAL(10,2),
-  status VARCHAR(20) NOT NULL,
-  comment TEXT,
-  approved_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_wappr_request ON welfare_approval(welfare_request_id);
-CREATE INDEX idx_wappr_approver ON welfare_approval(approver_id);
 
 -- ================================================================
 -- 12. MEETING ROOM BOOKING
@@ -1124,7 +957,88 @@ COMMENT ON COLUMN attendance.late_minutes IS 'Number of minutes late (0 if on ti
 COMMENT ON COLUMN attendance.notes IS 'Additional notes about this attendance record';
 
 -- ================================================================
--- 14. VIEWS
+-- 14. WORK REQUEST (재택/외근/출장)
+-- ================================================================
+
+-- work_type enum
+DO $$ BEGIN
+    CREATE TYPE work_type AS ENUM ('remote', 'field_work', 'business_trip');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- work_request 테이블
+CREATE TABLE work_request (
+    id BIGSERIAL PRIMARY KEY,
+    employee_id UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+    work_type work_type NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason TEXT,
+    destination TEXT,  -- 외근/출장 장소 (재택은 NULL)
+    attachment_url VARCHAR(500),
+
+    -- 승인 관련
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    approver_id UUID REFERENCES employee(id),
+    rejection_reason TEXT,
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    approved_at TIMESTAMPTZ,
+    rejected_at TIMESTAMPTZ,
+
+    -- 결재 연동 (레거시 - 현재 미사용)
+    document_submission_id BIGINT,
+    current_step INTEGER DEFAULT 1,
+
+    -- 타임스탬프
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- 제약조건
+    CONSTRAINT work_request_date_range CHECK (end_date >= start_date)
+);
+
+CREATE INDEX idx_work_request_employee ON work_request(employee_id);
+CREATE INDEX idx_work_request_status ON work_request(status);
+CREATE INDEX idx_work_request_start_date ON work_request(start_date);
+CREATE INDEX idx_work_request_work_type ON work_request(work_type);
+CREATE INDEX idx_work_request_date_range ON work_request(start_date, end_date);
+
+COMMENT ON TABLE work_request IS '재택/외근/출장 근무 신청 테이블';
+COMMENT ON COLUMN work_request.work_type IS '근무 유형: remote(재택), field_work(외근), business_trip(출장)';
+COMMENT ON COLUMN work_request.destination IS '외근/출장 장소 (재택은 NULL)';
+
+-- ================================================================
+-- 15. STUDIO ACCESS (스튜디오 출입 관리)
+-- ================================================================
+
+CREATE TABLE studio_access (
+    id BIGSERIAL PRIMARY KEY,
+    location VARCHAR(50) NOT NULL DEFAULT 'B1F_STUDIO',  -- 위치 식별자
+    status VARCHAR(20) NOT NULL DEFAULT 'available'
+        CHECK (status IN ('available', 'restricted')),
+    reason TEXT,  -- 제한 사유
+    restricted_until TIMESTAMPTZ,  -- 제한 종료 시각 (NULL이면 무기한)
+    updated_by UUID REFERENCES employee(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- 동일 location에 대해 하나의 레코드만 유지
+    CONSTRAINT studio_access_location_unique UNIQUE (location)
+);
+
+CREATE INDEX idx_studio_access_location ON studio_access(location);
+CREATE INDEX idx_studio_access_status ON studio_access(status);
+
+COMMENT ON TABLE studio_access IS '스튜디오 출입 상태 관리 테이블';
+COMMENT ON COLUMN studio_access.location IS '위치 식별자 (예: B1F_STUDIO)';
+COMMENT ON COLUMN studio_access.status IS '출입 상태: available(출입 가능), restricted(출입 제한)';
+COMMENT ON COLUMN studio_access.reason IS '제한 사유';
+COMMENT ON COLUMN studio_access.restricted_until IS '제한 종료 시각 (NULL이면 무기한)';
+
+-- ================================================================
+-- 16. VIEWS
 -- ================================================================
 
 -- Department with stats view (requires get_department_path function)
@@ -1231,202 +1145,9 @@ COMMENT ON TABLE document_master IS '통합 문서 마스터 테이블 - 모든 
 COMMENT ON COLUMN document_master.doc_data IS '문서 유형별 상세 데이터 (JSONB) - doc_type에 따라 구조가 다름';
 
 -- ================================================================
--- [DEPRECATED] 아래 doc_* 테이블들은 향후 제거 예정입니다.
--- 새로운 코드에서는 document_master.doc_data JSONB를 사용하세요.
--- 기존 데이터는 마이그레이션 스크립트로 doc_data로 이전됩니다.
+-- [REMOVED] doc_* 테이블들은 document_master.doc_data JSONB로 통합되어 삭제됨
+-- 모든 문서 상세 데이터는 document_master.doc_data에 저장됩니다.
 -- ================================================================
-
--- 휴가 신청 상세 [DEPRECATED - use doc_data]
-CREATE TABLE doc_leave (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    leave_type VARCHAR(50) NOT NULL CHECK (leave_type IN ('annual', 'half_day', 'quarter_day', 'award')),
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    days_count DECIMAL(4,1) NOT NULL,
-    half_day_slot VARCHAR(10) CHECK (half_day_slot IN ('morning', 'afternoon')),
-    reason TEXT,
-    attachment_url VARCHAR(500),
-    deducted_from_grants JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_doc_leave_dates ON doc_leave(start_date, end_date);
-CREATE INDEX idx_doc_leave_type ON doc_leave(leave_type);
-
-COMMENT ON TABLE doc_leave IS '휴가 신청 상세 (연차, 반차, 포상휴가)';
-
--- 야근 수당 신청 상세
-CREATE TABLE doc_overtime (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    work_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    total_hours DECIMAL(4,1) NOT NULL,
-    work_content TEXT NOT NULL,
-    transportation_fee DECIMAL(10,0) DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_doc_overtime_date ON doc_overtime(work_date);
-
-COMMENT ON TABLE doc_overtime IS '야근 수당 신청 상세';
-
--- 지출 결의서 상세
-CREATE TABLE doc_expense (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    expense_date DATE NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    amount DECIMAL(15,0) NOT NULL,
-    merchant_name VARCHAR(100),
-    usage_purpose TEXT,
-    receipt_url VARCHAR(500),
-    expense_items JSONB DEFAULT '[]'::jsonb,
-    payment_method VARCHAR(50) CHECK (payment_method IN ('corporate_card', 'bank_transfer', 'personal_card')),
-    bank_name VARCHAR(100),
-    account_number VARCHAR(50),
-    account_holder VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_doc_expense_date ON doc_expense(expense_date);
-CREATE INDEX idx_doc_expense_category ON doc_expense(category);
-CREATE INDEX idx_doc_expense_payment ON doc_expense(payment_method);
-
-COMMENT ON TABLE doc_expense IS '지출 결의서 상세';
-COMMENT ON COLUMN doc_expense.payment_method IS '지급 방법: corporate_card(법인카드), bank_transfer(세금계산서/이체), personal_card(개인카드)';
-
--- 경조사비 신청 상세
-CREATE TABLE doc_welfare (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    event_type VARCHAR(50) NOT NULL,
-    event_date DATE NOT NULL,
-    target_name VARCHAR(100),
-    relationship VARCHAR(50),
-    amount DECIMAL(15,0),
-    attachment_url VARCHAR(500),
-    approved_amount DECIMAL(15,0),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_doc_welfare_date ON doc_welfare(event_date);
-CREATE INDEX idx_doc_welfare_type ON doc_welfare(event_type);
-
-COMMENT ON TABLE doc_welfare IS '경조사비 신청 상세';
-
--- 기타 일반 문서 상세
-CREATE TABLE doc_general (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    content_body TEXT NOT NULL,
-    attachment_urls JSONB DEFAULT '[]'::jsonb,
-    template_type VARCHAR(50),
-    form_data JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-COMMENT ON TABLE doc_general IS '기타/일반 문서 상세';
-
--- 예산 신청서 상세
-CREATE TABLE doc_budget (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    budget_department_id BIGINT NOT NULL REFERENCES department(id),
-    period_start DATE NOT NULL,
-    period_end DATE NOT NULL,
-    calculation_basis TEXT NOT NULL,
-    total_amount DECIMAL(15,0) NOT NULL,
-    approved_amount DECIMAL(15,0),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT budget_period_valid CHECK (period_end >= period_start)
-);
-
-CREATE INDEX idx_doc_budget_dept ON doc_budget(budget_department_id);
-CREATE INDEX idx_doc_budget_period ON doc_budget(period_start, period_end);
-
-COMMENT ON TABLE doc_budget IS '예산 신청서 상세';
-
--- 지출 품의서 상세
--- [DEPRECATED] doc_data JSONB로 마이그레이션됨
-CREATE TABLE doc_expense_proposal (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    expense_date DATE NOT NULL,
-    items JSONB NOT NULL DEFAULT '[]'::jsonb,
-    total_amount DECIMAL(15,0) NOT NULL,
-    vendor_name VARCHAR(200) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_doc_expense_proposal_date ON doc_expense_proposal(expense_date);
-
-COMMENT ON TABLE doc_expense_proposal IS '지출 품의서 상세 [DEPRECATED] - document_master.doc_data 사용';
-
--- 사직서 상세
-CREATE TABLE doc_resignation (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    employment_date DATE NOT NULL,
-    resignation_date DATE NOT NULL,
-    resignation_type VARCHAR(50) NOT NULL CHECK (resignation_type IN ('personal', 'contract_end', 'recommended', 'other')),
-    detail_reason TEXT,
-    handover_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
-    confidentiality_agreed BOOLEAN NOT NULL DEFAULT FALSE,
-    voluntary_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
-    last_working_date DATE,
-    hr_processed_at TIMESTAMPTZ,
-    hr_processor_id UUID REFERENCES employee(id),
-    hr_notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT resignation_date_valid CHECK (resignation_date > employment_date)
-);
-
-CREATE INDEX idx_doc_resignation_type ON doc_resignation(resignation_type);
-CREATE INDEX idx_doc_resignation_date ON doc_resignation(resignation_date);
-
-COMMENT ON TABLE doc_resignation IS '사직서 상세';
-
--- 연장 근로 보고 상세
-CREATE TABLE doc_overtime_report (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    work_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    total_hours DECIMAL(4,1) NOT NULL,
-    work_content TEXT NOT NULL,
-    transportation_fee DECIMAL(10,0) DEFAULT 0,
-    meal_fee DECIMAL(10,0) DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_doc_overtime_report_date ON doc_overtime_report(work_date);
-
-COMMENT ON TABLE doc_overtime_report IS '연장 근로 보고 상세 [DEPRECATED - use doc_data]';
-
--- 근로형태 변경 상세 [DEPRECATED - use doc_data]
-CREATE TABLE doc_work_type_change (
-    document_id BIGINT PRIMARY KEY REFERENCES document_master(id) ON DELETE CASCADE,
-    work_type VARCHAR(50) NOT NULL CHECK (work_type IN ('remote', 'office', 'hybrid', 'flexible')),
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT work_type_change_date_valid CHECK (end_date >= start_date)
-);
-
-CREATE INDEX idx_doc_work_type_change_date ON doc_work_type_change(start_date, end_date);
-
-COMMENT ON TABLE doc_work_type_change IS '근로형태 변경 상세 [DEPRECATED - use doc_data]';
-
--- 문서 참조 관계
-CREATE TABLE document_reference (
-    id BIGSERIAL PRIMARY KEY,
-    source_doc_id BIGINT NOT NULL REFERENCES document_master(id) ON DELETE CASCADE,
-    target_doc_id BIGINT NOT NULL REFERENCES document_master(id),
-    snapshot_title VARCHAR(255),
-    snapshot_content JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(source_doc_id, target_doc_id)
-);
-
-CREATE INDEX idx_doc_ref_source ON document_reference(source_doc_id);
-CREATE INDEX idx_doc_ref_target ON document_reference(target_doc_id);
-
-COMMENT ON TABLE document_reference IS '문서 참조 관계 (내용 스냅샷 포함)';
 
 -- 문서 접근 로그
 CREATE TABLE document_access_log (

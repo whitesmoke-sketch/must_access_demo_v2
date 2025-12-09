@@ -18,17 +18,16 @@
 ALTER TABLE employee ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role ENABLE ROW LEVEL SECURITY;
 ALTER TABLE department ENABLE ROW LEVEL SECURITY;
--- [DEPRECATED] leave_request는 document_master + doc_leave로 대체됨
--- ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE doc_leave ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_grant ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annual_leave_balance ENABLE ROW LEVEL SECURITY;
-ALTER TABLE annual_leave_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance_award ENABLE ROW LEVEL SECURITY;
 ALTER TABLE overtime_conversion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leave_of_absence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_step ENABLE ROW LEVEL SECURITY;
+ALTER TABLE work_request ENABLE ROW LEVEL SECURITY;
+ALTER TABLE studio_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leave_usage_link ENABLE ROW LEVEL SECURITY;
 
 -- ================================================================
 -- 2. EMPLOYEE TABLE POLICIES
@@ -194,183 +193,13 @@ WITH CHECK (
 );
 
 -- ================================================================
--- 4-1. DOC_LEAVE POLICIES (document detail for leave)
+-- [REMOVED] doc_* 테이블 RLS 정책들은 삭제됨
+-- 모든 문서 상세 데이터는 document_master.doc_data JSONB에 저장됩니다.
+-- document_master 정책만 적용됩니다.
 -- ================================================================
 
--- Users can view their own leave documents
-CREATE POLICY doc_leave_select_own
-ON doc_leave FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM document_master
-    WHERE document_master.id = doc_leave.document_id
-    AND document_master.requester_id = auth.uid()
-  )
-);
-
--- Users can create leave documents for their own documents
-CREATE POLICY doc_leave_insert_own
-ON doc_leave FOR INSERT
-TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM document_master
-    WHERE document_master.id = document_id
-    AND document_master.requester_id = auth.uid()
-  )
-);
-
--- Approvers can view leave documents they need to approve
-CREATE POLICY doc_leave_select_as_approver
-ON doc_leave FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM approval_step
-    WHERE approval_step.request_id = doc_leave.document_id
-    AND approval_step.approver_id = auth.uid()
-  )
-);
-
 -- ================================================================
--- [DEPRECATED] LEAVE REQUEST POLICIES
--- 이제 document_master + doc_leave 정책으로 대체됨
--- ================================================================
--- CREATE POLICY leave_request_select_own ON leave_request ...
--- CREATE POLICY leave_request_insert_own ON leave_request ...
--- CREATE POLICY leave_request_update_own ON leave_request ...
--- CREATE POLICY leave_request_select_as_approver ON leave_request ...
--- CREATE POLICY leave_request_update_as_approver ON leave_request ...
-
--- ================================================================
--- 4-2. DOC_OVERTIME POLICIES (연장 근로 신청)
--- ================================================================
-
-ALTER TABLE doc_overtime ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_overtime_select_own ON doc_overtime FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_overtime.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_overtime_insert_own ON doc_overtime FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_overtime_update_own ON doc_overtime FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_overtime.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_overtime_select_as_approver ON doc_overtime FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_overtime.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-3. DOC_EXPENSE POLICIES (지출결의서)
--- ================================================================
-
-ALTER TABLE doc_expense ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_expense_select_own ON doc_expense FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_expense.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_expense_insert_own ON doc_expense FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_expense_update_own ON doc_expense FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_expense.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_expense_select_as_approver ON doc_expense FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_expense.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-4. DOC_WELFARE POLICIES (경조사비)
--- ================================================================
-
-ALTER TABLE doc_welfare ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_welfare_select_own ON doc_welfare FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_welfare.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_welfare_insert_own ON doc_welfare FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_welfare_update_own ON doc_welfare FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_welfare.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_welfare_select_as_approver ON doc_welfare FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_welfare.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-5. DOC_BUDGET POLICIES (예산 신청서)
--- ================================================================
-
-ALTER TABLE doc_budget ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_budget_select_own ON doc_budget FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_budget.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_budget_insert_own ON doc_budget FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_budget_update_own ON doc_budget FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_budget.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_budget_select_as_approver ON doc_budget FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_budget.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-6. DOC_EXPENSE_PROPOSAL POLICIES (지출 품의서)
--- ================================================================
-
-ALTER TABLE doc_expense_proposal ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_expense_proposal_select_own ON doc_expense_proposal FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_expense_proposal.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_expense_proposal_insert_own ON doc_expense_proposal FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_expense_proposal_update_own ON doc_expense_proposal FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_expense_proposal.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_expense_proposal_select_as_approver ON doc_expense_proposal FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_expense_proposal.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-7. DOC_RESIGNATION POLICIES (사직서)
--- ================================================================
-
-ALTER TABLE doc_resignation ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_resignation_select_own ON doc_resignation FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_resignation.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_resignation_insert_own ON doc_resignation FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_resignation_update_own ON doc_resignation FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_resignation.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_resignation_select_as_approver ON doc_resignation FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_resignation.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-8. DOC_OVERTIME_REPORT POLICIES (연장 근로 보고)
--- ================================================================
-
-ALTER TABLE doc_overtime_report ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY doc_overtime_report_select_own ON doc_overtime_report FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master WHERE id = doc_overtime_report.document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_overtime_report_insert_own ON doc_overtime_report FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM document_master WHERE id = document_id AND requester_id = auth.uid()));
-
-CREATE POLICY doc_overtime_report_update_own ON doc_overtime_report FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM document_master dm WHERE dm.id = doc_overtime_report.document_id AND dm.requester_id = auth.uid() AND dm.status IN ('draft', 'retrieved')));
-
-CREATE POLICY doc_overtime_report_select_as_approver ON doc_overtime_report FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM approval_step WHERE request_id = doc_overtime_report.document_id AND approver_id = auth.uid()));
-
--- ================================================================
--- 4-9. APPROVAL_CC POLICIES (결재 참조자)
+-- 4-1. APPROVAL_CC POLICIES (결재 참조자)
 -- ================================================================
 
 ALTER TABLE approval_cc ENABLE ROW LEVEL SECURITY;
@@ -460,17 +289,29 @@ TO authenticated
 USING (employee_id = auth.uid());
 
 -- ================================================================
--- 7. ANNUAL LEAVE USAGE POLICIES
+-- 7. LEAVE USAGE LINK POLICIES (대체: annual_leave_usage)
 -- ================================================================
 
--- Users can view their own leave usage (document_master 참조)
-CREATE POLICY leave_usage_select_own
-ON annual_leave_usage FOR SELECT
+-- Users can view their own leave usage
+CREATE POLICY leave_usage_link_select_own
+ON leave_usage_link FOR SELECT
 TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM document_master
-    WHERE document_master.id = annual_leave_usage.document_id
+    WHERE document_master.id = leave_usage_link.document_id
+    AND document_master.requester_id = auth.uid()
+  )
+);
+
+-- Users can insert leave usage for their own documents
+CREATE POLICY leave_usage_link_insert_own
+ON leave_usage_link FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM document_master
+    WHERE document_master.id = document_id
     AND document_master.requester_id = auth.uid()
   )
 );
@@ -642,3 +483,97 @@ USING (
     AND meeting_room_booking.booked_by = auth.uid()
   )
 );
+
+-- ================================================================
+-- 13. WORK REQUEST POLICIES (재택/외근/출장)
+-- ================================================================
+
+-- 본인 조회 정책
+CREATE POLICY work_request_select_own ON work_request
+    FOR SELECT TO authenticated
+    USING (employee_id = auth.uid());
+
+-- 본인 등록 정책
+CREATE POLICY work_request_insert_own ON work_request
+    FOR INSERT TO authenticated
+    WITH CHECK (employee_id = auth.uid());
+
+-- 본인 수정 정책 (pending 상태만)
+CREATE POLICY work_request_update_own ON work_request
+    FOR UPDATE TO authenticated
+    USING (employee_id = auth.uid() AND status = 'pending')
+    WITH CHECK (employee_id = auth.uid());
+
+-- 승인권자 조회 정책
+CREATE POLICY work_request_select_as_approver ON work_request
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM approval_step
+            WHERE approval_step.request_type = 'work'
+              AND approval_step.request_id = work_request.id
+              AND approval_step.approver_id = auth.uid()
+        )
+    );
+
+-- 승인권자 수정 정책
+CREATE POLICY work_request_update_as_approver ON work_request
+    FOR UPDATE TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM approval_step
+            WHERE approval_step.request_type = 'work'
+              AND approval_step.request_id = work_request.id
+              AND approval_step.approver_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM approval_step
+            WHERE approval_step.request_type = 'work'
+              AND approval_step.request_id = work_request.id
+              AND approval_step.approver_id = auth.uid()
+        )
+    );
+
+-- 관리자(level >= 3) 전체 조회 정책
+CREATE POLICY work_request_select_admin ON work_request
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM employee e
+            JOIN role r ON e.role_id = r.id
+            WHERE e.id = auth.uid() AND r.level >= 3
+        )
+    );
+
+-- ================================================================
+-- 14. STUDIO ACCESS POLICIES (스튜디오 출입)
+-- ================================================================
+
+-- 모든 인증 사용자 조회 가능
+CREATE POLICY studio_access_select_all ON studio_access
+    FOR SELECT TO authenticated
+    USING (true);
+
+-- 관리자(level >= 3)만 수정 가능
+CREATE POLICY studio_access_update_admin ON studio_access
+    FOR UPDATE TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM employee e
+            JOIN role r ON e.role_id = r.id
+            WHERE e.id = auth.uid() AND r.level >= 3
+        )
+    );
+
+-- 관리자만 등록 가능
+CREATE POLICY studio_access_insert_admin ON studio_access
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM employee e
+            JOIN role r ON e.role_id = r.id
+            WHERE e.id = auth.uid() AND r.level >= 3
+        )
+    );
