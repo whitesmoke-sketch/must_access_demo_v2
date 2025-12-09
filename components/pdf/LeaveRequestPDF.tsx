@@ -49,9 +49,14 @@ Font.register({
 // 스타일 정의
 // ================================================================
 
+// 공통 여백 값
+const PAGE_PADDING = 30
+
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
+    paddingTop: PAGE_PADDING,
+    paddingHorizontal: PAGE_PADDING,
+    paddingBottom: PAGE_PADDING,
     fontFamily: 'NotoSansKR',
     fontSize: 10,
     backgroundColor: '#ffffff',
@@ -65,11 +70,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // 결재란 (2x2 그리드)
+  // 결재란 (결재자 수에 따라 동적 생성)
   approvalSection: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 120,
     marginBottom: 15,
   },
   approvalBox: {
@@ -77,8 +80,13 @@ const styles = StyleSheet.create({
     height: 50,
     borderWidth: 1,
     borderColor: '#000',
-    marginRight: -1,
-    marginBottom: -1,
+    marginLeft: -1,
+  },
+  approvalBoxFirst: {
+    width: 60,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#000',
   },
   approvalSignArea: {
     flex: 1,
@@ -286,10 +294,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // 하단 영역 (박스 안에 포함)
+  // 하단 영역 (박스 안에 포함, 좌우 여백과 동일한 하단 여백)
   footerSection: {
-    paddingVertical: 30,
-    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
   },
   footerText: {
     fontSize: 11,
@@ -343,13 +352,13 @@ const styles = StyleSheet.create({
 // 컴포넌트
 // ================================================================
 
-// 결재란 박스 (2x2 그리드용)
+// 결재란 박스 (결재자 수에 따라 동적 생성)
 interface ApprovalBoxProps {
-  approver?: ApproverInfo
-  isEmpty?: boolean
+  approver: ApproverInfo
+  isFirst: boolean
 }
 
-const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isEmpty }) => {
+const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isFirst }) => {
   const getStatusColor = (status: ApproverInfo['status']) => {
     switch (status) {
       case 'approved':
@@ -363,17 +372,8 @@ const ApprovalBox: React.FC<ApprovalBoxProps> = ({ approver, isEmpty }) => {
     }
   }
 
-  if (isEmpty || !approver) {
-    return (
-      <View style={styles.approvalBox}>
-        <View style={styles.approvalSignArea} />
-        <View style={styles.approvalFooter} />
-      </View>
-    )
-  }
-
   return (
-    <View style={styles.approvalBox}>
+    <View style={isFirst ? styles.approvalBoxFirst : styles.approvalBox}>
       <View style={styles.approvalSignArea}>
         {approver.status === 'approved' || approver.status === 'rejected' ? (
           <Text
@@ -413,12 +413,6 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
   // 참조자가 있는지 확인
   const hasCCList = data.ccList && data.ccList.length > 0
 
-  // 결재자 배열 (최대 4명, 2x2 그리드)
-  const approversForGrid = [...data.approvers.slice(0, 4)]
-  while (approversForGrid.length < 4) {
-    approversForGrid.push(undefined as unknown as ApproverInfo)
-  }
-
   // 최소 5행 유지를 위한 빈 행 수 계산
   const minRows = 5
   const emptyRowCount = Math.max(0, minRows - periodRows.length)
@@ -429,13 +423,13 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
         {/* 제목 (박스 없음) */}
         <Text style={styles.title}>휴가신청서</Text>
 
-        {/* 결재란 (2x2 그리드) */}
+        {/* 결재란 (결재자 수에 따라 동적 생성) */}
         <View style={styles.approvalSection}>
-          {approversForGrid.map((approver, index) => (
+          {data.approvers.map((approver, index) => (
             <ApprovalBox
-              key={approver?.id || `empty-${index}`}
+              key={approver.id}
               approver={approver}
-              isEmpty={!approver}
+              isFirst={index === 0}
             />
           ))}
         </View>
