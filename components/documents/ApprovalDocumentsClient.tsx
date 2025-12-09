@@ -382,6 +382,18 @@ export function ApprovalDocumentsClient({
 
   // 문서 제목 생성
   const getDocumentTitle = (doc: ApprovalDocument | ReferenceDocument): string => {
+    // 문서 유형별 라벨
+    const docTypeLabels: Record<string, string> = {
+      leave: '연차 신청',
+      expense: '지출결의서',
+      expense_proposal: '지출품의서',
+      budget: '예산 신청',
+      overtime: '야근수당 신청',
+      welfare: '복리후생 신청',
+      general: '일반 문서',
+      resignation: '퇴직 신청',
+    }
+
     const leaveTypeLabels: Record<string, string> = {
       annual: '연차',
       half_day: '반차',
@@ -392,16 +404,39 @@ export function ApprovalDocumentsClient({
       sick: '병가',
       overtime: '야근수당',
     }
+
+    const docType = doc.doc_type || 'leave'
+
+    // 비연차 문서는 title 필드 또는 문서 유형명 사용
+    if (docType !== 'leave' && docType !== 'overtime') {
+      const docTypeLabel = docTypeLabels[docType] || docType
+      // title 필드가 있으면 사용
+      if ('title' in doc && doc.title) {
+        return doc.title
+      }
+      // reason 필드가 있으면 사용
+      if (doc.reason) {
+        return doc.reason
+      }
+      return docTypeLabel
+    }
+
     const leaveLabel = leaveTypeLabels[doc.leave_type] || '연차'
 
     // 야근수당인 경우 다른 형식으로 표시
-    if (doc.leave_type === 'overtime') {
+    if (doc.leave_type === 'overtime' || docType === 'overtime') {
       const workDate = doc.start_date ? new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : ''
       const hours = doc.requested_days || 0
       if (doc.reason) {
         return `${doc.reason} (${workDate}, ${hours}시간)`
       }
       return `${leaveLabel} 신청 (${workDate}, ${hours}시간)`
+    }
+
+    // 연차 문서: 날짜 범위 표시
+    if (!doc.start_date || !doc.end_date) {
+      if (doc.reason) return doc.reason
+      return `${leaveLabel} 신청`
     }
 
     const startDate = new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })

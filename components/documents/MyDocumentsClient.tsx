@@ -287,9 +287,42 @@ export function MyDocumentsClient({
 
   // 문서 상세 텍스트 생성
   const getDocumentDetail = (doc: MyDocument) => {
-    if (doc.leave_type === 'overtime') {
+    const docType = doc.doc_type || 'leave'
+
+    // 문서 유형별 라벨
+    const docTypeLabels: Record<string, string> = {
+      leave: '연차 신청',
+      expense: '지출결의서',
+      expense_proposal: '지출품의서',
+      budget: '예산 신청',
+      overtime: '야근 수당 신청',
+      welfare: '복리후생 신청',
+      general: '일반 문서',
+      resignation: '퇴직 신청',
+    }
+
+    // 야근 수당 문서
+    if (docType === 'overtime' || doc.leave_type === 'overtime') {
       const workDate = doc.start_date ? new Date(doc.start_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : ''
       return `${doc.reason || '야근'} (${workDate}, ${doc.requested_days}시간)`
+    }
+
+    // 비연차 문서 (expense, budget, welfare, general, resignation 등)
+    if (docType !== 'leave') {
+      const docTypeLabel = docTypeLabels[docType] || docType
+      if (doc.title) {
+        return doc.title
+      }
+      if (doc.reason) {
+        return doc.reason
+      }
+      return docTypeLabel
+    }
+
+    // 연차 문서: 날짜 범위 표시
+    if (!doc.start_date || !doc.end_date) {
+      if (doc.reason) return doc.reason
+      return '연차 신청'
     }
     return `${doc.reason} (${doc.start_date} ~ ${doc.end_date})`
   }
