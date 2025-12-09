@@ -155,37 +155,36 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
 
-  // 성명/소속 행
+  // 성명/소속 행 (잔여연차/총휴가일수와 동일한 구조)
   infoRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderColor: '#000',
     minHeight: 36,
   },
-  infoCell: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  infoCellBorder: {
-    borderRightWidth: 1,
-    borderColor: '#000',
-  },
-  infoLabel: {
-    width: 60,
+  infoLabelCell: {
+    width: 80,
     borderRightWidth: 1,
     borderColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
   },
-  infoLabelText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+  infoValueCell: {
+    flex: 1,
+    borderRightWidth: 1,
+    borderColor: '#000',
+    justifyContent: 'center',
+    paddingLeft: 10,
   },
-  infoValue: {
+  infoValueCellLast: {
     flex: 1,
     justifyContent: 'center',
     paddingLeft: 10,
+  },
+  infoLabelText: {
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   infoValueText: {
     fontSize: 10,
@@ -423,9 +422,9 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
   // 참조자가 있는지 확인
   const hasCCList = data.ccList && data.ccList.length > 0
 
-  // 최소 5행 유지를 위한 빈 행 수 계산
-  const minRows = 5
-  const emptyRowCount = Math.max(0, minRows - periodRows.length)
+  // 6행 고정을 위한 빈 행 수 계산
+  const fixedRows = 6
+  const emptyRowCount = Math.max(0, fixedRows - periodRows.length)
 
   return (
     <Document>
@@ -462,23 +461,19 @@ export const LeaveRequestPDF: React.FC<LeaveRequestPDFProps> = ({ data }) => {
         <View style={styles.mainContainer}>
           {/* 콘텐츠 영역 (성명/소속 ~ 잔여연차/총휴가일수) */}
           <View style={styles.mainContent}>
-            {/* 성명/소속 행 */}
+            {/* 성명/소속 행 (잔여연차/총휴가일수와 동일한 구조) */}
             <View style={styles.infoRow}>
-              <View style={[styles.infoCell, styles.infoCellBorder]}>
-                <View style={styles.infoLabel}>
-                  <Text style={styles.infoLabelText}>성명</Text>
-                </View>
-                <View style={styles.infoValue}>
-                  <Text style={styles.infoValueText}>{data.requester.name}</Text>
-                </View>
+              <View style={styles.infoLabelCell}>
+                <Text style={styles.infoLabelText}>성명</Text>
               </View>
-              <View style={styles.infoCell}>
-                <View style={styles.infoLabel}>
-                  <Text style={styles.infoLabelText}>소속</Text>
-                </View>
-                <View style={styles.infoValue}>
-                  <Text style={styles.infoValueText}>{data.requester.department}</Text>
-                </View>
+              <View style={styles.infoValueCell}>
+                <Text style={styles.infoValueText}>{data.requester.name}</Text>
+              </View>
+              <View style={styles.infoLabelCell}>
+                <Text style={styles.infoLabelText}>소속</Text>
+              </View>
+              <View style={styles.infoValueCellLast}>
+                <Text style={styles.infoValueText}>{data.requester.department}</Text>
               </View>
             </View>
 
