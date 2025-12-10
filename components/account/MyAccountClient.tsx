@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
-import { User, Mail, Camera, Save } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { User, Mail, Camera, Save, MessageSquare, Check, X, Loader2, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,14 +22,88 @@ interface UserData {
   departmentName: string
   roleName: string
   roleCode: string
+  // 슬랙 연동 정보
+  slackUserId: string | null
+  slackEmail: string | null
+  slackAvatarUrl: string | null
+  slackConnectedAt: string | null
 }
 
 interface MyAccountClientProps {
   user: UserData
+  slackConnected?: boolean
+  slackError?: string | null
 }
 
-export function MyAccountClient({ user }: MyAccountClientProps) {
+export function MyAccountClient({ user, slackConnected, slackError }: MyAccountClientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isSlackConnecting, setIsSlackConnecting] = useState(false)
+
+  // 슬랙 연동 결과 처리
+  useEffect(() => {
+    if (slackConnected) {
+      toast.success('슬랙 연동이 완료되었습니다!')
+      // URL에서 파라미터 제거
+      window.history.replaceState({}, '', '/account')
+    }
+    if (slackError) {
+      const errorMessages: Record<string, string> = {
+        missing_params: '필수 파라미터가 누락되었습니다.',
+        server_config_error: '서버 설정 오류입니다.',
+        token_exchange_failed: '토큰 교환에 실패했습니다.',
+        db_update_failed: '데이터베이스 업데이트에 실패했습니다.',
+        unexpected_error: '예상치 못한 오류가 발생했습니다.',
+        access_denied: '접근이 거부되었습니다.',
+      }
+      toast.error(errorMessages[slackError] || `슬랙 연동 실패: ${slackError}`)
+      // URL에서 파라미터 제거
+      window.history.replaceState({}, '', '/account')
+    }
+  }, [slackConnected, slackError])
+
+  // 슬랙 연동 시작
+  const handleSlackConnect = () => {
+    setIsSlackConnecting(true)
+
+    // 환경 변수에서 슬랙 설정 읽기 (빌드 시점에 주입됨)
+    const SLACK_CLIENT_ID = process.env.NEXT_PUBLIC_SLACK_CLIENT_ID
+    const SLACK_REDIRECT_URI = process.env.NEXT_PUBLIC_SLACK_REDIRECT_URI
+
+    if (!SLACK_CLIENT_ID || !SLACK_REDIRECT_URI) {
+      toast.error('슬랙 연동 설정이 되어있지 않습니다.')
+      setIsSlackConnecting(false)
+      return
+    }
+
+    // 슬랙 승인 URL 생성
+    const scopes = 'users.profile:read'  // 필요한 스코프
+    const state = user.id  // 현재 사용자 UUID를 state로 전달
+
+    const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${SLACK_CLIENT_ID}&user_scope=${scopes}&redirect_uri=${encodeURIComponent(SLACK_REDIRECT_URI)}&state=${state}`
+
+    // 슬랙 인증 페이지로 이동
+    window.location.href = slackAuthUrl
+  }
+
+  // 슬랙 연동 해제 (서버 액션 필요)
+  const handleSlackDisconnect = async () => {
+    if (!confirm('슬랙 연동을 해제하시겠습니까?')) return
+
+    try {
+      const response = await fetch('/api/slack/disconnect', {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        toast.success('슬랙 연동이 해제되었습니다.')
+        window.location.reload()
+      } else {
+        toast.error('슬랙 연동 해제에 실패했습니다.')
+      }
+    } catch {
+      toast.error('슬랙 연동 해제 중 오류가 발생했습니다.')
+    }
+  }
 
   // 초기값 설정 (피그마 디자인대로)
   const initialPhone = user.phone || '010-1234-5678'
@@ -664,6 +738,149 @@ export function MyAccountClient({ user }: MyAccountClientProps) {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 슬랙 연동 카드 */}
+      <Card
+        className="rounded-2xl"
+        style={{
+          borderRadius: 'var(--radius)',
+          boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+        }}
+      >
+        <CardHeader>
+          <CardTitle
+            className="flex items-center gap-2"
+            style={{
+              color: 'var(--foreground)',
+              fontSize: 'var(--font-size-body)',
+              fontWeight: 500,
+              lineHeight: 1.5,
+            }}
+          >
+            <MessageSquare className="w-5 h-5" />
+            슬랙 연동
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {user.slackUserId ? (
+            // 연동됨 상태
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--muted)' }}>
+                {/* 슬랙 프로필 이미지 */}
+                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                  {user.slackAvatarUrl ? (
+                    <img
+                      src={user.slackAvatarUrl}
+                      alt="Slack 프로필"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ backgroundColor: '#4A154B', color: 'white' }}
+                    >
+                      <MessageSquare className="w-6 h-6" />
+                    </div>
+                  )}
+                </div>
+
+                {/* 연동 정보 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      style={{
+                        fontSize: 'var(--font-size-body)',
+                        fontWeight: 500,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {user.slackEmail || '슬랙 계정'}
+                    </span>
+                    <Badge
+                      className="flex items-center gap-1"
+                      style={{
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        color: 'rgb(34, 197, 94)',
+                        fontSize: 'var(--font-size-caption)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Check className="w-3 h-3" />
+                      연동됨
+                    </Badge>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--muted-foreground)',
+                      marginTop: '4px',
+                    }}
+                  >
+                    {user.slackConnectedAt
+                      ? `${new Date(user.slackConnectedAt).toLocaleDateString('ko-KR')} 연동`
+                      : '연동됨'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSlackDisconnect}
+                  className="flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  연동 해제
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // 미연동 상태
+            <div className="space-y-4">
+              <p
+                style={{
+                  fontSize: 'var(--font-size-body)',
+                  color: 'var(--muted-foreground)',
+                  lineHeight: 1.5,
+                }}
+              >
+                슬랙 계정을 연동하면 결재 알림을 슬랙으로 받을 수 있습니다.
+              </p>
+
+              <Button
+                onClick={handleSlackConnect}
+                disabled={isSlackConnecting}
+                className="flex items-center gap-2"
+                style={{
+                  backgroundColor: '#4A154B',
+                  color: 'white',
+                }}
+              >
+                {isSlackConnecting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    연동 중...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
+                    </svg>
+                    슬랙 연동하기
+                    <ExternalLink className="w-3 h-3" />
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
