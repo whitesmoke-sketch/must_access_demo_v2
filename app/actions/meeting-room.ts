@@ -229,6 +229,60 @@ export async function createBooking(input: CreateBookingInput) {
 
       if (!error && result?.success) {
         console.log('[Calendar Integration] Success! Calendar event created.')
+
+        // Calendar 연동 성공 시에도 슬랙 알림 발송
+        if (input.attendee_ids.length > 0) {
+          try {
+            const adminClient = createAdminClient()
+
+            // 회의실 정보 조회
+            const { data: room } = await supabase
+              .from('meeting_room')
+              .select('name, floor, location')
+              .eq('id', input.room_id)
+              .single()
+
+            // 예약자 정보 조회
+            const { data: organizer } = await supabase
+              .from('employee')
+              .select('name')
+              .eq('id', user.id)
+              .single()
+
+            const organizerName = organizer?.name || user.email
+
+            // 참석자들의 slack_user_id 조회
+            const { data: attendeesWithSlack } = await adminClient
+              .from('employee')
+              .select('id, slack_user_id')
+              .in('id', input.attendee_ids)
+
+            if (attendeesWithSlack && attendeesWithSlack.length > 0) {
+              const slackData: MeetingInvitationData = {
+                bookingId: result.booking.id,
+                organizerName: organizerName || '알 수 없음',
+                title: input.title,
+                roomName: room?.name || '회의실',
+                floor: room?.floor || 1,
+                location: room?.location || null,
+                bookingDate: input.booking_date,
+                startTime: input.start_time,
+                endTime: input.end_time
+              }
+
+              for (const attendee of attendeesWithSlack) {
+                if (attendee.slack_user_id) {
+                  sendMeetingInvitation(attendee.slack_user_id, slackData)
+                    .catch(err => console.error('[Slack] 회의 초대 알림 발송 실패:', err))
+                }
+              }
+              console.log('[Calendar Integration] Slack notifications sent to attendees')
+            }
+          } catch (slackError) {
+            console.error('[Slack] Calendar 연동 후 알림 처리 오류 (무시됨):', slackError)
+          }
+        }
+
         revalidatePath('/meeting-rooms')
         revalidatePath('/meeting-room-booking')
         return result.booking
