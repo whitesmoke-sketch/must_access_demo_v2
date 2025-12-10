@@ -195,14 +195,14 @@ export function Sidebar({
               <button
                 onClick={() => router.push(adminModeEnabled ? '/admin/dashboard' : '/dashboard')}
                 className="hover:opacity-80 transition-opacity"
-                style={{ color: '#635BFF', fontSize: '18px', fontWeight: 700 }}
+                style={{ color: '#635BFF', fontSize: '18px', fontWeight: 700, whiteSpace: 'nowrap' }}
               >
                 MUST Access
               </button>
             )}
             <button
               onClick={onToggleCollapse}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
               style={{ marginLeft: collapsed ? 'auto' : '0' }}
             >
               <Menu className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
@@ -254,7 +254,7 @@ export function Sidebar({
                   }}
                 >
                   <Icon
-                    className="w-5 h-5 flex-shrink-0 transition-colors duration-150"
+                    className="w-5 h-5 transition-colors duration-150"
                     style={{
                       color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#5B6A72',
                     }}
@@ -337,7 +337,7 @@ export function Sidebar({
                     }}
                   >
                     <UserCog
-                      className="w-5 h-5 flex-shrink-0"
+                      className="w-5 h-5"
                       style={{
                         color: adminModeEnabled ? '#ffffff' : undefined,
                       }}
