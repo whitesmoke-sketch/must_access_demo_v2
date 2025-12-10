@@ -3,6 +3,12 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { DocumentType } from '@/types/document'
+import {
+  sendSlackMessage,
+  createApprovalCompleteMessage,
+  createApprovalRejectedMessage,
+  DOC_TYPE_LABELS,
+} from '@/lib/slack-notifier'
 
 // ================================================
 // 결재 처리 (새 시스템: document_master)
@@ -114,6 +120,25 @@ export async function approveDocument(documentId: number, docType?: DocumentType
 
       // 휴가 문서인 경우 연차 차감은 트리거에서 자동 처리됨
       // (update_leave_balance_on_approval 트리거)
+
+      // 슬랙 알림: 기안자에게 최종 승인 완료 알림
+      try {
+        const { data: requesterData } = await adminSupabase
+          .from('employee')
+          .select('slack_user_id')
+          .eq('id', document.requester_id)
+          .single()
+
+        if (requesterData?.slack_user_id) {
+          const documentTitle = DOC_TYPE_LABELS[requestType] || requestType
+          const slackMessage = createApprovalCompleteMessage(documentTitle, documentId)
+          console.log('[Slack 최종승인] 발송:', requesterData.slack_user_id)
+          sendSlackMessage(requesterData.slack_user_id, slackMessage)
+            .catch(err => console.error('[Slack] 최종 승인 알림 발송 실패:', err))
+        }
+      } catch (slackError) {
+        console.error('[Slack] 최종 승인 알림 처리 중 오류 (무시됨):', slackError)
+      }
 
     } else {
       // 다음 단계 활성화
@@ -236,6 +261,34 @@ export async function rejectDocument(documentId: number, rejectReason: string, d
     if (updateDocError) {
       console.error('Failed to update document:', updateDocError)
       return { success: false, error: '문서 상태 업데이트 중 오류가 발생했습니다' }
+    }
+
+    // 슬랙 알림: 기안자에게 반려 알림
+    try {
+      // 기안자 정보 조회
+      const { data: docWithRequester } = await adminSupabase
+        .from('document_master')
+        .select('requester_id')
+        .eq('id', documentId)
+        .single()
+
+      if (docWithRequester) {
+        const { data: requesterData } = await adminSupabase
+          .from('employee')
+          .select('slack_user_id')
+          .eq('id', docWithRequester.requester_id)
+          .single()
+
+        if (requesterData?.slack_user_id) {
+          const documentTitle = DOC_TYPE_LABELS[requestType] || requestType
+          const slackMessage = createApprovalRejectedMessage(documentTitle, documentId, rejectReason)
+          console.log('[Slack 반려] 발송:', requesterData.slack_user_id)
+          sendSlackMessage(requesterData.slack_user_id, slackMessage)
+            .catch(err => console.error('[Slack] 반려 알림 발송 실패:', err))
+        }
+      }
+    } catch (slackError) {
+      console.error('[Slack] 반려 알림 처리 중 오류 (무시됨):', slackError)
     }
 
     revalidatePath('/documents')
