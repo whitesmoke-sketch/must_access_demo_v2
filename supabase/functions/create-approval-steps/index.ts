@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { sendSlackMessage, createApprovalRequestMessage } from '../_shared/slack-notifier.ts'
 
 interface ApprovalStepInput {
   order: number
@@ -155,6 +156,65 @@ Deno.serve(async (req) => {
 
         throw new Error(`Failed to update ${tableName}: ${updateError.message}`)
       }
+    }
+
+    // 6. 슬랙 알림 발송 (첫 번째 결재자에게)
+    // 비동기로 실행하여 메인 로직에 영향 없도록 함
+    try {
+      // 첫 번째 단계(pending)의 결재자들 조회
+      const firstStepApprovers = approvalSteps.filter(s => s.order === minStepOrder)
+      const approverIds = firstStepApprovers.map(s => s.approverId)
+
+      // 결재자들의 slack_user_id 조회
+      const { data: approverData } = await supabase
+        .from('employee')
+        .select('id, slack_user_id')
+        .in('id', approverIds)
+
+      // 문서 정보 조회 (기안자 이름, 문서 제목)
+      const { data: documentData } = await supabase
+        .from('document_master')
+        .select(`
+          id,
+          doc_type,
+          requester:requester_id(name)
+        `)
+        .eq('id', requestId)
+        .single()
+
+      if (approverData && documentData) {
+        const requester = Array.isArray(documentData.requester)
+          ? documentData.requester[0]
+          : documentData.requester
+        const requesterName = requester?.name || '알 수 없음'
+        const docTypeLabels: Record<string, string> = {
+          leave: '휴가신청서',
+          overtime: '야근수당신청서',
+          expense: '지출결의서',
+          welfare: '경조사비신청서',
+          general: '일반문서',
+        }
+        const documentTitle = docTypeLabels[documentData.doc_type] || documentData.doc_type
+        const appUrl = Deno.env.get('APP_URL') || 'https://must-access-demo-v2.vercel.app'
+
+        // 각 결재자에게 알림 발송
+        for (const approver of approverData) {
+          if (approver.slack_user_id) {
+            const message = createApprovalRequestMessage(
+              requesterName,
+              documentTitle,
+              requestId,
+              appUrl
+            )
+            // 비동기로 발송 (await 없이)
+            sendSlackMessage(approver.slack_user_id, message)
+              .catch(err => console.error('[Slack] 알림 발송 실패:', err))
+          }
+        }
+      }
+    } catch (slackError) {
+      // 슬랙 알림 실패가 결재선 생성에 영향을 주지 않음
+      console.error('[Slack] 알림 처리 중 오류 (무시됨):', slackError)
     }
 
     return new Response(

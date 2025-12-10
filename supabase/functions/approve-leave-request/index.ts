@@ -1,5 +1,10 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  sendSlackMessage,
+  createApprovalTurnMessage,
+  createApprovalCompleteMessage
+} from '../_shared/slack-notifier.ts'
 
 interface RequestBody {
   leaveRequestId: number  // 이제 document_master.id를 의미
@@ -254,6 +259,46 @@ Deno.serve(async (req) => {
         )
       }
 
+      // 슬랙 알림: 기안자에게 최종 승인 완료 알림
+      try {
+        const { data: requesterData } = await supabase
+          .from('employee')
+          .select('slack_user_id')
+          .eq('id', documentData.requester_id)
+          .single()
+
+        if (requesterData?.slack_user_id) {
+          const docTypeLabels: Record<string, string> = {
+            leave: '휴가신청서',
+            overtime: '야근수당신청서',
+            expense: '지출결의서',
+            welfare: '경조사비신청서',
+            general: '일반문서',
+          }
+
+          // 문서 타입 조회
+          const { data: docInfo } = await supabase
+            .from('document_master')
+            .select('doc_type')
+            .eq('id', leaveRequestId)
+            .single()
+
+          const documentTitle = docTypeLabels[docInfo?.doc_type || 'leave'] || '문서'
+          const appUrl = Deno.env.get('APP_URL') || 'https://must-access-demo-v2.vercel.app'
+
+          const message = createApprovalCompleteMessage(
+            documentTitle,
+            leaveRequestId,
+            appUrl
+          )
+
+          sendSlackMessage(requesterData.slack_user_id, message)
+            .catch(err => console.error('[Slack] 최종 승인 알림 발송 실패:', err))
+        }
+      } catch (slackError) {
+        console.error('[Slack] 최종 승인 알림 처리 중 오류 (무시됨):', slackError)
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -298,6 +343,71 @@ Deno.serve(async (req) => {
 
       if (requestUpdateError) {
         throw new Error('현재 단계 업데이트 실패')
+      }
+
+      // 슬랙 알림: 다음 결재자들에게 결재 차례 알림
+      try {
+        if (nextStepApprovers && nextStepApprovers.length > 0) {
+          const nextStepIds = nextStepApprovers.map(s => s.id)
+
+          // 다음 결재자들의 approver_id와 slack_user_id 조회
+          const { data: nextApproverSteps } = await supabase
+            .from('approval_step')
+            .select('approver_id')
+            .in('id', nextStepIds)
+
+          if (nextApproverSteps) {
+            const approverIds = nextApproverSteps.map(s => s.approver_id)
+
+            const { data: approversData } = await supabase
+              .from('employee')
+              .select('id, slack_user_id')
+              .in('id', approverIds)
+
+            // 문서 정보 조회 (기안자 이름, 문서 타입)
+            const { data: docInfo } = await supabase
+              .from('document_master')
+              .select(`
+                doc_type,
+                requester:requester_id(name)
+              `)
+              .eq('id', leaveRequestId)
+              .single()
+
+            if (approversData && docInfo) {
+              const requester = Array.isArray(docInfo.requester)
+                ? docInfo.requester[0]
+                : docInfo.requester
+              const requesterName = requester?.name || '알 수 없음'
+
+              const docTypeLabels: Record<string, string> = {
+                leave: '휴가신청서',
+                overtime: '야근수당신청서',
+                expense: '지출결의서',
+                welfare: '경조사비신청서',
+                general: '일반문서',
+              }
+              const documentTitle = docTypeLabels[docInfo.doc_type] || docInfo.doc_type
+              const appUrl = Deno.env.get('APP_URL') || 'https://must-access-demo-v2.vercel.app'
+
+              // 각 다음 결재자에게 알림 발송
+              for (const approver of approversData) {
+                if (approver.slack_user_id) {
+                  const message = createApprovalTurnMessage(
+                    requesterName,
+                    documentTitle,
+                    leaveRequestId,
+                    appUrl
+                  )
+                  sendSlackMessage(approver.slack_user_id, message)
+                    .catch(err => console.error('[Slack] 결재 차례 알림 발송 실패:', err))
+                }
+              }
+            }
+          }
+        }
+      } catch (slackError) {
+        console.error('[Slack] 결재 차례 알림 처리 중 오류 (무시됨):', slackError)
       }
 
       return new Response(
