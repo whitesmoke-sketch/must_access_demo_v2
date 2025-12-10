@@ -7,6 +7,7 @@ import { Calendar, Clock, Gift, FileText, DollarSign, Wallet, Receipt, UserMinus
 
 type DocumentType =
   | 'annual_leave'
+  | 'annual_leave_exception'
   | 'reward_leave'
   | 'condolence'
   | 'overtime'
@@ -26,16 +27,17 @@ interface DocumentTypeSelectorProps {
 export function DocumentTypeSelector({ value, onChange }: DocumentTypeSelectorProps) {
   const documentTypeOptions = [
     { value: 'annual_leave', label: '연차 신청', icon: Calendar },
-    { value: 'reward_leave', label: '포상휴가 사용 신청', icon: Gift },
-    { value: 'condolence', label: '경조사비 신청', icon: FileText },
-    { value: 'overtime', label: '야근수당 신청', icon: Clock },
-    { value: 'expense', label: '지출결의서', icon: DollarSign },
+    { value: 'annual_leave_exception', label: '연차 예외 사용 신청서 (추가 예정)', icon: Calendar },
+    { value: 'reward_leave', label: '포상 휴가 신청', icon: Gift },
+    { value: 'overtime', label: '연장 근로 신청', icon: Clock },
+    { value: 'overtime_report', label: '연장 근로 보고', icon: ClipboardList },
+    { value: 'work_type_change', label: '근로 형태 변경 신청', icon: Briefcase },
     { value: 'budget', label: '예산 신청서', icon: Wallet },
     { value: 'expense_proposal', label: '지출 품의서', icon: Receipt },
+    { value: 'expense', label: '지출 결의서', icon: DollarSign },
+    { value: 'condolence', label: '경조사비 신청', icon: FileText },
+    { value: 'other', label: '기타 기안', icon: FileText },
     { value: 'resignation', label: '사직서', icon: UserMinus },
-    { value: 'overtime_report', label: '연장 근로 보고', icon: ClipboardList },
-    { value: 'work_type_change', label: '근로형태 변경 신청', icon: Briefcase },
-    { value: 'other', label: '기타 회사 문서', icon: FileText },
   ]
 
   return (

@@ -167,7 +167,7 @@ export function ApprovalStatusClient({
               <div className="text-center py-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: '#10B981' }} />
                 <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
-                  모든 승인 완료
+                  모든 결재 완료
                 </p>
                 <p className="mt-1" style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
                   대기 중인 승인 항목이 없습니다

@@ -7,6 +7,7 @@ import { ApprovalStatusClient } from '@/components/dashboard/ApprovalStatusClien
 import { MyReservationsCard } from '@/components/dashboard/MyReservationsCard'
 import { TodayOnLeaveCard } from '@/components/dashboard/TodayOnLeaveCard'
 import { StudioAccessCard } from '@/components/dashboard/StudioAccessCard'
+import { LiveDateTime } from '@/components/common/LiveDateTime'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -224,10 +225,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // 현재 날짜 및 시간
-  const now = new Date()
-  const dateString = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} (${['일', '월', '화', '수', '목', '금', '토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -240,14 +237,14 @@ export default async function DashboardPage() {
         }}>
           안녕하세요 {employee?.name}님!
         </h2>
-        <p style={{
-          fontSize: '16px',
-          lineHeight: '24px',
-          color: '#5B6A72',
-          marginTop: '4px'
-        }}>
-          {dateString}
-        </p>
+        <LiveDateTime
+          style={{
+            fontSize: '16px',
+            lineHeight: '24px',
+            color: '#5B6A72',
+            marginTop: '4px'
+          }}
+        />
       </div>
 
       {/* Main Grid - 피그마 디자인: 모든 카드가 하나의 그리드 */}

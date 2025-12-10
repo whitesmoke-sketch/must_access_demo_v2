@@ -1,14 +1,13 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { User, Mail, Camera, Save, MessageSquare, Check, X, Loader2, ExternalLink } from 'lucide-react'
+import { User, Camera, Save, MessageSquare, Check, X, Loader2, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 
 interface UserData {
@@ -108,14 +107,10 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
   // 초기값 설정 (피그마 디자인대로)
   const initialPhone = user.phone || '010-1234-5678'
   const initialBirthDate = '1990-05-15'
-  const initialEmergencyContact = '010-1111-2222'
-  const initialGender: '남성' | '여성' | '기타' = '남성'
 
   // 편집 가능한 필드들의 state
   const [phone, setPhone] = useState(initialPhone)
   const [birthDate, setBirthDate] = useState(initialBirthDate)
-  const [emergencyContact, setEmergencyContact] = useState(initialEmergencyContact)
-  const [gender, setGender] = useState<'남성' | '여성' | '기타'>(initialGender)
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const [isHoveringProfile, setIsHoveringProfile] = useState(false)
 
@@ -123,14 +118,11 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
   const hasChanges =
     phone !== initialPhone ||
     birthDate !== initialBirthDate ||
-    emergencyContact !== initialEmergencyContact ||
-    gender !== initialGender ||
     profileImage !== null
 
   // 조직 정보 (피그마 디자인대로)
   const companyName = 'MUST Access'
   const employmentType = '정규직'
-  const officeLocation = user.location || '서울특별시 강남구'
 
   // 역할 표시
   const getPositionLabel = (code: string) => {
@@ -197,7 +189,7 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
             lineHeight: 1.25,
           }}
         >
-          내 계정
+          내 정보
         </h2>
         <p
           style={{
@@ -207,7 +199,7 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
           }}
           className="mt-1"
         >
-          내 계정 정보를 확인하고 관리하세요
+          내 정보를 확인하고 관리하세요
         </p>
       </div>
 
@@ -443,37 +435,20 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
               >
                 이메일
               </Label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  id="email"
-                  value={user.email}
-                  disabled
-                  className="flex-1"
-                  style={{
-                    fontSize: 'var(--font-size-body)',
-                    lineHeight: 1.5,
-                    backgroundColor: 'var(--muted)',
-                    color: 'var(--muted-foreground)',
-                    cursor: 'not-allowed',
-                    height: '42px',
-                  }}
-                />
-                <Badge
-                  className="flex items-center gap-1"
-                  style={{
-                    backgroundColor: 'var(--background)',
-                    color: 'var(--muted-foreground)',
-                    fontSize: 'var(--font-size-caption)',
-                    fontWeight: 600,
-                    border: '1px solid var(--border)',
-                    height: 'fit-content',
-                    alignSelf: 'center',
-                  }}
-                >
-                  <Mail className="w-3 h-3" />
-                  Google
-                </Badge>
-              </div>
+              <Input
+                id="email"
+                value={user.email}
+                disabled
+                className="mt-1"
+                style={{
+                  fontSize: 'var(--font-size-body)',
+                  lineHeight: 1.5,
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)',
+                  cursor: 'not-allowed',
+                  height: '42px',
+                }}
+              />
             </div>
 
             {/* 전화번호 (수정 가능) */}
@@ -522,56 +497,6 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
               />
             </div>
 
-            {/* 비상 연락망 (옵션) */}
-            <div>
-              <Label
-                htmlFor="emergencyContact"
-                style={{
-                  fontSize: 'var(--font-size-caption)',
-                  color: 'var(--foreground)',
-                  lineHeight: 1.4,
-                }}
-              >
-                비상 연락망 <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
-              </Label>
-              <Input
-                id="emergencyContact"
-                type="tel"
-                value={emergencyContact}
-                onChange={(e) => setEmergencyContact(e.target.value)}
-                placeholder="비상 연락처"
-                className="mt-1"
-                style={{
-                  fontSize: 'var(--font-size-body)',
-                  lineHeight: 1.5,
-                  height: '42px',
-                }}
-              />
-            </div>
-
-            {/* 성별 (옵션) */}
-            <div>
-              <Label
-                htmlFor="gender"
-                style={{
-                  fontSize: 'var(--font-size-caption)',
-                  color: 'var(--foreground)',
-                  lineHeight: 1.4,
-                }}
-              >
-                성별 <span style={{ color: 'var(--muted-foreground)' }}>(선택)</span>
-              </Label>
-              <Select value={gender} onValueChange={(value) => setGender(value as '남성' | '여성' | '기타')}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="성별 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="남성">남성</SelectItem>
-                  <SelectItem value="여성">여성</SelectItem>
-                  <SelectItem value="기타">기타</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -697,34 +622,6 @@ export function MyAccountClient({ user, slackConnected, slackError }: MyAccountC
               <Input
                 id="employmentType"
                 value={employmentType}
-                disabled
-                className="mt-1"
-                style={{
-                  fontSize: 'var(--font-size-body)',
-                  lineHeight: 1.5,
-                  backgroundColor: 'var(--muted)',
-                  color: 'var(--muted-foreground)',
-                  cursor: 'not-allowed',
-                  height: '42px',
-                }}
-              />
-            </div>
-
-            {/* 근무지 */}
-            <div className="md:col-span-2">
-              <Label
-                htmlFor="officeLocation"
-                style={{
-                  fontSize: 'var(--font-size-caption)',
-                  color: 'var(--foreground)',
-                  lineHeight: 1.4,
-                }}
-              >
-                근무지(오피스 위치)
-              </Label>
-              <Input
-                id="officeLocation"
-                value={officeLocation}
                 disabled
                 className="mt-1"
                 style={{

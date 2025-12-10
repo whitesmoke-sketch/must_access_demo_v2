@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 const actions = [
   {
     icon: DoorOpen,
-    label: '회의실 예약',
+    label: '공간 예약',
     href: '/meeting-rooms',
     implemented: true
   },
