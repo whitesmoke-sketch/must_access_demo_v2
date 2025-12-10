@@ -331,6 +331,7 @@ function buildDocData(
         items: (formData.items as Array<{ item: string; quantity: number; unit_price: number }>) || [],
         total_amount: formData.total_amount as number,
         vendor_name: formData.vendor_name as string,
+        attachment_url: (formData.attachment_url as string) || null,
       } as DocExpenseProposalData
 
     case 'resignation':

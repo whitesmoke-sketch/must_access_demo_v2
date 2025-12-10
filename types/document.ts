@@ -136,6 +136,7 @@ export interface DocExpenseProposalData {
   items: Array<{ item: string; quantity: number; unit_price: number }>
   total_amount: number
   vendor_name: string
+  attachment_url: string | null
 }
 
 // 사직서 데이터
