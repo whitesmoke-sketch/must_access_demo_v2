@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { DocumentType } from '@/types/document'
 import {
   sendSlackMessage,
+  createApprovalTurnMessage,
   createApprovalCompleteMessage,
   createApprovalRejectedMessage,
   DOC_TYPE_LABELS,
@@ -167,6 +168,42 @@ export async function approveDocument(documentId: number, docType?: DocumentType
         if (activateError) {
           console.error('Failed to activate next step approvers:', activateError)
           return { success: false, error: '다음 결재 단계 활성화 중 오류가 발생했습니다' }
+        }
+
+        // 슬랙 알림: 다음 결재자에게 결재 차례 알림
+        try {
+          const { data: nextApproverSteps } = await adminSupabase
+            .from('approval_step')
+            .select('approver_id')
+            .in('id', nextStepIds)
+
+          if (nextApproverSteps) {
+            const approverIds = nextApproverSteps.map(s => s.approver_id)
+            const { data: approversData } = await adminSupabase
+              .from('employee')
+              .select('id, slack_user_id')
+              .in('id', approverIds)
+
+            const { data: requesterInfo } = await adminSupabase
+              .from('employee')
+              .select('name')
+              .eq('id', document.requester_id)
+              .single()
+
+            const requesterName = requesterInfo?.name || '알 수 없음'
+            const documentTitle = DOC_TYPE_LABELS[requestType] || requestType
+
+            for (const approver of approversData || []) {
+              if (approver.slack_user_id) {
+                const slackMessage = createApprovalTurnMessage(requesterName, documentTitle, documentId)
+                console.log('[Slack 결재차례] 발송:', approver.slack_user_id)
+                sendSlackMessage(approver.slack_user_id, slackMessage)
+                  .catch(err => console.error('[Slack] 결재 차례 알림 실패:', err))
+              }
+            }
+          }
+        } catch (slackError) {
+          console.error('[Slack] 결재 차례 알림 오류 (무시됨):', slackError)
         }
       }
 
