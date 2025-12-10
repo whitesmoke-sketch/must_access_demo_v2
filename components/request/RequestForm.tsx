@@ -657,13 +657,14 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
       return false
     }
 
-    if (!title.trim()) {
+    // 연차 신청은 제목 자동 설정, 그 외는 제목 필수
+    if (documentType !== 'annual_leave' && !title.trim()) {
       toast.error('제목을 입력해주세요')
       return false
     }
 
-    // 사유가 필요한 문서 유형에서만 검증
-    const reasonRequiredTypes = ['annual_leave', 'reward_leave', 'condolence', 'expense']
+    // 사유가 필요한 문서 유형에서만 검증 (연차 제외 - 자동 입력)
+    const reasonRequiredTypes = ['reward_leave', 'condolence', 'expense']
     if (reasonRequiredTypes.includes(documentType) && !reason.trim()) {
       toast.error('사유를 입력해주세요')
       return false
@@ -1038,9 +1039,13 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         ? 'private'
         : visibility
 
+      // 연차 신청 시 제목/사유 자동 설정
+      const finalTitle = documentType === 'annual_leave' ? '연차신청서' : title
+      const finalReason = documentType === 'annual_leave' ? '연차 신청합니다' : reason
+
       const formData: Record<string, unknown> = {
-        title,
-        reason,
+        title: finalTitle,
+        reason: finalReason,
         visibility: finalVisibility,
       }
 
@@ -1459,16 +1464,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 <LeaveBalanceCards balance={balance} documentType={documentType} />
               )}
 
-              {/* 제목 */}
-              <div className="space-y-2">
-                <Label htmlFor="title">제목 *</Label>
-                <Input
-                  id="title"
-                  placeholder="신청 제목을 입력하세요"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
+              {/* 제목 - 연차 신청 제외 */}
+              {documentType !== 'annual_leave' && (
+                <div className="space-y-2">
+                  <Label htmlFor="title">제목 *</Label>
+                  <Input
+                    id="title"
+                    placeholder="신청 제목을 입력하세요"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+              )}
 
               {/* 공개 범위 - 연차/사직서 제외 */}
               {documentType && !['annual_leave', 'reward_leave', 'resignation'].includes(documentType) && (
@@ -1676,17 +1683,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                     </div>
                   )}
 
-                  {/* 사유 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="reason">사유 *</Label>
-                    <Textarea
-                      id="reason"
-                      placeholder="휴가 사유를 입력하세요"
-                      rows={3}
-                      value={reason}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
-                    />
-                  </div>
                 </>
               )}
 
@@ -2609,9 +2605,9 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 </div>
               </div>
 
-              {/* 기존 문서 첨부 */}
+              {/* 기존 문서 참조 */}
               <div className="space-y-2">
-                <Label>기존 문서 첨부</Label>
+                <Label>기존 문서 참조</Label>
                 <div className="space-y-2">
                   <Button
                     type="button"

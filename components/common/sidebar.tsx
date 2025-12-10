@@ -182,7 +182,7 @@ export function Sidebar({
       {/* Desktop Sidebar */}
       <TooltipProvider delayDuration={0}>
         <aside
-          className={`hidden md:flex flex-col bg-white border-r fixed left-0 top-0 h-full transition-all duration-300 z-30 ${
+          className={`hidden md:flex flex-col bg-white border-r fixed left-0 top-0 h-full transition-[width] duration-300 z-30 overflow-hidden ${
             collapsed ? 'w-20' : 'w-[270px]'
           }`}
           style={{ borderColor: '#E5E8EB' }}
@@ -229,13 +229,14 @@ export function Sidebar({
                   key={item.id}
                   href={item.implemented ? item.href : '#'}
                   onClick={handleClick}
-                  className={`w-full flex items-center gap-3 rounded-lg transition-all duration-150 relative ${
+                  className={`w-full flex items-center gap-3 rounded-lg transition-colors duration-150 relative ${
                     collapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'
                   } ${!item.implemented ? 'opacity-60 cursor-not-allowed' : ''}`}
                   style={{
                     backgroundColor: isActive ? '#635BFF' : 'transparent',
                     color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#5B6A72',
                     boxShadow: isActive ? '0 2px 4px rgba(99, 91, 255, 0.2)' : 'none',
+                    whiteSpace: 'nowrap',
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
@@ -253,16 +254,16 @@ export function Sidebar({
                   }}
                 >
                   <Icon
-                    className="w-5 h-5 transition-colors duration-150"
+                    className="w-5 h-5 flex-shrink-0 transition-colors duration-150"
                     style={{
                       color: isActive ? '#ffffff' : isHovered ? '#635BFF' : '#5B6A72',
                     }}
                   />
                   {!collapsed && (
-                    <span className="flex-1">{item.label}</span>
+                    <span className="flex-1 truncate">{item.label}</span>
                   )}
                   {!collapsed && !item.implemented && (
-                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full flex-shrink-0">
                       준비중
                     </span>
                   )}
@@ -296,13 +297,14 @@ export function Sidebar({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    className={`w-full flex items-center gap-3 rounded-lg transition-all duration-150 ${
+                    className={`w-full flex items-center gap-3 rounded-lg transition-colors duration-150 ${
                       collapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'
                     }`}
                     style={{
                       backgroundColor: adminModeEnabled ? '#635BFF' : 'transparent',
                       color: adminModeEnabled ? '#ffffff' : '#5B6A72',
                       boxShadow: adminModeEnabled ? '0 2px 4px rgba(99, 91, 255, 0.2)' : 'none',
+                      whiteSpace: 'nowrap',
                     }}
                     onMouseEnter={(e) => {
                       if (!adminModeEnabled) {
@@ -335,7 +337,7 @@ export function Sidebar({
                     }}
                   >
                     <UserCog
-                      className="w-5 h-5"
+                      className="w-5 h-5 flex-shrink-0"
                       style={{
                         color: adminModeEnabled ? '#ffffff' : undefined,
                       }}
@@ -363,12 +365,12 @@ export function Sidebar({
 
       {/* Mobile Sidebar */}
       <aside
-        className={`fixed md:hidden inset-y-0 left-0 z-50 w-[270px] bg-white transform transition-transform duration-200 ease-in-out border-r ${
+        className={`fixed md:hidden inset-y-0 left-0 z-50 w-[270px] bg-white transform transition-transform duration-200 ease-in-out border-r overflow-hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ borderColor: '#E5E8EB' }}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full w-[270px]">
           <div
             className="flex items-center justify-between h-16 px-6 border-b"
             style={{ borderColor: '#E5E8EB' }}
