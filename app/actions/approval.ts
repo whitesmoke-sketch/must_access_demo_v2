@@ -14,6 +14,13 @@ import {
 import { generateLeaveRequestPdfBuffer } from '@/lib/server-pdf'
 import { downloadFileFromSupabase, guessMimeType, extractPathFromUrl } from '@/lib/supabase/storage'
 import type { LeaveRequestPDFData, ApproverInfo, CCInfo } from '@/components/pdf/types'
+import {
+  sendSlackMessage,
+  createApprovalTurnMessage,
+  createApprovalCompleteMessage,
+  createApprovalRejectedMessage,
+  DOC_TYPE_LABELS,
+} from '@/lib/slack-notifier'
 
 // ================================================
 // Types
@@ -779,22 +786,46 @@ export async function processApproval(
         // 기안자 정보 조회 후 알림 발송 (새 시스템: document_master)
         const { data: documentData } = await supabase
           .from('document_master')
-          .select('requester_id')
+          .select('requester_id, doc_type')
           .eq('id', step.request_id)
           .single()
 
         if (documentData) {
+          const documentTitle = DOC_TYPE_LABELS[documentData.doc_type] || documentData.doc_type
+
           await createNotification({
             recipient_id: documentData.requester_id,
             type: 'approval_rejected',
-            title: '[반려] 연차 신청서',
-            message: comment.trim() ? `연차 신청이 반려되었습니다. 사유: ${comment.trim()}` : '연차 신청이 반려되었습니다.',
+            title: `[반려] ${documentTitle}`,
+            message: comment.trim() ? `${documentTitle}이(가) 반려되었습니다. 사유: ${comment.trim()}` : `${documentTitle}이(가) 반려되었습니다.`,
             metadata: {
               request_type: 'leave',
               request_id: step.request_id,
             },
             action_url: '/documents/my-documents',
           })
+
+          // 슬랙 알림: 기안자에게 반려 알림
+          try {
+            const adminSupabase = createAdminClient()
+            const { data: requesterData } = await adminSupabase
+              .from('employee')
+              .select('slack_user_id')
+              .eq('id', documentData.requester_id)
+              .single()
+
+            if (requesterData?.slack_user_id) {
+              const slackMessage = createApprovalRejectedMessage(
+                documentTitle,
+                step.request_id,
+                comment.trim()
+              )
+              sendSlackMessage(requesterData.slack_user_id, slackMessage)
+                .catch(err => console.error('[Slack] 반려 알림 발송 실패:', err))
+            }
+          } catch (slackError) {
+            console.error('[Slack] 반려 알림 처리 중 오류 (무시됨):', slackError)
+          }
         }
       }
 
@@ -876,26 +907,38 @@ export async function processApproval(
         .in('id', nextStepIds)
 
       if (nextApprovers && nextApprovers.length > 0) {
-        // 신청자 정보 조회 (새 시스템: document_master)
+        // 신청자 정보 및 문서 정보 조회 (새 시스템: document_master)
         let requesterName = '알 수 없음'
+        let documentTitle = '신청서'
         if (step.request_type === 'leave') {
           const { data: documentData } = await supabase
             .from('document_master')
-            .select('requester:requester_id(name)')
+            .select('requester:requester_id(name), doc_type')
             .eq('id', step.request_id)
             .single()
           if (documentData?.requester) {
             const emp = Array.isArray(documentData.requester) ? documentData.requester[0] : documentData.requester
             requesterName = emp?.name || '알 수 없음'
           }
+          if (documentData?.doc_type) {
+            documentTitle = DOC_TYPE_LABELS[documentData.doc_type] || documentData.doc_type
+          }
         }
+
+        // 다음 결재자들의 slack_user_id 조회
+        const adminSupabase = createAdminClient()
+        const approverIds = nextApprovers.map(a => a.approver_id)
+        const { data: approversWithSlack } = await adminSupabase
+          .from('employee')
+          .select('id, slack_user_id')
+          .in('id', approverIds)
 
         for (const nextApprover of nextApprovers) {
           await createNotification({
             recipient_id: nextApprover.approver_id,
             type: 'approval_request',
-            title: '[결재요청] 신청서',
-            message: `${requesterName}님의 신청서가 결재 대기중입니다.`,
+            title: `[결재요청] ${documentTitle}`,
+            message: `${requesterName}님의 ${documentTitle}이(가) 결재 대기중입니다.`,
             metadata: {
               request_type: step.request_type,
               request_id: step.request_id,
@@ -903,6 +946,22 @@ export async function processApproval(
             },
             action_url: `/documents`,
           })
+
+          // 슬랙 알림: 다음 결재자에게 결재 차례 알림
+          try {
+            const approverWithSlack = approversWithSlack?.find(a => a.id === nextApprover.approver_id)
+            if (approverWithSlack?.slack_user_id) {
+              const slackMessage = createApprovalTurnMessage(
+                requesterName,
+                documentTitle,
+                step.request_id
+              )
+              sendSlackMessage(approverWithSlack.slack_user_id, slackMessage)
+                .catch(err => console.error('[Slack] 결재 차례 알림 발송 실패:', err))
+            }
+          } catch (slackError) {
+            console.error('[Slack] 결재 차례 알림 처리 중 오류 (무시됨):', slackError)
+          }
         }
       }
     } else {
@@ -1000,7 +1059,29 @@ async function completeApproval(
         action_url: '/documents/my-documents',
       })
 
-      // 5. Google Drive 아카이빙 처리
+      // 5. 슬랙 알림: 기안자에게 최종 승인 완료 알림
+      try {
+        const adminSupabase = createAdminClient()
+        const { data: requesterSlackData } = await adminSupabase
+          .from('employee')
+          .select('slack_user_id')
+          .eq('id', documentData.requester_id)
+          .single()
+
+        if (requesterSlackData?.slack_user_id) {
+          const documentTitle = DOC_TYPE_LABELS[documentData.doc_type] || documentData.doc_type
+          const slackMessage = createApprovalCompleteMessage(
+            documentTitle,
+            requestId
+          )
+          sendSlackMessage(requesterSlackData.slack_user_id, slackMessage)
+            .catch(err => console.error('[Slack] 최종 승인 완료 알림 발송 실패:', err))
+        }
+      } catch (slackError) {
+        console.error('[Slack] 최종 승인 완료 알림 처리 중 오류 (무시됨):', slackError)
+      }
+
+      // 6. Google Drive 아카이빙 처리
       try {
         await archiveDocumentToDrive(supabase, requestId, documentData, currentBalance)
       } catch (archiveError) {
