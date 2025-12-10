@@ -1,7 +1,10 @@
 /**
  * Google OAuth Token Helper
  * refresh_token을 사용하여 만료된 access_token을 갱신
+ * DB에 저장된 refresh_token을 fallback으로 사용
  */
+
+import { createAdminClient } from '@/lib/supabase/server'
 
 const GOOGLE_CLIENT_ID = '620267390218-ftf52ebnfi2o445dbe5imtqfpb1vk2rg.apps.googleusercontent.com'
 
@@ -64,28 +67,58 @@ export async function refreshGoogleAccessToken(refreshToken: string): Promise<Go
 }
 
 /**
- * 유효한 Google access_token 반환 (필요시 갱신)
+ * 유효한 Google access_token 반환 (세션 -> DB 순으로 탐색)
+ * @param providerToken 세션의 access_token
+ * @param providerRefreshToken 세션의 refresh_token
+ * @param userId DB 조회를 위한 사용자 ID (employee.id)
  */
 export async function getValidGoogleAccessToken(
   providerToken: string | null | undefined,
-  providerRefreshToken: string | null | undefined
+  providerRefreshToken: string | null | undefined,
+  userId?: string
 ): Promise<GoogleTokenResult> {
-  // access_token이 있으면 유효성 확인
+  // 1. 세션에 있는 access_token이 유효한지 확인
   if (providerToken) {
     const isValid = await verifyGoogleToken(providerToken)
     if (isValid) {
       return { accessToken: providerToken }
     }
-    console.log('[Google Auth] 토큰 만료됨, 갱신 시도...')
+    console.log('[Google Auth] 세션 Access Token 만료됨')
   }
 
-  // refresh_token으로 갱신
-  if (!providerRefreshToken) {
-    console.log('[Google Auth] refresh_token 없음')
-    return { accessToken: null, error: 'refresh_token 없음', needsReauth: true }
+  // 2. 세션에 refresh_token이 있다면 갱신 시도
+  if (providerRefreshToken) {
+    console.log('[Google Auth] 세션 Refresh Token으로 갱신 시도')
+    return refreshGoogleAccessToken(providerRefreshToken)
   }
 
-  return refreshGoogleAccessToken(providerRefreshToken)
+  // 3. 세션에 토큰이 없으면 DB에서 조회 (Fallback)
+  if (userId) {
+    console.log('[Google Auth] 세션에 토큰 없음. DB에서 백업 토큰 조회 중...')
+    try {
+      const adminClient = createAdminClient()
+      const { data: employee, error } = await adminClient
+        .from('employee')
+        .select('google_refresh_token')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('[Google Auth] DB 조회 실패:', error.message)
+      } else if (employee?.google_refresh_token) {
+        console.log('[Google Auth] DB에서 Refresh Token 발견! 갱신 시도')
+        return refreshGoogleAccessToken(employee.google_refresh_token)
+      } else {
+        console.log('[Google Auth] DB에 저장된 Refresh Token 없음')
+      }
+    } catch (err) {
+      console.error('[Google Auth] DB 조회 중 오류:', err)
+    }
+  }
+
+  // 4. 모든 토큰 소실 - 재로그인 필요
+  console.log('[Google Auth] 모든 토큰 소실. 재로그인 필요.')
+  return { accessToken: null, error: 'refresh_token 없음', needsReauth: true }
 }
 
 /**

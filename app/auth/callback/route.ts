@@ -14,6 +14,27 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
+      // Google Refresh Token을 DB에 영구 저장 (세션 만료 후에도 사용 가능하도록)
+      const providerRefreshToken = data.session?.provider_refresh_token
+      if (providerRefreshToken && data.user.email) {
+        console.log('[Auth Callback] Google Refresh Token 감지, DB 저장 시도...')
+        try {
+          const adminClient = createAdminClient()
+          const { error: updateError } = await adminClient
+            .from('employee')
+            .update({ google_refresh_token: providerRefreshToken })
+            .eq('email', data.user.email)
+
+          if (updateError) {
+            console.error('[Auth Callback] Google Refresh Token DB 저장 실패:', updateError.message)
+          } else {
+            console.log('[Auth Callback] Google Refresh Token DB 저장 완료')
+          }
+        } catch (err) {
+          console.error('[Auth Callback] Google Refresh Token 저장 중 오류:', err)
+        }
+      }
+
       // provider_token이 없으면 consent 모드로 재로그인 유도
       if (!data.session?.provider_token && !needsConsent) {
         console.log('[Auth Callback] provider_token 없음, consent 모드로 재로그인 필요')

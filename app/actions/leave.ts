@@ -385,10 +385,11 @@ export async function generateLeavePDF(documentId: number) {
       provider: session.user?.app_metadata?.provider,
     })
 
-    // Google 토큰 확인 및 갱신
+    // Google 토큰 확인 및 갱신 (세션 → DB fallback)
     const tokenResult = await getValidGoogleAccessToken(
       session.provider_token,
-      session.provider_refresh_token
+      session.provider_refresh_token,
+      session.user.id
     )
 
     if (!tokenResult.accessToken) {

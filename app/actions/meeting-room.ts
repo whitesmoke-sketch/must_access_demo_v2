@@ -189,10 +189,11 @@ export async function createBooking(input: CreateBookingInput) {
     attendeeEmails = [...new Set([...attendeeEmails, ...additionalEmails])]
   }
 
-  // Google 토큰 확인 및 필요시 갱신
+  // Google 토큰 확인 및 필요시 갱신 (세션 → DB fallback)
   const tokenResult = await getValidGoogleAccessToken(
     session?.provider_token,
-    session?.provider_refresh_token
+    session?.provider_refresh_token,
+    session?.user?.id
   )
 
   console.log('[Calendar Integration] Check:', {
@@ -375,10 +376,11 @@ export async function cancelBooking(bookingId: string) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Google 토큰 확인 및 필요시 갱신
+  // Google 토큰 확인 및 필요시 갱신 (세션 → DB fallback)
   const tokenResult = await getValidGoogleAccessToken(
     session?.provider_token,
-    session?.provider_refresh_token
+    session?.provider_refresh_token,
+    user.id
   )
 
   // Google Calendar 연동 시도 (유효한 토큰이 있는 경우)
@@ -472,10 +474,11 @@ export async function respondToMeetingInvitation(
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Google 토큰 확인 및 필요시 갱신
+  // Google 토큰 확인 및 필요시 갱신 (세션 → DB fallback)
   const tokenResult = await getValidGoogleAccessToken(
     session?.provider_token,
-    session?.provider_refresh_token
+    session?.provider_refresh_token,
+    user.id
   )
 
   if (!tokenResult.accessToken) {

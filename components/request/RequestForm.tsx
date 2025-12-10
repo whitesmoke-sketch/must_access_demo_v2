@@ -30,7 +30,8 @@ import { DocumentTypeSelector } from './DocumentTypeSelector'
 import { LeaveBalanceCards } from './LeaveBalanceCards'
 import { submitDocumentRequest, searchAccessibleDocuments } from '@/app/actions/document'
 import { generateDefaultApprovers } from '@/app/actions/approval'
-import { Upload, X, AlertCircle, Plus, User, Edit2, Trash2, GripVertical, FileText, Search, Check } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { Upload, X, AlertCircle, Plus, User, Edit2, Trash2, GripVertical, FileText, Search, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -370,6 +371,50 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
   // 첨부파일
   const [attachments, setAttachments] = useState<File[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+
+  // 파일명 sanitize 함수 (URL 안전하지 않은 문자 치환)
+  const sanitizeFileName = (fileName: string): string => {
+    return fileName
+      .replace(/[\/\\]/g, '_')  // 슬래시, 백슬래시
+      .replace(/\s+/g, '_')     // 공백
+      .replace(/[<>:"|?*]/g, '_') // Windows 금지 문자
+      .replace(/[^\w.\-가-힣]/g, '_') // 알파벳, 숫자, 점, 하이픈, 한글 외 문자
+      .replace(/_+/g, '_')      // 연속된 언더스코어 정리
+  }
+
+  // Supabase Storage에 파일 업로드
+  const uploadFilesToStorage = async (files: File[], userId: string): Promise<string[]> => {
+    const supabase = createClient()
+    const uploadedUrls: string[] = []
+
+    for (const file of files) {
+      const timestamp = Date.now()
+      const sanitizedName = sanitizeFileName(file.name)
+      const filePath = `uploads/${userId}/${timestamp}_${sanitizedName}`
+
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (error) {
+        console.error(`파일 업로드 실패 (${file.name}):`, error)
+        throw new Error(`파일 업로드 실패: ${file.name}`)
+      }
+
+      // Public URL 생성
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(data.path)
+
+      uploadedUrls.push(urlData.publicUrl)
+    }
+
+    return uploadedUrls
+  }
 
   // 기존 문서 첨부
   const [selectedExistingDocs, setSelectedExistingDocs] = useState<string[]>([])
@@ -889,8 +934,29 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     if (!validateForm()) return
 
     setIsSubmitting(true)
+    setIsUploading(true)
 
     try {
+      // 첨부파일 업로드 처리
+      let attachmentUrl: string | null = null
+      if (attachments.length > 0) {
+        try {
+          toast.info('첨부파일 업로드 중...', { duration: 2000 })
+          const uploadedUrls = await uploadFilesToStorage(attachments, currentUser.id)
+          // 여러 파일인 경우 JSON 배열로 저장, 단일 파일이면 그냥 URL
+          attachmentUrl = uploadedUrls.length === 1
+            ? uploadedUrls[0]
+            : JSON.stringify(uploadedUrls)
+        } catch (uploadError) {
+          console.error('파일 업로드 실패:', uploadError)
+          toast.error(uploadError instanceof Error ? uploadError.message : '파일 업로드 중 오류가 발생했습니다')
+          setIsSubmitting(false)
+          setIsUploading(false)
+          return
+        }
+      }
+      setIsUploading(false)
+
       // 결재선을 서버 형식으로 변환
       const serverApprovalSteps: ServerApprovalStep[] = approvalSteps.map((step) => ({
         order: step.order,
@@ -1060,6 +1126,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
       if (selectedExistingDocs.length > 0) {
         formData.attached_documents = selectedExistingDocs
+      }
+
+      // 첨부파일 URL 설정
+      if (attachmentUrl) {
+        formData.attachment_url = attachmentUrl
       }
 
       const result = await submitDocumentRequest({
@@ -2802,7 +2873,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isUploading}
                 className="flex-1"
                 style={{
                   backgroundColor: 'var(--primary)',
@@ -2810,7 +2881,19 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   height: '42px',
                 }}
               >
-                {isSubmitting ? '제출 중...' : '제출'}
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    업로드 중...
+                  </>
+                ) : isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    제출 중...
+                  </>
+                ) : (
+                  '제출'
+                )}
               </Button>
             </div>
           </div>

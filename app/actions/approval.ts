@@ -3,7 +3,17 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createNotification } from './notification'
-import type { DocumentType } from '@/types/document'
+import type { DocumentType, LeaveType } from '@/types/document'
+import { getValidGoogleAccessToken } from '@/lib/google-auth'
+import {
+  createDriveFolder,
+  uploadFileToDrive,
+  generateArchiveFolderName,
+  generateArchiveFileName,
+} from '@/lib/google-drive'
+import { generateLeaveRequestPdfBuffer } from '@/lib/server-pdf'
+import { downloadFileFromSupabase, guessMimeType, extractPathFromUrl } from '@/lib/supabase/storage'
+import type { LeaveRequestPDFData, ApproverInfo, CCInfo } from '@/components/pdf/types'
 
 // ================================================
 // Types
@@ -928,7 +938,7 @@ async function completeApproval(
     // 2. 문서 정보 조회 (doc_data JSONB에서 추출)
     const { data: documentData, error: docError } = await supabase
       .from('document_master')
-      .select('requester_id, doc_data')
+      .select('requester_id, doc_data, created_at, doc_type')
       .eq('id', requestId)
       .single()
 
@@ -945,7 +955,7 @@ async function completeApproval(
       // 3. 연차 잔액 차감
       const { data: currentBalance, error: balanceError } = await supabase
         .from('annual_leave_balance')
-        .select('used_days, remaining_days')
+        .select('used_days, remaining_days, total_days')
         .eq('employee_id', documentData.requester_id)
         .single()
 
@@ -989,8 +999,270 @@ async function completeApproval(
         },
         action_url: '/documents/my-documents',
       })
+
+      // 5. Google Drive 아카이빙 처리
+      try {
+        await archiveDocumentToDrive(supabase, requestId, documentData, currentBalance)
+      } catch (archiveError) {
+        console.error('[Drive 아카이빙] 실패 (결재 완료에 영향 없음):', archiveError)
+        // 아카이빙 실패가 결재 완료에 영향을 미치지 않도록 catch 처리
+      }
     }
   }
+}
+
+/**
+ * Google Drive 아카이빙 처리 (내부 함수)
+ */
+async function archiveDocumentToDrive(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: number,
+  documentData: {
+    requester_id: string
+    doc_data: Record<string, unknown> | null
+    created_at: string
+    doc_type: string
+  },
+  balanceData: { total_days: number; used_days: number; remaining_days: number } | null
+) {
+  console.log('[Drive 아카이빙] 시작...')
+
+  // A. 현재 사용자의 Google 토큰 확보
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    console.warn('[Drive 아카이빙] 세션이 없어 건너뜁니다.')
+    return
+  }
+
+  const tokenResult = await getValidGoogleAccessToken(
+    session.provider_token,
+    session.provider_refresh_token,
+    session.user.id
+  )
+
+  if (!tokenResult.accessToken) {
+    console.warn('[Drive 아카이빙] Google 토큰이 없어 건너뜁니다:', tokenResult.error)
+    return
+  }
+
+  const accessToken = tokenResult.accessToken
+  const adminSupabase = createAdminClient()
+
+  // B. 기안자 정보 조회
+  const { data: requesterData, error: requesterError } = await adminSupabase
+    .from('employee')
+    .select(`
+      id,
+      name,
+      email,
+      department:department_id (id, name),
+      role:role_id (id, name)
+    `)
+    .eq('id', documentData.requester_id)
+    .single()
+
+  if (requesterError || !requesterData) {
+    console.error('[Drive 아카이빙] 기안자 정보 조회 실패:', requesterError)
+    return
+  }
+
+  const requesterDept = Array.isArray(requesterData.department)
+    ? requesterData.department[0]
+    : requesterData.department
+  const requesterRole = Array.isArray(requesterData.role)
+    ? requesterData.role[0]
+    : requesterData.role
+
+  // C. 결재선 정보 조회
+  const { data: approvalSteps, error: stepsError } = await adminSupabase
+    .from('approval_step')
+    .select(`
+      id,
+      step_order,
+      status,
+      comment,
+      approved_at,
+      approver:approver_id (
+        id,
+        name,
+        department:department_id (name),
+        role:role_id (name)
+      )
+    `)
+    .eq('request_type', 'leave')
+    .eq('request_id', requestId)
+    .order('step_order')
+
+  if (stepsError) {
+    console.error('[Drive 아카이빙] 결재선 조회 실패:', stepsError)
+  }
+
+  const approvers: ApproverInfo[] = (approvalSteps || []).map((step) => {
+    const approver = Array.isArray(step.approver) ? step.approver[0] : step.approver
+    const dept = approver?.department
+      ? (Array.isArray(approver.department) ? approver.department[0] : approver.department)
+      : null
+    const role = approver?.role
+      ? (Array.isArray(approver.role) ? approver.role[0] : approver.role)
+      : null
+
+    return {
+      id: approver?.id || '',
+      name: approver?.name || '',
+      role: role?.name || '',
+      department: dept?.name || '',
+      status: step.status as ApproverInfo['status'],
+      comment: step.comment || undefined,
+      approvedAt: step.approved_at || undefined,
+    }
+  })
+
+  // D. 참조자 정보 조회
+  const { data: ccData } = await adminSupabase
+    .from('approval_cc')
+    .select(`
+      employee:employee_id (
+        id,
+        name,
+        department:department_id (name),
+        role:role_id (name)
+      )
+    `)
+    .eq('request_type', 'leave')
+    .eq('request_id', requestId)
+
+  const ccList: CCInfo[] = (ccData || []).map((cc) => {
+    const emp = Array.isArray(cc.employee) ? cc.employee[0] : cc.employee
+    const dept = emp?.department
+      ? (Array.isArray(emp.department) ? emp.department[0] : emp.department)
+      : null
+    const role = emp?.role
+      ? (Array.isArray(emp.role) ? emp.role[0] : emp.role)
+      : null
+
+    return {
+      id: emp?.id || '',
+      name: emp?.name || '',
+      role: role?.name || '',
+      department: dept?.name || '',
+    }
+  })
+
+  // E. PDF 데이터 구성
+  const docData = documentData.doc_data || {}
+  const pdfData: LeaveRequestPDFData = {
+    createdAt: documentData.created_at,
+    status: 'approved',
+    requester: {
+      id: requesterData.id,
+      name: requesterData.name,
+      department: requesterDept?.name || '',
+      role: requesterRole?.name || '',
+    },
+    totalLeave: balanceData?.total_days || 0,
+    usedLeave: balanceData?.used_days || 0,
+    remainingLeave: balanceData?.remaining_days || 0,
+    leaveType: (docData.leave_type as LeaveType) || 'annual',
+    startDate: (docData.start_date as string) || '',
+    endDate: (docData.end_date as string) || '',
+    totalDays: (docData.days_count as number) || 0,
+    reason: (docData.reason as string) || undefined,
+    approvers,
+    ccList: ccList.length > 0 ? ccList : undefined,
+  }
+
+  // F. PDF 생성
+  console.log('[Drive 아카이빙] PDF 생성 중...')
+  const pdfBuffer = await generateLeaveRequestPdfBuffer(pdfData)
+
+  // G. 폴더 생성
+  const folderName = generateArchiveFolderName(
+    requesterData.name,
+    documentData.doc_type,
+    documentData.created_at
+  )
+  console.log('[Drive 아카이빙] 폴더 생성:', folderName)
+  const folderId = await createDriveFolder(accessToken, folderName)
+
+  if (!folderId) {
+    console.error('[Drive 아카이빙] 폴더 생성 실패')
+    return
+  }
+
+  // H. PDF 업로드
+  const pdfFileName = generateArchiveFileName(
+    requesterData.name,
+    documentData.doc_type,
+    documentData.created_at
+  )
+  console.log('[Drive 아카이빙] PDF 업로드:', pdfFileName)
+  const pdfResult = await uploadFileToDrive(
+    accessToken,
+    folderId,
+    pdfFileName,
+    'application/pdf',
+    pdfBuffer
+  )
+
+  // I. 첨부파일 업로드 (다중 파일 지원)
+  const rawAttachmentUrl = docData.attachment_url as string | null
+
+  // 1. 첨부파일 경로 파싱 (JSON Array 또는 단일 문자열)
+  let attachmentPaths: string[] = []
+  if (rawAttachmentUrl) {
+    try {
+      const parsed = JSON.parse(rawAttachmentUrl)
+      if (Array.isArray(parsed)) {
+        attachmentPaths = parsed
+      } else {
+        // JSON이지만 배열이 아닌 경우 (예: 문자열)
+        attachmentPaths = [rawAttachmentUrl]
+      }
+    } catch {
+      // JSON 파싱 실패 = 단일 URL 문자열로 취급
+      attachmentPaths = [rawAttachmentUrl]
+    }
+  }
+
+  // 2. 아카이빙 루프 - 각 첨부파일 처리
+  if (attachmentPaths.length > 0) {
+    console.log(`[Drive 아카이빙] 첨부파일 ${attachmentPaths.length}개 처리 시작`)
+
+    for (const path of attachmentPaths) {
+      try {
+        // URL에서 경로 추출 (전체 URL인 경우)
+        const filePath = extractPathFromUrl(path, 'documents') || path
+
+        // 파일명 추출 (URL 디코딩 적용)
+        const fileName = decodeURIComponent(filePath.split('/').pop() || `attachment_${Date.now()}`)
+        const mimeType = guessMimeType(fileName)
+
+        console.log('[Drive 아카이빙] 첨부파일 다운로드:', filePath)
+        const fileBuffer = await downloadFileFromSupabase('documents', filePath)
+
+        console.log('[Drive 아카이빙] 첨부파일 업로드:', fileName)
+        await uploadFileToDrive(accessToken, folderId, fileName, mimeType, fileBuffer)
+      } catch (attachError) {
+        console.error(`[Drive 아카이빙] 첨부파일 처리 실패 (${path}):`, attachError)
+        // 개별 파일 실패는 전체 아카이빙에 영향을 주지 않음 - 계속 진행
+      }
+    }
+
+    console.log('[Drive 아카이빙] 첨부파일 처리 완료')
+  }
+
+  // J. 문서에 Drive 정보 저장 (선택적)
+  if (pdfResult.id) {
+    await supabase
+      .from('document_master')
+      .update({
+        drive_file_id: folderId,
+        drive_file_url: pdfResult.webViewLink,
+      })
+      .eq('id', requestId)
+  }
+
+  console.log('[Drive 아카이빙] 완료!')
 }
 
 // =====================================================
