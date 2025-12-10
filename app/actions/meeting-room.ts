@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getValidGoogleAccessToken } from '@/lib/google-auth'
+import { sendMeetingInvitation, MeetingInvitationData } from '@/lib/slack-notifier'
 
 export interface MeetingRoom {
   id: string
@@ -283,10 +284,10 @@ export async function createBooking(input: CreateBookingInput) {
       console.error('Failed to add attendees:', attendeeError)
       // Don't throw - booking was created, just log the error
     } else {
-      // 회의실 정보 조회
+      // 회의실 정보 조회 (층수 포함)
       const { data: room } = await supabase
         .from('meeting_room')
-        .select('name, location')
+        .select('name, floor, location')
         .eq('id', input.room_id)
         .single()
 
@@ -350,6 +351,41 @@ export async function createBooking(input: CreateBookingInput) {
       } else {
         console.log('[Basic Booking] Notifications created for attendees:', input.attendee_ids.length)
         // postgres_changes가 자동으로 클라이언트에 알림을 전송함
+      }
+
+      // 슬랙 알림 발송 (참석자들에게)
+      try {
+        // 참석자들의 slack_user_id 조회
+        const { data: attendeesWithSlack } = await adminClient
+          .from('employee')
+          .select('id, slack_user_id')
+          .in('id', input.attendee_ids)
+
+        if (attendeesWithSlack && attendeesWithSlack.length > 0) {
+          const slackData: MeetingInvitationData = {
+            bookingId: booking.id,
+            organizerName: organizerName || '알 수 없음',
+            title: input.title,
+            roomName: room?.name || '회의실',
+            floor: room?.floor || 1,
+            location: room?.location || null,
+            bookingDate: input.booking_date,
+            startTime: input.start_time,
+            endTime: input.end_time
+          }
+
+          // 각 참석자에게 슬랙 알림 발송
+          for (const attendee of attendeesWithSlack) {
+            if (attendee.slack_user_id) {
+              sendMeetingInvitation(attendee.slack_user_id, slackData)
+                .catch(err => console.error('[Slack] 회의 초대 알림 발송 실패:', err))
+            }
+          }
+          console.log('[Basic Booking] Slack notifications sent to attendees with slack_user_id')
+        }
+      } catch (slackError) {
+        // 슬랙 알림 실패가 예약에 영향을 주지 않음
+        console.error('[Slack] 회의 초대 알림 처리 중 오류 (무시됨):', slackError)
       }
     }
   }
