@@ -27,8 +27,8 @@ interface TodayOnLeaveCardProps {
 export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // 최대 2명까지만 카드에 표시
-  const displayedMembers = members.slice(0, 2)
+  // 최대 4명까지만 카드에 표시
+  const displayedMembers = members.slice(0, 4)
 
   const getLeaveTypeLabel = (leaveType: string) => {
     const labels: Record<string, string> = {

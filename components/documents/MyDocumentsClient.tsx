@@ -366,7 +366,7 @@ export function MyDocumentsClient({
             기안함
           </h2>
           <p style={{ color: 'var(--muted-foreground)', fontSize: 'var(--font-size-body)', lineHeight: 1.5 }} className="mt-1">
-            내가 작성한 문서를 조회하고 관리합니다
+            기안을 작성하고 내가 작성한 기안을 조회합니다.
           </p>
         </div>
         <Link href="/request">

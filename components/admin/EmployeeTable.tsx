@@ -119,14 +119,12 @@ export function EmployeeTable() {
             <TableHeader>
               <TableRow>
                 <TableHead>이름</TableHead>
+                <TableHead>부서/직급</TableHead>
+                <TableHead>상태</TableHead>
                 <TableHead>이메일</TableHead>
-                <TableHead>부서</TableHead>
-                <TableHead>팀</TableHead>
-                <TableHead>직급</TableHead>
-                <TableHead>역할</TableHead>
+                <TableHead>연락처</TableHead>
                 <TableHead>입사일</TableHead>
-                <TableHead className="text-center">잔여 연차</TableHead>
-                <TableHead className="text-right">작업</TableHead>
+                <TableHead className="text-right">상세</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -142,20 +140,21 @@ export function EmployeeTable() {
                       <TableCell className="font-medium">
                         {employee.name}
                       </TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell>{topDepartment}</TableCell>
-                      <TableCell>{employee.department?.name || '-'}</TableCell>
-                      <TableCell>사람</TableCell>
                       <TableCell>
-                        <RoleBadge roleCode={employee.role?.code} roleName={employee.role?.name} />
+                        <div>{employee.department?.name || '-'}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {employee.role?.name || '-'}
+                        </div>
                       </TableCell>
+                      <TableCell>
+                        <StatusBadge status={employee.status} />
+                      </TableCell>
+                      <TableCell>{employee.email}</TableCell>
+                      <TableCell>{employee.phone || '-'}</TableCell>
                       <TableCell>
                         {employee.employment_date
                           ? new Date(employee.employment_date).toLocaleDateString('ko-KR')
                           : '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {remainingDays}/{totalDays}일
                       </TableCell>
                       <TableCell className="text-right">
                         <EmployeeModal mode="edit" employee={employee} onSuccess={loadData}>
@@ -169,7 +168,7 @@ export function EmployeeTable() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <p className="text-muted-foreground">
                       {searchQuery
                         ? '검색 결과가 없습니다'
@@ -186,37 +185,25 @@ export function EmployeeTable() {
   )
 }
 
-function RoleBadge({ roleCode, roleName }: { roleCode?: string; roleName?: string }) {
+function StatusBadge({ status }: { status?: string }) {
   const configs: Record<string, { label: string; className: string }> = {
-    ceo: {
-      label: '대표',
-      className: 'bg-purple-100 text-purple-700',
-    },
-    hr: {
-      label: 'HR',
-      className: 'bg-pink-100 text-pink-700',
-    },
-    business_leader: {
-      label: '사업리더',
-      className: 'bg-blue-100 text-blue-700',
-    },
-    department_leader: {
-      label: '부서리더',
+    active: {
+      label: '재직',
       className: 'bg-green-100 text-green-700',
     },
-    team_leader: {
-      label: '팀리더',
+    inactive: {
+      label: '휴직',
       className: 'bg-yellow-100 text-yellow-700',
     },
-    employee: {
-      label: '일반사원',
+    resigned: {
+      label: '퇴사',
       className: 'bg-gray-100 text-gray-700',
     },
   }
 
-  const config = (roleCode && configs[roleCode]) || {
-    label: roleName || '구성원',
-    className: 'bg-gray-100 text-gray-700',
+  const config = (status && configs[status]) || {
+    label: '재직',
+    className: 'bg-green-100 text-green-700',
   }
 
   return <Badge className={`${config.className} !border-0`}>{config.label}</Badge>

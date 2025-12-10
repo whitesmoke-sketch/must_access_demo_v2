@@ -1038,7 +1038,7 @@ export async function getLinkedDocumentsForParticipant(
 
     // 참여자가 아니면 에러
     if (!isRequester && !isApprover && !isCC) {
-      return { success: false, error: '해당 문서의 결재 참여자만 첨부 문서를 볼 수 있습니다', data: [] }
+      return { success: false, error: '해당 문서의 결재 참여자만 참조 문서를 볼 수 있습니다', data: [] }
     }
 
     // 3. 첨부 문서 ID 목록 가져오기
@@ -1210,7 +1210,7 @@ export async function getLinkedDocumentDetail(
 
     if (!isRequester && !isApprover && !isCC) {
       console.error('[getLinkedDocumentDetail] User is not a participant')
-      return { success: false, error: '해당 문서의 결재 참여자만 첨부 문서를 볼 수 있습니다' }
+      return { success: false, error: '해당 문서의 결재 참여자만 참조 문서를 볼 수 있습니다' }
     }
 
     console.log('[getLinkedDocumentDetail] User is participant, fetching linked doc')
@@ -1238,12 +1238,12 @@ export async function getLinkedDocumentDetail(
 
     if (linkedError) {
       console.error('[getLinkedDocumentDetail] Error fetching linked doc:', linkedError)
-      return { success: false, error: `첨부 문서 조회 오류: ${linkedError.message}` }
+      return { success: false, error: `참조 문서 조회 오류: ${linkedError.message}` }
     }
 
     if (!linkedDoc) {
       console.error('[getLinkedDocumentDetail] Linked doc not found:', linkedDocumentId)
-      return { success: false, error: '첨부 문서를 찾을 수 없습니다' }
+      return { success: false, error: '참조 문서를 찾을 수 없습니다' }
     }
 
     console.log('[getLinkedDocumentDetail] Found linked doc:', linkedDoc.id, linkedDoc.title)

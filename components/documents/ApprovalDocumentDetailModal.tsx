@@ -251,7 +251,7 @@ export function ApprovalDocumentDetailModal({
   const [linkedDocuments, setLinkedDocuments] = useState<LinkedDocument[]>([])
   const [linkedDocsLoading, setLinkedDocsLoading] = useState(false)
 
-  // 첨부 문서 상세 보기 상태
+  // 참조 문서 상세 보기 상태
   const [viewingLinkedDoc, setViewingLinkedDoc] = useState(false)
   const [linkedDocDetail, setLinkedDocDetail] = useState<LinkedDocumentDetail | null>(null)
   const [linkedDocDetailLoading, setLinkedDocDetailLoading] = useState(false)
@@ -277,7 +277,7 @@ export function ApprovalDocumentDetailModal({
     }
   }, [open, document, initialApprovalSteps])
 
-  // 첨부 문서 조회
+  // 참조 문서 조회
   useEffect(() => {
     if (open && document) {
       fetchLinkedDocuments()
@@ -337,7 +337,7 @@ export function ApprovalDocumentDetailModal({
     }
   }
 
-  // 첨부 문서 클릭 핸들러
+  // 참조 문서 클릭 핸들러
   const handleLinkedDocClick = async (linkedDocId: number) => {
     if (!document) return
 
@@ -352,11 +352,11 @@ export function ApprovalDocumentDetailModal({
           cardRef.current.scrollTop = 0
         }
       } else {
-        toast.error(result.error || '첨부 문서를 불러오는데 실패했습니다')
+        toast.error(result.error || '참조 문서를 불러오는데 실패했습니다')
       }
     } catch (error) {
       console.error('Failed to fetch linked document detail:', error)
-      toast.error('첨부 문서를 불러오는데 실패했습니다')
+      toast.error('참조 문서를 불러오는데 실패했습니다')
     } finally {
       setLinkedDocDetailLoading(false)
     }
@@ -638,7 +638,7 @@ export function ApprovalDocumentDetailModal({
                   <span style={{ fontSize: '12px', color: '#5B6A72' }}>원본 문서로 돌아가기</span>
                 </div>
                 <DialogTitle style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.3, color: '#29363D' }}>
-                  첨부 문서 상세
+                  참조 문서 상세
                 </DialogTitle>
                 <DialogDescription style={{ fontSize: '16px', lineHeight: 1.5, color: '#5B6A72' }}>
                   {linkedDocDetail.title}
@@ -657,14 +657,14 @@ export function ApprovalDocumentDetailModal({
           </DialogHeader>
 
           <Card ref={cardRef} className="overflow-y-auto max-h-[calc(90vh-180px)]">
-            {/* 첨부 문서 상세 로딩 중 */}
+            {/* 참조 문서 상세 로딩 중 */}
             {linkedDocDetailLoading && (
               <div className="flex items-center justify-center p-12">
-                <p style={{ fontSize: '14px', color: '#5B6A72' }}>첨부 문서 로딩 중...</p>
+                <p style={{ fontSize: '14px', color: '#5B6A72' }}>참조 문서 로딩 중...</p>
               </div>
             )}
 
-            {/* 첨부 문서 상세 보기 */}
+            {/* 참조 문서 상세 보기 */}
             {viewingLinkedDoc && linkedDocDetail && !linkedDocDetailLoading && (
               <div className="space-y-4 p-6">
                 {/* 문서 유형 */}
@@ -1290,11 +1290,11 @@ export function ApprovalDocumentDetailModal({
               </div>
             )}
 
-            {/* 첨부 문서 */}
+            {/* 참조 문서 */}
             {linkedDocuments.length > 0 && (
               <div className="space-y-3 pt-5" style={{ borderTop: '1px solid #E5E8EB' }}>
                 <p style={{ fontSize: '16px', fontWeight: 500, lineHeight: '24px', color: '#29363D' }}>
-                  첨부 문서 ({linkedDocuments.length}건)
+                  참조 문서 ({linkedDocuments.length}건)
                 </p>
                 <div className="space-y-2">
                   {linkedDocuments.map((linkedDoc) => (
@@ -1353,7 +1353,7 @@ export function ApprovalDocumentDetailModal({
             )}
             {linkedDocsLoading && (
               <div className="pt-5" style={{ borderTop: '1px solid #E5E8EB' }}>
-                <p style={{ fontSize: '14px', color: '#5B6A72' }}>첨부 문서 로딩 중...</p>
+                <p style={{ fontSize: '14px', color: '#5B6A72' }}>참조 문서 로딩 중...</p>
               </div>
             )}
             </div>

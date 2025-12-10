@@ -68,12 +68,15 @@ interface LeaveLedgerEntry {
   id: string
   requestId?: number
   date: string
+  endDate?: string
   type: 'grant' | 'expire' | 'use'
   leaveType: string
   days: number
   approver?: string
   status?: 'approved' | 'pending' | 'rejected' | 'retrieved'
   description: string
+  reason?: string
+  createdAt?: string
 }
 
 interface LeaveLedgerTableProps {
@@ -182,12 +185,15 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
           id: `use-${req.id}`,
           requestId: req.id,
           date: req.start_date,
+          endDate: req.end_date,
           type: 'use',
           leaveType: leaveTypeLabel,
           days: req.requested_days,
           approver: approverName,
           status: req.status,
           description: `${req.start_date} ~ ${req.end_date}`,
+          reason: req.reason || '',
+          createdAt: req.created_at,
         })
       })
 
@@ -542,7 +548,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                       color: 'var(--muted-foreground)',
                     }}
                   >
-                    날짜
+                    유형
                   </th>
                   <th
                     className="text-left p-3"
@@ -552,7 +558,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                       color: 'var(--muted-foreground)',
                     }}
                   >
-                    부재유형
+                    신청일
                   </th>
                   <th
                     className="text-left p-3"
@@ -562,7 +568,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                       color: 'var(--muted-foreground)',
                     }}
                   >
-                    사용일수
+                    사용∙발생일(일수)
                   </th>
                   <th
                     className="text-left p-3"
@@ -572,7 +578,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                       color: 'var(--muted-foreground)',
                     }}
                   >
-                    승인권자
+                    사유
                   </th>
                   <th
                     className="text-left p-3"
@@ -593,7 +599,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                       width: '80px',
                     }}
                   >
-                    상세보기
+                    상세
                   </th>
                 </tr>
               </thead>
@@ -615,15 +621,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                       e.currentTarget.style.backgroundColor = 'transparent'
                     }}
                   >
-                    <td
-                      className="p-3"
-                      style={{
-                        fontSize: 'var(--font-size-caption)',
-                        color: 'var(--foreground)',
-                      }}
-                    >
-                      {new Date(entry.date).toLocaleDateString('ko-KR')}
-                    </td>
+                    {/* 유형 */}
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <Badge
@@ -647,26 +645,54 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                         </span>
                       </div>
                     </td>
+                    {/* 신청일 */}
                     <td
                       className="p-3"
                       style={{
                         fontSize: 'var(--font-size-caption)',
                         color: 'var(--foreground)',
-                        fontWeight: 600,
                       }}
                     >
-                      {entry.type === 'grant' && '+'}
-                      {entry.days}일
+                      {entry.createdAt
+                        ? new Date(entry.createdAt).toLocaleDateString('ko-KR')
+                        : '-'}
                     </td>
+                    {/* 사용∙발생일(일수) */}
+                    <td
+                      className="p-3"
+                      style={{
+                        fontSize: 'var(--font-size-caption)',
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {entry.type === 'grant' ? (
+                        <span>
+                          {new Date(entry.date).toLocaleDateString('ko-KR')} (+{entry.days}일)
+                        </span>
+                      ) : (
+                        <span>
+                          {new Date(entry.date).toLocaleDateString('ko-KR')}
+                          {entry.endDate && entry.date !== entry.endDate && ` ~ ${new Date(entry.endDate).toLocaleDateString('ko-KR')}`}
+                          {' '}({entry.days}일)
+                        </span>
+                      )}
+                    </td>
+                    {/* 사유 */}
                     <td
                       className="p-3"
                       style={{
                         fontSize: 'var(--font-size-caption)',
                         color: 'var(--muted-foreground)',
+                        maxWidth: '200px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }}
+                      title={entry.reason || entry.description}
                     >
-                      {entry.approver || '-'}
+                      {entry.reason || entry.description || '-'}
                     </td>
+                    {/* 상태 */}
                     <td className="p-3">
                       {entry.status ? (
                         <Badge
@@ -687,10 +713,11 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
                             color: 'var(--muted-foreground)',
                           }}
                         >
-                          {entry.description}
+                          -
                         </span>
                       )}
                     </td>
+                    {/* 상세 */}
                     <td className="p-3 text-center">
                       {entry.requestId && (
                         <Button
