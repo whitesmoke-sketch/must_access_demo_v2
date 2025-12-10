@@ -966,6 +966,7 @@ export async function processApproval(
       }
     } else {
       // 마지막 단계였으면 요청 승인 완료
+      console.log('[결재] 마지막 단계 - completeApproval 호출')
       await completeApproval(supabase, step.request_type, step.request_id)
     }
 
@@ -987,6 +988,7 @@ async function completeApproval(
   requestType: string,
   requestId: number
 ) {
+  console.log('[completeApproval] 호출됨:', { requestType, requestId })
   if (requestType === 'leave') {
     // 1. 문서 상태를 'approved'로 변경 (새 시스템: document_master)
     await supabase
@@ -1060,13 +1062,16 @@ async function completeApproval(
       })
 
       // 5. 슬랙 알림: 기안자에게 최종 승인 완료 알림
+      console.log('[Slack 최종승인] 시작 - requester_id:', documentData.requester_id)
       try {
         const adminSupabase = createAdminClient()
-        const { data: requesterSlackData } = await adminSupabase
+        const { data: requesterSlackData, error: slackQueryError } = await adminSupabase
           .from('employee')
           .select('slack_user_id')
           .eq('id', documentData.requester_id)
           .single()
+
+        console.log('[Slack 최종승인] 조회 결과:', { requesterSlackData, slackQueryError })
 
         if (requesterSlackData?.slack_user_id) {
           const documentTitle = DOC_TYPE_LABELS[documentData.doc_type] || documentData.doc_type
@@ -1074,8 +1079,11 @@ async function completeApproval(
             documentTitle,
             requestId
           )
-          sendSlackMessage(requesterSlackData.slack_user_id, slackMessage)
-            .catch(err => console.error('[Slack] 최종 승인 완료 알림 발송 실패:', err))
+          console.log('[Slack 최종승인] 메시지 발송 시도:', requesterSlackData.slack_user_id)
+          const sendResult = await sendSlackMessage(requesterSlackData.slack_user_id, slackMessage)
+          console.log('[Slack 최종승인] 발송 결과:', sendResult)
+        } else {
+          console.log('[Slack 최종승인] slack_user_id 없음')
         }
       } catch (slackError) {
         console.error('[Slack] 최종 승인 완료 알림 처리 중 오류 (무시됨):', slackError)
