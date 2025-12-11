@@ -33,6 +33,8 @@ export function DatePicker({
   disableWeekends = false,
   disablePastDates = false,
 }: DatePickerProps) {
+  const [open, setOpen] = React.useState(false)
+
   // 날짜 비활성화 로직
   const isDateDisabled = (dateToCheck: Date) => {
     // 과거 날짜 비활성화
@@ -45,8 +47,14 @@ export function DatePicker({
     }
     return false
   }
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    onDateChange?.(selectedDate)
+    setOpen(false) // 날짜 선택 시 팝오버 닫기
+  }
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -70,7 +78,7 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onDateChange}
+          onSelect={handleDateSelect}
           locale={ko}
           initialFocus
           disabled={isDateDisabled}

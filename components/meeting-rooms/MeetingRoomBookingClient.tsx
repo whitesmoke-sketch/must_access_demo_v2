@@ -183,19 +183,39 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     setTimelineDate(new Date(selectedDate))
   }, [selectedDate])
 
+  // 로컬 날짜를 YYYY-MM-DD 문자열로 변환 (타임존 이슈 방지)
+  const formatDateToLocalString = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // 문자열을 로컬 Date로 변환 (타임존 이슈 방지)
+  const parseLocalDate = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
   // Date navigation
   const handlePreviousDay = () => {
     const newDate = new Date(timelineDate)
     newDate.setDate(newDate.getDate() - 1)
+
+    // 과거 날짜 선택 불가
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (newDate < today) return
+
     setTimelineDate(newDate)
-    setSelectedDate(newDate.toISOString().split('T')[0])
+    setSelectedDate(formatDateToLocalString(newDate))
   }
 
   const handleNextDay = () => {
     const newDate = new Date(timelineDate)
     newDate.setDate(newDate.getDate() + 1)
     setTimelineDate(newDate)
-    setSelectedDate(newDate.toISOString().split('T')[0])
+    setSelectedDate(formatDateToLocalString(newDate))
   }
 
   // Check if time is in selected range (considering booked slots)
@@ -704,6 +724,13 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                     variant="outline"
                     size="sm"
                     onClick={handlePreviousDay}
+                    disabled={(() => {
+                      const today = new Date()
+                      today.setHours(0, 0, 0, 0)
+                      const checkDate = new Date(timelineDate)
+                      checkDate.setHours(0, 0, 0, 0)
+                      return checkDate.getTime() <= today.getTime()
+                    })()}
                     style={{ padding: '6px' }}
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -853,9 +880,10 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                   날짜 *
                 </Label>
                 <DatePicker
-                  date={selectedDate ? new Date(selectedDate) : undefined}
-                  onDateChange={(date) => setSelectedDate(date ? date.toISOString().split('T')[0] : '')}
+                  date={selectedDate ? parseLocalDate(selectedDate) : undefined}
+                  onDateChange={(date) => setSelectedDate(date ? formatDateToLocalString(date) : '')}
                   placeholder="날짜 선택"
+                  disablePastDates
                 />
               </div>
 
@@ -873,8 +901,16 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                 </Label>
                 <TimePicker
                   value={startTime}
-                  onValueChange={setStartTime}
+                  onValueChange={(time) => {
+                    setStartTime(time)
+                    // 종료 시간이 시작 시간보다 작거나 같으면 초기화
+                    if (endTime && time >= endTime) {
+                      setEndTime('')
+                    }
+                  }}
                   placeholder="시작 시간 선택"
+                  minTime="09:00"
+                  maxTime="18:30"
                 />
               </div>
 
@@ -894,6 +930,9 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                   value={endTime}
                   onValueChange={setEndTime}
                   placeholder="종료 시간 선택"
+                  minTime="09:30"
+                  maxTime="19:00"
+                  minSelectableTime={startTime}
                 />
               </div>
 

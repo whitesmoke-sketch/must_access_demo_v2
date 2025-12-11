@@ -545,6 +545,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                 date={dateFilter}
                 onDateChange={setDateFilter}
                 placeholder="날짜 선택"
+                disablePastDates
               />
             </div>
 
