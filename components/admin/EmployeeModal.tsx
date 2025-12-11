@@ -26,6 +26,7 @@ import { DepartmentCombobox } from './DepartmentCombobox'
 import { RoleSelect } from './RoleSelect'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2 } from 'lucide-react'
 
 interface Role {
@@ -58,8 +59,10 @@ export function EmployeeModal({
     department_id: 0,
     role_id: 0,
     employment_date: '',
+    resignation_date: '',
     phone: '',
     location: '',
+    status: 'active',
     annual_leave_days: 0,
     used_days: 0,
     reward_leave: 0,
@@ -86,8 +89,10 @@ export function EmployeeModal({
         department_id: employee.department_id || 0,
         role_id: employee.role_id || 0,
         employment_date: employee.employment_date || '',
+        resignation_date: employee.resignation_date || '',
         phone: employee.phone || '',
         location: employee.location || '',
+        status: employee.status || 'active',
         annual_leave_days: employee.annual_leave_balance?.[0]?.total_days || 0,
         used_days: employee.annual_leave_balance?.[0]?.used_days || 0,
         reward_leave: 0, // 하드코딩
@@ -303,12 +308,12 @@ export function EmployeeModal({
                             color: 'var(--muted-foreground)'
                           }}
                         >
-                          직무/직책
+                          부서
                         </Label>
-                        <RoleSelect
-                          value={item.role_id}
-                          onValueChange={(val) => updatePosition(index, 'role_id', val)}
-                          placeholder="선임연구원"
+                        <DepartmentCombobox
+                          value={item.department_id || undefined}
+                          onValueChange={(val) => updatePosition(index, 'department_id', val)}
+                          placeholder="부서 선택"
                         />
                       </div>
                       <div className="space-y-1">
@@ -320,12 +325,12 @@ export function EmployeeModal({
                             color: 'var(--muted-foreground)'
                           }}
                         >
-                          부서
+                          직무/직책
                         </Label>
-                        <DepartmentCombobox
-                          value={item.department_id || undefined}
-                          onValueChange={(val) => updatePosition(index, 'department_id', val)}
-                          placeholder="부서 선택"
+                        <RoleSelect
+                          value={item.role_id}
+                          onValueChange={(val) => updatePosition(index, 'role_id', val)}
+                          placeholder="선임연구원"
                         />
                       </div>
                     </div>
@@ -355,27 +360,7 @@ export function EmployeeModal({
               </div>
             </div>
 
-            {/* 팀, 입사일 */}
-            <div className="space-y-2">
-              <Label
-                style={{
-                  fontSize: 'var(--font-size-caption)',
-                  fontWeight: 500,
-                  lineHeight: 1.5
-                }}
-              >
-                팀
-              </Label>
-              <Input
-                value={formData.location || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                placeholder="백엔드팀"
-                className="md:text-[var(--font-size-body)] text-[var(--font-size-caption)]"
-              />
-            </div>
-
+            {/* 입사일, 퇴사일 */}
             <div className="space-y-2">
               <Label
                 style={{
@@ -395,8 +380,61 @@ export function EmployeeModal({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 500,
+                  lineHeight: 1.5
+                }}
+              >
+                퇴사일
+              </Label>
+              <Input
+                type="date"
+                value={formData.resignation_date}
+                onChange={(e) =>
+                  setFormData({ ...formData, resignation_date: e.target.value })
+                }
+                placeholder="퇴사 시 입력"
+              />
+            </div>
 
-            {/* 안내 문구 */}
+            {/* 근무 상태 (읽기 전용, edit 모드만) */}
+            {employee && (
+              <div className="space-y-2 col-span-2">
+                <Label
+                  style={{
+                    fontSize: 'var(--font-size-caption)',
+                    fontWeight: 500,
+                    lineHeight: 1.5
+                  }}
+                >
+                  근무 상태
+                </Label>
+                <div>
+                  <Badge
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      lineHeight: 1.4,
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      border: 'none',
+                      ...(formData.status === 'active'
+                        ? { backgroundColor: 'var(--success-bg)', color: 'var(--success)' }
+                        : formData.status === 'leave'
+                        ? { backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' }
+                        : { backgroundColor: 'var(--destructive-bg)', color: 'var(--destructive)' })
+                    }}
+                  >
+                    {formData.status === 'active' ? '재직' :
+                     formData.status === 'leave' ? '휴직' : '퇴사'}
+                  </Badge>
+                </div>
+              </div>
+            )}
+
+            {/* 안내 문구 (신규 등록 시에만) */}
             {!employee && (
               <div
                 className="p-3 rounded-lg col-span-2"
@@ -413,26 +451,6 @@ export function EmployeeModal({
                   }}
                 >
                   💡 구성원 등록 시 Hubstaff 온보딩 API가 자동으로 트리거되어 계정 생성 및 초기 설정이 진행됩니다.
-                </p>
-              </div>
-            )}
-
-            {employee && (
-              <div
-                className="p-3 rounded-lg col-span-2"
-                style={{
-                  backgroundColor: 'var(--muted)',
-                  border: '1px solid var(--border)'
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: 'var(--font-size-caption)',
-                    lineHeight: 1.5,
-                    color: 'var(--muted-foreground)'
-                  }}
-                >
-                  ℹ️ 구글 이메일은 수정할 수 없습니다. 변경이 필요한 경우 관리자에게 문의하세요.
                 </p>
               </div>
             )}
