@@ -22,6 +22,7 @@ interface DatePickerProps {
   className?: string
   disableWeekends?: boolean
   disablePastDates?: boolean
+  minDate?: Date
 }
 
 export function DatePicker({
@@ -32,6 +33,7 @@ export function DatePicker({
   className,
   disableWeekends = false,
   disablePastDates = false,
+  minDate,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -39,6 +41,10 @@ export function DatePicker({
   const isDateDisabled = (dateToCheck: Date) => {
     // 과거 날짜 비활성화
     if (disablePastDates && dateToCheck < startOfDay(new Date())) {
+      return true
+    }
+    // minDate 이전 날짜 비활성화
+    if (minDate && dateToCheck < startOfDay(minDate)) {
       return true
     }
     // 주말 비활성화 (0: 일요일, 6: 토요일)

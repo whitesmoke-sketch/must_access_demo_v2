@@ -1510,10 +1510,16 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       <Label>시작일 *</Label>
                       <DatePicker
                         date={startDate}
-                        onDateChange={setStartDate}
+                        onDateChange={(date) => {
+                          setStartDate(date)
+                          // 시작일이 변경되면 종료일이 시작일보다 앞선 경우 리셋
+                          if (date && endDate && endDate < date) {
+                            setEndDate(undefined)
+                          }
+                        }}
                         placeholder="시작일 선택"
                         disableWeekends
-                        disablePastDates
+                        minDate={new Date(new Date().setDate(new Date().getDate() + 1))}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1523,7 +1529,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         onDateChange={setEndDate}
                         placeholder="종료일 선택"
                         disableWeekends
-                        disablePastDates
+                        minDate={startDate || new Date(new Date().setDate(new Date().getDate() + 1))}
                       />
                     </div>
                   </div>
@@ -1692,10 +1698,16 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                       <Label>시작일 *</Label>
                       <DatePicker
                         date={startDate}
-                        onDateChange={setStartDate}
+                        onDateChange={(date) => {
+                          setStartDate(date)
+                          // 시작일이 변경되면 종료일이 시작일보다 앞선 경우 리셋
+                          if (date && endDate && endDate < date) {
+                            setEndDate(undefined)
+                          }
+                        }}
                         placeholder="시작일 선택"
                         disableWeekends
-                        disablePastDates
+                        minDate={new Date(new Date().setDate(new Date().getDate() + 1))}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1705,7 +1717,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                         onDateChange={setEndDate}
                         placeholder="종료일 선택"
                         disableWeekends
-                        disablePastDates
+                        minDate={startDate || new Date(new Date().setDate(new Date().getDate() + 1))}
                       />
                     </div>
                   </div>
