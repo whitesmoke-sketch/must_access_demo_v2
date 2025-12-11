@@ -21,10 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { createEmployee, updateEmployee } from '@/app/actions/employee'
+import { createEmployee, updateEmployee, type AdditionalPosition } from '@/app/actions/employee'
 import { DepartmentCombobox } from './DepartmentCombobox'
+import { RoleSelect } from './RoleSelect'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface Role {
   id: number
@@ -63,6 +65,12 @@ export function EmployeeModal({
     reward_leave: 0,
   })
 
+  // 추가 소속 관리용 상태
+  const [positionsList, setPositionsList] = useState<Array<{
+    department_id: number | null
+    role_id: number | null
+  }>>( [])
+
   // 모달이 열릴 때만 roles를 fetch (중복 호출 방지)
   useEffect(() => {
     if (open && roles.length === 0) {
@@ -84,6 +92,19 @@ export function EmployeeModal({
         used_days: employee.annual_leave_balance?.[0]?.used_days || 0,
         reward_leave: 0, // 하드코딩
       })
+
+      // 추가 소속 로드 (is_primary=false인 항목들)
+      if (employee.all_positions) {
+        const additionalPos = employee.all_positions
+          .filter((pos: any) => !pos.is_primary)
+          .map((pos: any) => ({
+            department_id: pos.department_id,
+            role_id: pos.role_id,
+          }))
+        setPositionsList(additionalPos)
+      } else {
+        setPositionsList([])
+      }
     }
   }, [employee])
 
@@ -99,6 +120,26 @@ export function EmployeeModal({
     }
   }
 
+  // 추가 소속 핸들러
+  const addPosition = () => {
+    setPositionsList([...positionsList, { department_id: null, role_id: null }])
+  }
+
+  const removePosition = (index: number) => {
+    setPositionsList(positionsList.filter((_, i) => i !== index))
+  }
+
+  const updatePosition = (
+    index: number,
+    field: 'department_id' | 'role_id',
+    value: number
+  ) => {
+    const updated = positionsList.map((item, i) =>
+      i === index ? { ...item, [field]: value } : item
+    )
+    setPositionsList(updated)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
@@ -107,14 +148,31 @@ export function EmployeeModal({
       return
     }
 
+    // 추가 소속 데이터 정리 (빈 항목 제거, 주 소속과 중복 체크)
+    const validAdditionalPositions: AdditionalPosition[] = positionsList
+      .filter((pos) => pos.department_id && pos.role_id) // null 제거
+      .filter((pos) =>
+        // 주 소속과 동일한 부서/역할 조합 제거
+        !(pos.department_id === formData.department_id && pos.role_id === formData.role_id)
+      )
+      .map((pos) => ({
+        department_id: pos.department_id!,
+        role_id: pos.role_id!,
+      }))
+
+    const submitData = {
+      ...formData,
+      additional_positions: validAdditionalPositions,
+    }
+
     setLoading(true)
 
     try {
       let result
       if (mode === 'create') {
-        result = await createEmployee(formData)
+        result = await createEmployee(submitData)
       } else {
-        result = await updateEmployee(employee.id, formData)
+        result = await updateEmployee(employee.id, submitData)
       }
 
       if (result.success) {
@@ -185,38 +243,90 @@ export function EmployeeModal({
               />
             </div>
 
-            {/* 조직 (부서/팀 통합) */}
-            <div className="space-y-2 col-span-2">
-              <Label>조직 *</Label>
-              <DepartmentCombobox
-                value={formData.department_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, department_id: value })
-                }
-              />
+            {/* 주 소속 섹션 */}
+            <div className="col-span-2 space-y-3">
+              <Label className="text-base font-semibold">주 소속</Label>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* 조직 (부서/팀 통합) */}
+                <div className="space-y-2 col-span-2">
+                  <Label>조직/부서 *</Label>
+                  <DepartmentCombobox
+                    value={formData.department_id}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, department_id: value })
+                    }
+                  />
+                </div>
+
+                {/* 역할 */}
+                <div className="space-y-2">
+                  <Label>역할 *</Label>
+                  <RoleSelect
+                    value={formData.role_id}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, role_id: value })
+                    }
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* 역할 */}
-            <div className="space-y-2">
-              <Label>역할 *</Label>
-              <Select
-                value={formData.role_id.toString()}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, role_id: parseInt(value) })
-                }
-                disabled={roles.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={roles.length === 0 ? "로딩 중..." : "역할 선택"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id.toString()}>
-                      {role.name}
-                    </SelectItem>
+            {/* 추가 소속 섹션 (겸직) */}
+            <div className="col-span-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">추가 소속 (겸직)</Label>
+                <span className="text-xs text-muted-foreground">선택사항</span>
+              </div>
+
+              {positionsList.length > 0 && (
+                <div className="space-y-3">
+                  {positionsList.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex gap-3 items-start p-3 bg-muted/50 rounded-lg border"
+                    >
+                      <div className="flex-1 grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-sm">부서</Label>
+                          <DepartmentCombobox
+                            value={item.department_id || undefined}
+                            onValueChange={(val) => updatePosition(index, 'department_id', val)}
+                            placeholder="부서 선택"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm">역할</Label>
+                          <RoleSelect
+                            value={item.role_id}
+                            onValueChange={(val) => updatePosition(index, 'role_id', val)}
+                            placeholder="역할 선택"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removePosition(index)}
+                        className="mt-6 flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addPosition}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                추가 소속 추가
+              </Button>
             </div>
 
             {/* 입사일 */}

@@ -124,7 +124,7 @@ export async function updateEmployee(id: string, data: UpdateEmployeeData) {
   try {
     const supabase = await createClient()
 
-    // 구성원 정보 수정 (연차는 grant 테이블에서 별도 관리)
+    // 1. 구성원 정보 수정 (주 소속)
     const { error: employeeError } = await supabase
       .from('employee')
       .update({
@@ -140,6 +140,42 @@ export async function updateEmployee(id: string, data: UpdateEmployeeData) {
     if (employeeError) {
       console.error('Employee update error:', employeeError)
       return { success: false, error: employeeError.message }
+    }
+
+    // 2. 기존 추가 소속 모두 삭제
+    const { error: deleteError } = await supabase
+      .from('employee_additional_positions')
+      .delete()
+      .eq('employee_id', id)
+
+    if (deleteError) {
+      console.error('Delete additional positions error:', deleteError)
+      // 주 소속은 이미 업데이트되었으므로 계속 진행
+    }
+
+    // 3. 새 추가 소속 삽입
+    if (data.additional_positions && data.additional_positions.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const additionalRecords = data.additional_positions.map((pos) => ({
+        employee_id: id,
+        department_id: pos.department_id,
+        role_id: pos.role_id,
+        assigned_by: user?.id || null,
+      }))
+
+      const { error: insertError } = await supabase
+        .from('employee_additional_positions')
+        .insert(additionalRecords)
+
+      if (insertError) {
+        console.error('Insert additional positions error:', insertError)
+        // 주 소속은 성공했으므로 경고만 표시
+        return {
+          success: true,
+          warning: '주 소속은 수정되었으나 추가 소속 저장에 실패했습니다.',
+        }
+      }
     }
 
     revalidatePath('/admin/employees')
