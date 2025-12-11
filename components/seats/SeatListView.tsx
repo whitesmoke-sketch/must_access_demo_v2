@@ -152,7 +152,7 @@ export function SeatListView({
                         color: 'var(--muted-foreground)',
                         lineHeight: 1.5
                       }}>
-                        {seat.startTime}
+                        {seat.startTime.slice(0, 5)}
                       </span>
                     </div>
                   )}

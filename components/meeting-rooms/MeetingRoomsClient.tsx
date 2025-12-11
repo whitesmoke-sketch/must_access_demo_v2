@@ -826,7 +826,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                           lineHeight: 1.4,
                                         }}
                                       >
-                                        {room.currentBooking.start} - {room.currentBooking.end}
+                                        {room.currentBooking.start.slice(0, 5)} - {room.currentBooking.end.slice(0, 5)}
                                       </span>
                                     </div>
                                     {renderAttendees(room.currentBooking.attendees)}
@@ -1021,55 +1021,53 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                         key={time}
                         className="flex items-center gap-3 transition-all"
                         style={{
-                          padding: '10px 16px',
+                          padding: '8px 12px',
                           borderRadius: '8px',
-                          backgroundColor: isBooked ? 'rgba(99, 91, 255, 0.08)' : 'rgba(246, 248, 249, 0.5)',
-                          border: isBooked ? '1px solid rgba(99, 91, 255, 0.2)' : '1px solid transparent',
+                          backgroundColor: isBooked ? 'var(--disabled-bg)' : 'var(--muted)',
+                          border: '2px solid transparent',
+                          opacity: isBooked ? 'var(--disabled-opacity)' : 1,
                         }}
                       >
                         <div
                           style={{
-                            fontSize: 'var(--font-size-caption)',
-                            fontWeight: 600,
+                            fontSize: '14px',
+                            fontWeight: 500,
                             lineHeight: 1.4,
-                            color: isBooked ? 'var(--primary)' : '#5B6A72',
+                            color: isBooked ? 'var(--disabled-text)' : 'var(--foreground)',
                             minWidth: '50px',
                           }}
                         >
-                          {time}
+                          {time.slice(0, 5)}
                         </div>
                         {isBooked && booking ? (
-                          <>
-                            <div className="flex-1">
-                              <p
-                                style={{
-                                  fontSize: 'var(--font-size-caption)',
-                                  fontWeight: 600,
-                                  lineHeight: 1.4,
-                                  color: 'var(--foreground)',
-                                }}
-                              >
-                                {booking.title}
-                              </p>
-                              <p
-                                style={{
-                                  fontSize: 'var(--font-size-caption)',
-                                  lineHeight: 1.4,
-                                  color: 'var(--muted-foreground)',
-                                  marginTop: '2px',
-                                }}
-                              >
-                                {booking.bookedBy} • {booking.start} - {booking.end}
-                              </p>
-                            </div>
-                          </>
+                          <div className="flex-1">
+                            <p
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                lineHeight: 1.4,
+                                color: 'var(--disabled-text)',
+                              }}
+                            >
+                              {booking.title}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: '14px',
+                                lineHeight: 1.4,
+                                color: 'var(--disabled-text)',
+                              }}
+                            >
+                              {booking.bookedBy} · {booking.start.slice(0, 5)} - {booking.end.slice(0, 5)}
+                            </p>
+                          </div>
                         ) : (
                           <div className="flex-1">
                             <p
                               style={{
-                                fontSize: 'var(--font-size-caption)',
+                                fontSize: '14px',
                                 lineHeight: 1.4,
-                                color: 'var(--disabled-text)',
+                                color: 'var(--foreground)',
                               }}
                             >
                               예약 가능

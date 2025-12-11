@@ -196,7 +196,7 @@ export function SeatsPageClient({
                         lineHeight: 1.5,
                       }}
                     >
-                      {myCurrentSeat.startTime}
+                      {myCurrentSeat.startTime.slice(0, 5)}
                     </span>
                   </div>
                 )}
@@ -340,7 +340,7 @@ export function SeatsPageClient({
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
                               <span style={{ fontSize: 'var(--font-size-caption)', lineHeight: 1.4, color: 'var(--foreground)' }}>
-                                시작 시간: {selectedSeat.startTime}
+                                시작 시간: {selectedSeat.startTime.slice(0, 5)}
                               </span>
                             </div>
                           )}
