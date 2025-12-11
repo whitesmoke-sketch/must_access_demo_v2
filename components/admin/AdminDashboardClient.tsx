@@ -23,6 +23,7 @@ interface WorkStatusMember {
   name: string
   department: string
   status: string
+  profileImage?: string
 }
 
 interface WorkStatusData {
@@ -142,24 +143,24 @@ export function AdminDashboardClient({
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return { bg: '#FFF0ED', color: '#FF6B6B', icon: '#FF6B6B' }
+        return { bg: 'var(--destructive-bg)', color: 'var(--destructive)', icon: 'var(--destructive)' }
       case 'warning':
-        return { bg: '#FFF8E5', color: '#F8C653', icon: '#F8C653' }
+        return { bg: 'var(--warning-bg)', color: 'var(--warning)', icon: 'var(--warning)' }
       case 'info':
-        return { bg: 'rgba(22, 205, 199, 0.1)', color: '#16CDC7', icon: '#16CDC7' }
+        return { bg: 'var(--info-bg)', color: 'var(--info)', icon: 'var(--info)' }
       default:
-        return { bg: '#F6F8F9', color: '#5B6A72', icon: '#5B6A72' }
+        return { bg: 'var(--muted)', color: 'var(--muted-foreground)', icon: 'var(--muted-foreground)' }
     }
   }
 
   const getFloorStatusColor = (status: 'busy' | 'moderate' | 'available') => {
     switch (status) {
       case 'busy':
-        return '#FF6B6B'
+        return 'var(--status-absent)' // 빨강 - 혼잡함
       case 'moderate':
-        return '#F8C653'
+        return 'var(--status-late)' // 주황 - 보통
       case 'available':
-        return '#4CD471'
+        return 'var(--status-checked-in)' // 초록 - 한산함
     }
   }
 
@@ -223,7 +224,7 @@ export function AdminDashboardClient({
                         dataKey="value"
                         cornerRadius={5}
                         strokeWidth={3}
-                        stroke="#FFFFFF"
+                        stroke="var(--card)"
                       >
                         {workStatusChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -237,13 +238,13 @@ export function AdminDashboardClient({
                             return (
                               <div
                                 style={{
-                                  backgroundColor: '#29363D',
-                                  color: '#FFFFFF',
+                                  backgroundColor: 'var(--foreground)',
+                                  color: 'var(--card)',
                                   padding: '8px 12px',
                                   borderRadius: '8px',
                                   fontSize: '14px',
                                   fontWeight: 600,
-                                  boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+                                  boxShadow: 'var(--shadow-md)',
                                 }}
                               >
                                 {data.name} {data.value}명
@@ -259,10 +260,10 @@ export function AdminDashboardClient({
                     className="absolute inset-0 flex flex-col items-center justify-center"
                     style={{ pointerEvents: 'none' }}
                   >
-                    <p style={{ fontSize: '32px', fontWeight: 700, color: '#29363D', lineHeight: 1 }}>
+                    <p style={{ fontSize: '32px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1 }}>
                       {totalWorkStatusCount}
                     </p>
-                    <p style={{ fontSize: '13px', color: '#5B6A72', marginTop: '4px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginTop: '4px' }}>
                       총 인원
                     </p>
                   </div>
@@ -278,11 +279,22 @@ export function AdminDashboardClient({
                       )}
                       className="p-3 text-left transition-all"
                       style={{
-                        backgroundColor: selectedWorkCategory === category.name ? '#F6F8F9' : 'transparent',
+                        backgroundColor: selectedWorkCategory === category.name ? 'var(--muted)' : 'transparent',
                         borderRadius: '8px',
-                        border: selectedWorkCategory === category.name ? `2px solid ${category.color}` : '1px solid #E5E8EB',
+                        border: selectedWorkCategory === category.name ? `2px solid ${category.color}` : '1px solid var(--border)',
                         cursor: 'pointer',
-                        height: '76px',
+                        transitionDuration: '150ms',
+                        transitionTimingFunction: 'ease-in-out',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedWorkCategory !== category.name) {
+                          e.currentTarget.style.backgroundColor = 'var(--muted)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedWorkCategory !== category.name) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
                       }}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -298,7 +310,7 @@ export function AdminDashboardClient({
                         <p style={{
                           fontSize: '14px',
                           fontWeight: 600,
-                          color: '#29363D'
+                          color: 'var(--foreground)'
                         }}>
                           {category.name}
                         </p>
@@ -319,13 +331,13 @@ export function AdminDashboardClient({
                 {selectedWorkCategory && (
                   <div
                     className="flex-1 md:border-l md:pl-6 flex flex-col"
-                    style={{ borderColor: '#E5E8EB', minWidth: '250px', maxHeight: '400px' }}
+                    style={{ borderColor: 'var(--border)', minWidth: '250px', height: '400px' }}
                   >
                     <div className="flex items-center justify-between mb-3 flex-shrink-0">
                       <h3 style={{
                         fontSize: '14px',
                         fontWeight: 600,
-                        color: '#29363D'
+                        color: 'var(--foreground)'
                       }}>
                         {selectedWorkCategory} ({workStatusData[selectedWorkCategory].length}명)
                       </h3>
@@ -336,33 +348,48 @@ export function AdminDashboardClient({
                           key={member.id}
                           className="flex items-center justify-between p-2 transition-all"
                           style={{
-                            backgroundColor: '#F6F8F9',
+                            backgroundColor: 'var(--muted)',
                             borderRadius: '8px',
                           }}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div
-                              style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                backgroundColor: CHART_COLORS[selectedWorkCategory],
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                flexShrink: 0
-                              }}
-                            >
-                              {member.name.charAt(0)}
-                            </div>
+                            {member.profileImage ? (
+                              <img
+                                src={member.profileImage}
+                                alt={member.name}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  objectFit: 'cover',
+                                  border: '2px solid var(--card)',
+                                  flexShrink: 0
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  backgroundColor: CHART_COLORS[selectedWorkCategory],
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontSize: '14px',
+                                  fontWeight: 600,
+                                  flexShrink: 0
+                                }}
+                              >
+                                {member.name.charAt(0)}
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0">
                               <p style={{
                                 fontSize: '14px',
                                 fontWeight: 500,
-                                color: '#29363D',
+                                color: 'var(--foreground)',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap'
@@ -371,7 +398,7 @@ export function AdminDashboardClient({
                               </p>
                               <p style={{
                                 fontSize: '12px',
-                                color: '#5B6A72',
+                                color: 'var(--muted-foreground)',
                                 marginTop: '2px',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -404,18 +431,26 @@ export function AdminDashboardClient({
                       <button
                         className="w-full mt-3 text-center transition-all flex-shrink-0"
                         style={{
-                          backgroundColor: '#F6F8F9',
+                          backgroundColor: 'var(--muted)',
                           borderRadius: '8px',
-                          border: '1px solid #E5E8EB',
+                          border: '1px solid var(--border)',
                           cursor: 'pointer',
                           height: '42px',
+                          transitionDuration: '150ms',
+                          transitionTimingFunction: 'ease-in-out',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.filter = 'brightness(0.95)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.filter = 'brightness(1)';
                         }}
                         onClick={() => setShowCategoryDetailModal(true)}
                       >
                         <span style={{
                           fontSize: '14px',
                           fontWeight: 600,
-                          color: '#5B6A72'
+                          color: 'var(--muted-foreground)'
                         }}>
                           전체보기
                         </span>
@@ -484,7 +519,7 @@ export function AdminDashboardClient({
                   </div>
                 </div>
 
-                <div style={{ borderTop: '1px solid #E5E8EB' }} />
+                <div style={{ borderTop: '1px solid var(--border)' }} />
 
                 {/* 층별 혼잡도 */}
                 <div>
@@ -504,7 +539,7 @@ export function AdminDashboardClient({
                                 fontSize: '12px',
                                 fontWeight: 500,
                                 lineHeight: '16px',
-                                color: '#5B6A72',
+                                color: 'var(--muted-foreground)',
                                 width: '24px',
                                 flexShrink: 0
                               }}>
@@ -517,13 +552,21 @@ export function AdminDashboardClient({
                                   borderRadius: '4px',
                                   backgroundColor: statusColor,
                                   opacity: 0.7,
+                                  transitionDuration: '150ms',
+                                  transitionTimingFunction: 'ease-in-out',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.opacity = '1';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.opacity = '0.7';
                                 }}
                               />
                               <p style={{
                                 fontSize: '12px',
                                 fontWeight: 600,
                                 lineHeight: '16px',
-                                color: '#29363D',
+                                color: 'var(--foreground)',
                                 width: '36px',
                                 textAlign: 'right',
                                 flexShrink: 0
@@ -536,8 +579,8 @@ export function AdminDashboardClient({
                             side="right"
                             className="p-3"
                             style={{
-                              backgroundColor: '#29363D',
-                              color: '#FFFFFF',
+                              backgroundColor: 'var(--foreground)',
+                              color: 'var(--card)',
                               borderRadius: '12px',
                               border: 'none',
                             }}
@@ -568,13 +611,13 @@ export function AdminDashboardClient({
                   </div>
                 </div>
 
-                <div style={{ borderTop: '1px solid #E5E8EB' }} />
+                <div style={{ borderTop: '1px solid var(--border)' }} />
 
                 {/* 지하1층 스튜디오 출입 상태 */}
                 <div
                   className="p-3"
                   style={{
-                    backgroundColor: '#F6F8F9',
+                    backgroundColor: 'var(--muted)',
                     borderRadius: '8px',
                   }}
                 >
@@ -582,14 +625,14 @@ export function AdminDashboardClient({
                     <p style={{
                       fontSize: '14px',
                       fontWeight: 500,
-                      color: '#29363D'
+                      color: 'var(--foreground)'
                     }}>
                       지하1층 스튜디오
                     </p>
                     <Badge
                       style={{
-                        backgroundColor: studioAccessStatus.status === 'available' ? 'rgba(76, 212, 113, 0.1)' : '#FFF0ED',
-                        color: studioAccessStatus.status === 'available' ? '#4CD471' : '#FF6B6B',
+                        backgroundColor: studioAccessStatus.status === 'available' ? 'var(--success-bg)' : 'var(--destructive-bg)',
+                        color: studioAccessStatus.status === 'available' ? 'var(--success)' : 'var(--destructive)',
                         fontSize: '12px',
                         fontWeight: 600,
                         border: 'none',
@@ -602,10 +645,10 @@ export function AdminDashboardClient({
                   {studioAccessStatus.status === 'restricted' && studioAccessStatus.reason && (
                     <p style={{
                       fontSize: '12px',
-                      color: '#5B6A72',
+                      color: 'var(--muted-foreground)',
                       marginTop: '8px',
                       paddingTop: '8px',
-                      borderTop: '1px solid #E5E8EB',
+                      borderTop: '1px solid var(--border)',
                     }}>
                       {studioAccessStatus.reason}
                     </p>
@@ -638,7 +681,15 @@ export function AdminDashboardClient({
                   style={{
                     fontSize: '14px',
                     fontWeight: 600,
-                    color: '#635BFF',
+                    color: 'var(--primary)',
+                    transitionDuration: '150ms',
+                    transitionTimingFunction: 'ease-in-out',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '0.8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '1';
                   }}
                 >
                   전체보기
@@ -649,31 +700,42 @@ export function AdminDashboardClient({
             <CardContent>
               {approvalQueue.length === 0 ? (
                 <div className="text-center py-8">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: '#4CD471' }} />
-                  <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--success)' }} />
+                  <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: 'var(--foreground)' }}>
                     모든 결재 완료
                   </p>
-                  <p className="mt-1" style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                  <p className="mt-1" style={{ fontSize: '14px', lineHeight: '19.6px', color: 'var(--muted-foreground)' }}>
                     대기 중인 승인 항목이 없습니다
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="divide-y" style={{ borderColor: '#E5E8EB' }}>
+                  <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
                     {approvalQueue.map((request) => (
                       <div
                         key={request.id}
-                        className="p-4 transition-all cursor-pointer hover:bg-[#F6F8F9]"
+                        className="p-4 transition-all cursor-pointer"
+                        style={{
+                          backgroundColor: 'transparent',
+                          transitionDuration: '150ms',
+                          transitionTimingFunction: 'ease-in-out',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--muted)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: '#29363D' }}>
+                              <p style={{ fontSize: '16px', fontWeight: 600, lineHeight: '24px', color: 'var(--foreground)' }}>
                                 {request.userName}
                               </p>
                               <Badge style={{
-                                backgroundColor: 'rgba(99, 91, 255, 0.1)',
-                                color: '#635BFF',
+                                backgroundColor: 'var(--primary-bg)',
+                                color: 'var(--primary)',
                                 fontSize: '12px',
                                 fontWeight: 600,
                                 border: 'none',
@@ -683,40 +745,56 @@ export function AdminDashboardClient({
                             </div>
                             <div className="flex items-center gap-3 mt-2">
                               <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" style={{ color: '#5B6A72' }} />
-                                <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#5B6A72' }}>
+                                <Calendar className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
+                                <p style={{ fontSize: '14px', lineHeight: '19.6px', color: 'var(--muted-foreground)' }}>
                                   {request.startDate} ~ {request.endDate}
                                 </p>
                               </div>
-                              <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: '#16CDC7' }}>
+                              <p style={{ fontSize: '14px', fontWeight: 600, lineHeight: '19.6px', color: 'var(--secondary)' }}>
                                 {request.days}일
                               </p>
                             </div>
-                            <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
+                            <p className="mt-2" style={{ fontSize: '12px', lineHeight: '16px', color: 'var(--muted-foreground)' }}>
                               신청일: {new Date(request.requestDate).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
                             <button
-                              className="px-3 py-1.5 transition-all hover:bg-[#059669]"
+                              className="px-3 py-1.5 transition-all"
                               style={{
-                                backgroundColor: '#10B981',
-                                color: 'white',
+                                backgroundColor: 'var(--success)',
+                                color: 'var(--success-foreground)',
                                 fontWeight: 600,
                                 fontSize: '14px',
                                 borderRadius: '8px',
+                                transitionDuration: '150ms',
+                                transitionTimingFunction: 'ease-in-out',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.filter = 'brightness(0.9)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.filter = 'brightness(1)';
                               }}
                             >
                               승인
                             </button>
                             <button
-                              className="px-3 py-1.5 transition-all hover:bg-[#DC2626]"
+                              className="px-3 py-1.5 transition-all"
                               style={{
-                                backgroundColor: '#EF4444',
-                                color: 'white',
+                                backgroundColor: 'var(--destructive)',
+                                color: 'var(--destructive-foreground)',
                                 fontWeight: 600,
                                 fontSize: '14px',
                                 borderRadius: '8px',
+                                transitionDuration: '150ms',
+                                transitionTimingFunction: 'ease-in-out',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.filter = 'brightness(0.9)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.filter = 'brightness(1)';
                               }}
                             >
                               반려
@@ -731,13 +809,21 @@ export function AdminDashboardClient({
                     <button
                       className="w-full transition-all"
                       style={{
-                        backgroundColor: '#F6F8F9',
-                        color: '#5B6A72',
-                        border: '1px solid #E5E8EB',
+                        backgroundColor: 'var(--muted)',
+                        color: 'var(--muted-foreground)',
+                        border: '1px solid var(--border)',
                         borderRadius: '8px',
                         fontSize: '14px',
                         fontWeight: 600,
                         height: '42px',
+                        transitionDuration: '150ms',
+                        transitionTimingFunction: 'ease-in-out',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.filter = 'brightness(0.95)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.filter = 'brightness(1)';
                       }}
                     >
                       전체보기
@@ -771,7 +857,15 @@ export function AdminDashboardClient({
                   style={{
                     fontSize: '14px',
                     fontWeight: 600,
-                    color: '#635BFF',
+                    color: 'var(--primary)',
+                    transitionDuration: '150ms',
+                    transitionTimingFunction: 'ease-in-out',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '0.8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '1';
                   }}
                 >
                   전체보기
@@ -792,6 +886,14 @@ export function AdminDashboardClient({
                       style={{
                         backgroundColor: severityStyle.bg,
                         borderRadius: '12px',
+                        transitionDuration: '150ms',
+                        transitionTimingFunction: 'ease-in-out',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.filter = 'brightness(0.97)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.filter = 'brightness(1)';
                       }}
                     >
                       <div className="flex items-start gap-3">
@@ -799,30 +901,18 @@ export function AdminDashboardClient({
                           className="w-5 h-5 flex-shrink-0 mt-0.5"
                           style={{ color: severityStyle.color }}
                         />
-                        <div className="flex-1 min-w-0">
+                        <div className="space-y-1">
                           <p style={{
                             fontSize: '14px',
                             fontWeight: 600,
-                            lineHeight: '19.6px',
-                            color: '#29363D'
+                            lineHeight: '18px',
+                            color: 'var(--foreground)'
                           }}>
                             {alert.message}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge style={{
-                              backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                              color: '#5B6A72',
-                              fontSize: '11px',
-                              fontWeight: 500,
-                              border: 'none',
-                              padding: '2px 6px'
-                            }}>
-                              {alert.category}
-                            </Badge>
-                            <p style={{ fontSize: '12px', lineHeight: '16px', color: '#5B6A72' }}>
-                              {alert.time}
-                            </p>
-                          </div>
+                          <p style={{ fontSize: '12px', lineHeight: '16px', color: 'var(--muted-foreground)' }}>
+                            {alert.time}
+                          </p>
                         </div>
                       </div>
                     </div>
