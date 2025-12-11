@@ -1011,30 +1011,29 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             {/* Timeline */}
             {!isLoadingModalBookings && !modalBookingsError && (
               <>
-                <div className="space-y-1 max-h-96 overflow-y-auto">
-                  {timeSlots.map((time) => {
+                <div className="max-h-96 overflow-y-auto">
+                  {timeSlots.map((time, index) => {
                     const booking = isTimeSlotBooked(time, modalBookings)
                     const isBooked = !!booking
+                    const isLastItem = index === timeSlots.length - 1
 
                     return (
                       <div
                         key={time}
-                        className="flex items-center gap-3 transition-all"
+                        className="flex items-center gap-4"
                         style={{
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          backgroundColor: isBooked ? 'var(--disabled-bg)' : 'var(--muted)',
-                          border: '1px solid transparent',
-                          opacity: isBooked ? 'var(--disabled-opacity)' : 1,
+                          padding: '16px 8px',
+                          borderBottom: isLastItem ? 'none' : '1px solid var(--border)',
+                          backgroundColor: 'transparent',
                         }}
                       >
                         <div
                           style={{
-                            fontSize: 'var(--font-size-caption)',
-                            fontWeight: 600,
-                            lineHeight: 1.4,
-                            color: isBooked ? 'var(--disabled-text)' : 'var(--muted-foreground)',
-                            minWidth: '50px',
+                            fontSize: 'var(--font-size-body)',
+                            fontWeight: 500,
+                            lineHeight: 1.5,
+                            color: isBooked ? 'var(--disabled-text)' : 'var(--foreground)',
+                            minWidth: '56px',
                           }}
                         >
                           {time.slice(0, 5)}
@@ -1044,7 +1043,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                             <p
                               style={{
                                 fontSize: 'var(--font-size-caption)',
-                                fontWeight: 600,
+                                fontWeight: 400,
                                 lineHeight: 1.4,
                                 color: 'var(--disabled-text)',
                               }}
@@ -1056,7 +1055,6 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                                 fontSize: 'var(--font-size-caption)',
                                 lineHeight: 1.4,
                                 color: 'var(--disabled-text)',
-                                marginTop: '2px',
                               }}
                             >
                               {booking.bookedBy} · {booking.start.slice(0, 5)} - {booking.end.slice(0, 5)}
@@ -1068,7 +1066,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                               style={{
                                 fontSize: 'var(--font-size-caption)',
                                 lineHeight: 1.4,
-                                color: 'var(--muted-foreground)',
+                                color: 'var(--foreground)',
                               }}
                             >
                               예약 가능
@@ -1080,7 +1078,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   })}
                 </div>
 
-                <div className="flex justify-end gap-2 mt-4">
+                <div className="flex justify-end pt-4">
                   <Button
                     onClick={() => {
                       setBookingModalOpen(false)
@@ -1092,6 +1090,9 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                       fontSize: 'var(--font-size-body)',
                       fontWeight: 500,
                       lineHeight: 1.5,
+                      height: '44px',
+                      padding: '0 24px',
+                      borderRadius: '22px',
                     }}
                   >
                     예약하기
