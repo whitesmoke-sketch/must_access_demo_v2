@@ -197,10 +197,12 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
         })
       })
 
-      // 최근순 정렬
-      entries.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      )
+      // 신청일 기준 최근순 정렬 (createdAt이 있으면 사용, 없으면 date 사용)
+      entries.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : new Date(a.date).getTime()
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : new Date(b.date).getTime()
+        return dateB - dateA
+      })
 
       setLedgerEntries(entries)
     } catch (err) {

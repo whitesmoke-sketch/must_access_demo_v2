@@ -9,6 +9,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from '@/components/ui/command'
 import {
   Popover,
@@ -63,33 +64,35 @@ export function MemberCombobox({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
         <Command>
           <CommandInput placeholder="이름, 부서, 팀으로 검색..." />
-          <CommandEmpty>구성원을 찾을 수 없습니다.</CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-auto">
-            {members.map((member) => (
-              <CommandItem
-                key={member.id}
-                value={`${member.name} ${member.position || ''} ${member.department_id || ''} ${member.team || ''}`}
-                onSelect={() => {
-                  onValueChange(member.id)
-                  if (autoCloseOnSelect) {
-                    setOpen(false)
-                  }
-                }}
-              >
-                <Check
-                  className={`mr-2 h-4 w-4 ${
-                    value === member.id ? 'opacity-100' : 'opacity-0'
-                  }`}
-                />
-                <div className="flex flex-col">
-                  <span className="font-medium">{member.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {member.position || '직원'} · {member.team || '팀 정보 없음'}
-                  </span>
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          <CommandList className="max-h-64">
+            <CommandEmpty>구성원을 찾을 수 없습니다.</CommandEmpty>
+            <CommandGroup>
+              {members.map((member) => (
+                <CommandItem
+                  key={member.id}
+                  value={`${member.name} ${member.position || ''} ${member.department_id || ''} ${member.team || ''}`}
+                  onSelect={() => {
+                    onValueChange(member.id)
+                    if (autoCloseOnSelect) {
+                      setOpen(false)
+                    }
+                  }}
+                >
+                  <Check
+                    className={`mr-2 h-4 w-4 ${
+                      value === member.id ? 'opacity-100' : 'opacity-0'
+                    }`}
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-medium">{member.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {member.position || '직원'} · {member.team || '팀 정보 없음'}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { MemberCombobox } from '@/components/ui/member-combobox'
-import { User, Plus, Edit2, ChevronRight, Upload, Save } from 'lucide-react'
+import { User, Plus, Edit2, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateDefaultApprovers } from '@/app/actions/approval'
 import { ApprovalTemplateLoadModal } from '@/components/approval/approval-template-modal'
@@ -18,9 +18,6 @@ interface ApprovalStep {
   approverId: string
   approverName: string
   approverPosition: string
-  isDelegated?: boolean
-  delegateId?: string
-  delegateName?: string
   approvalType?: 'single' | 'agreement'
 }
 
@@ -55,13 +52,31 @@ export function ApprovalLineSelector({
 }: ApprovalLineSelectorProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [isDelegating, setIsDelegating] = useState(false)
   const [selectedId, setSelectedId] = useState('')
   const [showLoadModal, setShowLoadModal] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
 
-  // 결재 가능한 구성원만 필터링 (현재 사용자 제외)
-  const approvalMembers = members.filter(m => m.id !== currentUser?.id)
+  // 결재 가능한 구성원만 필터링 (현재 사용자 제외 + 이미 선택된 결재자 제외)
+  const getAvailableMembers = () => {
+    // 이미 선택된 결재자 ID 목록
+    const selectedApproverIds = approvalSteps.map(step => step.approverId)
+
+    return members.filter(m => {
+      // 현재 사용자 제외
+      if (m.id === currentUser?.id) return false
+
+      // 수정 모드일 때는 현재 수정 중인 결재자는 포함
+      if (editingIndex !== null) {
+        const currentEditingId = approvalSteps[editingIndex]?.approverId
+        if (m.id === currentEditingId) return true
+      }
+
+      // 이미 선택된 결재자 제외
+      if (selectedApproverIds.includes(m.id)) return false
+
+      return true
+    })
+  }
 
   // 자동 결재선 생성 (컴포넌트 마운트 시)
   useEffect(() => {
@@ -106,9 +121,8 @@ export function ApprovalLineSelector({
     toast.success('템플릿을 불러왔습니다')
   }
 
-  function openDialog(index: number | null, delegating: boolean = false) {
+  function openDialog(index: number | null) {
     setEditingIndex(index)
-    setIsDelegating(delegating)
     setSelectedId('')
     setIsDialogOpen(true)
   }
@@ -130,18 +144,7 @@ export function ApprovalLineSelector({
         approverName: member.name,
         approverPosition: member.position || '직원'
       }])
-      toast.success('결재자 추가 완료')
-    } else if (isDelegating) {
-      // 대결자 지정
-      const updated = [...approvalSteps]
-      updated[editingIndex] = {
-        ...updated[editingIndex],
-        isDelegated: true,
-        delegateId: member.id,
-        delegateName: member.name
-      }
-      setApprovalSteps(updated)
-      toast.success('대결자 지정 완료')
+      toast.success('결재자가 추가되었습니다')
     } else {
       // 결재자 변경
       const updated = [...approvalSteps]
@@ -149,13 +152,10 @@ export function ApprovalLineSelector({
         ...updated[editingIndex],
         approverId: member.id,
         approverName: member.name,
-        approverPosition: member.position || '직원',
-        isDelegated: false,
-        delegateId: undefined,
-        delegateName: undefined
+        approverPosition: member.position || '직원'
       }
       setApprovalSteps(updated)
-      toast.success('결재자 변경 완료')
+      toast.success('결재자가 변경되었습니다')
     }
 
     setIsDialogOpen(false)
@@ -254,9 +254,7 @@ export function ApprovalLineSelector({
                         color: 'var(--card-foreground)',
                         lineHeight: 1.5
                       }}>
-                        {step.isDelegated && step.delegateName
-                          ? `${step.delegateName} (대결)`
-                          : step.approverName}
+                        {step.approverName}
                       </p>
                       <p style={{
                         fontSize: 'var(--font-size-caption)',
@@ -264,27 +262,16 @@ export function ApprovalLineSelector({
                         lineHeight: 1.4
                       }}>
                         결재자 {step.order} · {step.approverPosition}
-                        {step.isDelegated && ` (원 결재자: ${step.approverName})`}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDialog(index, false)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDialog(index, true)}
-                      >
-                        대결
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openDialog(index)}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
                   </div>
 
                   {index < approvalSteps.length - 1 && (
@@ -305,16 +292,14 @@ export function ApprovalLineSelector({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingIndex === null ? '결재자 추가' : (isDelegating ? '대결자 지정' : '결재자 변경')}
+              {editingIndex === null ? '결재자 추가' : '결재자 변경'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>
-                {editingIndex === null ? '결재자 선택 *' : (isDelegating ? '대결자 선택 *' : '결재자 선택 *')}
-              </Label>
+              <Label>결재자 선택 *</Label>
               <MemberCombobox
-                members={approvalMembers}
+                members={getAvailableMembers()}
                 value={selectedId}
                 onValueChange={setSelectedId}
                 placeholder="구성원 검색 및 선택"
