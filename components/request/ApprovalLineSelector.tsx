@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -57,7 +57,7 @@ export function ApprovalLineSelector({
   const [showSaveModal, setShowSaveModal] = useState(false)
 
   // 결재 가능한 구성원만 필터링 (현재 사용자 제외 + 이미 선택된 결재자 제외)
-  const getAvailableMembers = () => {
+  const availableMembers = useMemo(() => {
     // 이미 선택된 결재자 ID 목록
     const selectedApproverIds = approvalSteps.map(step => step.approverId)
 
@@ -76,7 +76,7 @@ export function ApprovalLineSelector({
 
       return true
     })
-  }
+  }, [members, currentUser?.id, approvalSteps, editingIndex])
 
   // 자동 결재선 생성 (컴포넌트 마운트 시)
   useEffect(() => {
@@ -299,11 +299,10 @@ export function ApprovalLineSelector({
             <div className="space-y-2">
               <Label>결재자 선택 *</Label>
               <MemberCombobox
-                members={getAvailableMembers()}
+                members={availableMembers}
                 value={selectedId}
                 onValueChange={setSelectedId}
                 placeholder="구성원 검색 및 선택"
-                autoCloseOnSelect={false}
               />
             </div>
           </div>

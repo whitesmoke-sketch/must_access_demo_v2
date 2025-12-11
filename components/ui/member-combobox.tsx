@@ -62,15 +62,20 @@ export function MemberCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder="이름, 부서, 팀으로 검색..." />
+        <Command
+          filter={(value, search) => {
+            if (value.toLowerCase().includes(search.toLowerCase())) return 1
+            return 0
+          }}
+        >
+          <CommandInput placeholder="이름으로 검색..." />
           <CommandList className="max-h-64">
             <CommandEmpty>구성원을 찾을 수 없습니다.</CommandEmpty>
             <CommandGroup>
               {members.map((member) => (
                 <CommandItem
                   key={member.id}
-                  value={`${member.name} ${member.position || ''} ${member.department_id || ''} ${member.team || ''}`}
+                  value={member.name}
                   onSelect={() => {
                     onValueChange(member.id)
                     if (autoCloseOnSelect) {
