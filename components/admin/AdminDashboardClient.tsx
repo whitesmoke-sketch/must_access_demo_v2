@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { WorkStatusModal } from './WorkStatusModal'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
+import { LiveDateTime } from '@/components/common/LiveDateTime'
 
 interface WorkStatusMember {
   id: string
@@ -175,14 +176,14 @@ export function AdminDashboardClient({
           }}>
             관리자 대시보드
           </h2>
-          <p style={{
-            fontSize: '16px',
-            lineHeight: '24px',
-            color: '#5B6A72',
-            marginTop: '4px'
-          }}>
-            실시간 현황과 승인 대기 항목을 확인하세요
-          </p>
+          <LiveDateTime
+            style={{
+              fontSize: '16px',
+              lineHeight: '24px',
+              color: '#5B6A72',
+              marginTop: '4px'
+            }}
+          />
         </div>
 
         {/* Main Grid */}
@@ -281,6 +282,7 @@ export function AdminDashboardClient({
                         borderRadius: '8px',
                         border: selectedWorkCategory === category.name ? `2px solid ${category.color}` : '1px solid #E5E8EB',
                         cursor: 'pointer',
+                        height: '76px',
                       }}
                     >
                       <div className="flex items-center gap-2 mb-1">

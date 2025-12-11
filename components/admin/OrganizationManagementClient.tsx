@@ -1190,12 +1190,12 @@ export default function OrganizationManagementClient() {
 
             <div className="space-y-2">
               <Label style={{ fontSize: 'var(--font-size-body)', fontWeight: 500, lineHeight: 1.5 }}>
-                부서 코드
+                부서 코드 *
               </Label>
               <Input
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="부서 코드 입력 (선택)"
+                placeholder="부서 코드 입력"
                 style={{ fontSize: 'var(--font-size-body)', lineHeight: 1.5 }}
               />
             </div>
@@ -1273,12 +1273,12 @@ export default function OrganizationManagementClient() {
 
             <div className="space-y-2">
               <Label style={{ fontSize: 'var(--font-size-body)', fontWeight: 500, lineHeight: 1.5 }}>
-                부서 코드
+                부서 코드 *
               </Label>
               <Input
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="부서 코드 입력 (선택)"
+                placeholder="부서 코드 입력"
                 style={{ fontSize: 'var(--font-size-body)', lineHeight: 1.5 }}
               />
             </div>
