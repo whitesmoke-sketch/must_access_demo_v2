@@ -32,6 +32,7 @@ import { submitDocumentRequest, searchAccessibleDocuments } from '@/app/actions/
 import { generateDefaultApprovers } from '@/app/actions/approval'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, X, AlertCircle, Plus, User, Edit2, Trash2, GripVertical, FileText, Search, Check, Loader2 } from 'lucide-react'
+import { MemberCombobox } from '@/components/ui/member-combobox'
 import { toast } from 'sonner'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -3035,24 +3036,24 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
               }}>
                 구성원
               </Label>
-              <Select
+              <MemberCombobox
+                members={members.filter(m => {
+                  // 현재 사용자 제외
+                  if (m.id === currentUser.id) return false
+                  // 대결자 지정 시에는 모든 구성원 표시
+                  if (isDelegating) return true
+                  // 이미 선택된 결재자 제외 (수정 중인 결재자는 포함)
+                  const selectedIds = approvalSteps.map(s => s.approverId)
+                  if (editingStepIndex !== null) {
+                    const editingId = approvalSteps[editingStepIndex]?.approverId
+                    if (m.id === editingId) return true
+                  }
+                  return !selectedIds.includes(m.id)
+                })}
                 value={isDelegating ? selectedDelegateId : selectedApproverId}
                 onValueChange={isDelegating ? setSelectedDelegateId : setSelectedApproverId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="구성원 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members
-                    .filter(m => m.id !== currentUser.id)
-                    .map(member => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.name} ({member.position})
-                      </SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
+                placeholder="구성원 검색 및 선택"
+              />
             </div>
           </div>
 
@@ -3095,24 +3096,18 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <Select
+            <MemberCombobox
+              members={members.filter(m => {
+                // 현재 사용자 제외
+                if (m.id === currentUser.id) return false
+                // 이미 선택된 참조자 제외
+                const selectedRefIds = referenceSteps.map(r => r.memberId)
+                return !selectedRefIds.includes(m.id)
+              })}
               value={selectedReferenceId}
               onValueChange={setSelectedReferenceId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="구성원 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {members
-                  .filter(m => m.id !== currentUser.id)
-                  .map(member => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name} ({member.position})
-                    </SelectItem>
-                  ))
-                }
-              </SelectContent>
-            </Select>
+              placeholder="구성원 검색 및 선택"
+            />
           </div>
 
           <DialogFooter>
