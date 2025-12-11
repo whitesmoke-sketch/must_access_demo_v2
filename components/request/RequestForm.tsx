@@ -860,7 +860,6 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
     setEditingStepIndex(null)
     setIsDelegating(false)
     setSelectedApproverId('')
-    setSelectedRole('approver')
 
     // Calculate next order
     const maxOrder = approvalSteps.length > 0 ? Math.max(...approvalSteps.map(s => s.order)) : 0
