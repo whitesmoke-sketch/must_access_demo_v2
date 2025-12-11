@@ -242,7 +242,7 @@ const DraggableApprovalGroup: React.FC<DraggableApprovalGroupProps> = ({
                       color: 'var(--muted-foreground)',
                       lineHeight: 1.4
                     }}>
-                      {step.role === 'reviewer' ? '합의자' : '결재자'} · {step.approverPosition}
+                      결재자 · {step.approverPosition}
                       {step.isDelegated && ` (원 결재자: ${step.approverName})`}
                     </p>
                   </div>
@@ -494,7 +494,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
   const [selectedApproverId, setSelectedApproverId] = useState('')
   const [isDelegating, setIsDelegating] = useState(false)
   const [selectedDelegateId, setSelectedDelegateId] = useState('')
-  const [selectedRole, setSelectedRole] = useState<'approver' | 'reviewer'>('approver')
+  // 역할은 '결재자'로 고정 (합의자는 추후 구현)
   const [selectedOrder, setSelectedOrder] = useState<number>(1)
 
   // Step 4: 참조자
@@ -903,13 +903,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
         approverId: approver.id,
         approverName: approver.name,
         approverPosition: approver.position || '',
-        role: selectedRole,
+        role: 'approver',
       }
 
       setApprovalSteps([...approvalSteps, newStep])
 
-      const roleLabel = selectedRole === 'approver' ? '결재자' : '합의자'
-      toast.success(`${roleLabel} 추가 완료`, {
+      toast.success('결재자 추가 완료', {
         description: `${approver.name}님이 추가되었습니다.`,
       })
 
@@ -2984,15 +2983,12 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                   }}>
                     역할
                   </Label>
-                  <Select value={selectedRole} onValueChange={(value: 'approver' | 'reviewer') => setSelectedRole(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="approver">결재자</SelectItem>
-                      <SelectItem value="reviewer">합의자</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div
+                    className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm"
+                    style={{ color: 'var(--foreground)' }}
+                  >
+                    결재자
+                  </div>
                 </div>
 
                 <div className="space-y-2">
