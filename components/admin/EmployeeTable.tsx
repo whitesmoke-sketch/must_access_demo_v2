@@ -237,20 +237,28 @@ export function EmployeeTable() {
   )
 }
 
+/**
+ * 직원 상태 Badge
+ *
+ * 상태 판단 기준:
+ * 1. deleted_at IS NOT NULL → 퇴사 (가장 우선)
+ * 2. status = 'leave' → 휴직
+ * 3. status = 'active' → 재직 (연차 사용 중 포함)
+ *
+ * ⚠️ 현재는 employee 객체에서 deleted_at를 받지 못하므로
+ * status 값만으로 판단. 추후 deleted_at 추가 시 수정 필요.
+ */
 function StatusBadge({ status }: { status?: string }) {
   const configs: Record<string, { label: string; className: string }> = {
     active: {
       label: '재직',
       className: 'bg-green-100 text-green-700',
     },
-    inactive: {
+    leave: {  // inactive → leave로 변경
       label: '휴직',
       className: 'bg-yellow-100 text-yellow-700',
     },
-    resigned: {
-      label: '퇴사',
-      className: 'bg-gray-100 text-gray-700',
-    },
+    // resigned는 사용 안 함 (deleted_at으로 판단)
   }
 
   const config = (status && configs[status]) || {

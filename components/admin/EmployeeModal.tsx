@@ -281,7 +281,7 @@ export function EmployeeModal({
               />
             </div>
 
-            {/* 직무/직책 + 부서 목록 */}
+            {/* 직책 + 부서 목록 */}
             <div className="space-y-2 col-span-2">
               <div className="flex items-center justify-between">
                 <Label
@@ -291,7 +291,7 @@ export function EmployeeModal({
                     lineHeight: 1.5
                   }}
                 >
-                  직무/직책 + 부서
+                  직책 + 부서
                 </Label>
               </div>
 
@@ -311,7 +311,7 @@ export function EmployeeModal({
                           부서
                         </Label>
                         <DepartmentCombobox
-                          value={item.department_id || undefined}
+                          value={item.department_id ?? undefined}
                           onValueChange={(val) => updatePosition(index, 'department_id', val)}
                           placeholder="부서 선택"
                         />
@@ -325,10 +325,10 @@ export function EmployeeModal({
                             color: 'var(--muted-foreground)'
                           }}
                         >
-                          직무/직책
+                          직책
                         </Label>
                         <RoleSelect
-                          value={item.role_id}
+                          value={item.role_id ?? undefined}
                           onValueChange={(val) => updatePosition(index, 'role_id', val)}
                           placeholder="선임연구원"
                         />
@@ -377,6 +377,7 @@ export function EmployeeModal({
                 onChange={(e) =>
                   setFormData({ ...formData, employment_date: e.target.value })
                 }
+                disabled={mode === 'edit'}
               />
             </div>
 
@@ -396,11 +397,26 @@ export function EmployeeModal({
                 onChange={(e) =>
                   setFormData({ ...formData, resignation_date: e.target.value })
                 }
-                placeholder="퇴사 시 입력"
+                disabled
+                placeholder="사직서 승인 시 자동 설정"
+                className="bg-muted"
               />
+              {formData.resignation_date && (
+                <p className="text-xs text-muted-foreground">
+                  사직서 승인일: {new Date(formData.resignation_date).toLocaleDateString('ko-KR')}
+                </p>
+              )}
             </div>
 
             {/* 근무 상태 (읽기 전용, edit 모드만) */}
+            {/*
+              상태 정의:
+              - 'active': 재직 중 (연차/포상휴가 사용 중 포함)
+              - 'leave': 휴직 중 (육아휴직, 병가 등 장기 휴식)
+              - 퇴사: deleted_at IS NOT NULL로 판단 (status 무관)
+
+              ⚠️ 휴직 신청 기능은 추후 구현 예정
+            */}
             {employee && (
               <div className="space-y-2 col-span-2">
                 <Label

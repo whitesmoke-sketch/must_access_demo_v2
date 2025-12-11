@@ -3,6 +3,33 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+/**
+ * ================================================================
+ * 직원 상태(employee.status) 정의
+ * ================================================================
+ *
+ * 1. 'active': 재직 중
+ *    - 정상 근무 중
+ *    - 연차/포상휴가 사용 중 (단기 휴가 포함)
+ *    - doc_leave 테이블로 휴가 관리
+ *
+ * 2. 'leave': 휴직 중
+ *    - 육아휴직, 병가휴직, 안식년 등 장기 휴식
+ *    - 향후 복귀 예정
+ *    - deleted_at IS NULL
+ *
+ * 3. 퇴사: deleted_at 기준 판단
+ *    - deleted_at IS NOT NULL → 퇴사
+ *    - status 값은 무관 (deleted_at만으로 판단)
+ *    - resignation_date: 희망 퇴사일 (사직서에서 자동 설정)
+ *
+ * ⚠️ 참고:
+ * - 휴가(vacation) ≠ 휴직(leave of absence)
+ * - 휴가: 연차 사용, status는 active 유지
+ * - 휴직: 장기 휴식, status = 'leave'
+ * ================================================================
+ */
+
 // 직원 소속 정보 (주 소속 + 추가 소속)
 export interface EmployeePosition {
   department_id: number
@@ -188,14 +215,20 @@ export async function updateEmployee(id: string, data: UpdateEmployeeData) {
 
 /**
  * 구성원 삭제 (Soft Delete)
+ *
+ * 퇴사 처리: deleted_at 필드만으로 판단
+ * - deleted_at IS NOT NULL → 퇴사
+ * - status 값은 변경하지 않아도 됨 (deleted_at만 중요)
+ * - resignation_date는 사직서 승인 시 자동 설정됨
  */
 export async function deleteEmployee(id: string) {
   try {
     const supabase = await createClient()
 
+    // Soft delete: deleted_at만 설정 (퇴사 처리)
     const { error } = await supabase
       .from('employee')
-      .update({ status: 'inactive', deleted_at: new Date().toISOString() })
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
 
     if (error) {
@@ -213,6 +246,12 @@ export async function deleteEmployee(id: string) {
 
 /**
  * 구성원 목록 조회 (클라이언트에서 사용)
+ *
+ * 조회 범위: 재직 + 휴직 (퇴사자 제외)
+ * - deleted_at IS NULL: 재직/휴직 중인 직원만
+ * - status = 'active': 재직 중 (연차 사용 중 포함)
+ * - status = 'leave': 휴직 중 (육아휴직, 병가 등)
+ * - deleted_at IS NOT NULL: 퇴사자 (조회 제외)
  */
 export async function getEmployees() {
   try {
@@ -226,6 +265,7 @@ export async function getEmployees() {
     // Admin Client 사용하여 모든 데이터 조회
     const adminSupabase = createAdminClient()
 
+    // 재직 + 휴직 조회 (퇴사자 제외)
     const { data, error } = await adminSupabase
       .from('employee')
       .select(`
@@ -233,7 +273,7 @@ export async function getEmployees() {
         department:department_id(id, name, code),
         role:role_id(id, name, code, level)
       `)
-      .eq('status', 'active')
+      .is('deleted_at', null)  // 퇴사자 제외
       .order('name')
 
     if (error) {
