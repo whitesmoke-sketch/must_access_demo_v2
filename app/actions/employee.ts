@@ -3,6 +3,21 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+// 직원 소속 정보 (주 소속 + 추가 소속)
+export interface EmployeePosition {
+  department_id: number
+  department_name: string
+  role_id: number
+  role_name: string
+  is_primary: boolean  // true = 주 소속, false = 추가 소속
+}
+
+// 추가 소속 정보 (겸직)
+export interface AdditionalPosition {
+  department_id: number
+  role_id: number
+}
+
 export interface CreateEmployeeData {
   email: string
   name: string
@@ -12,6 +27,7 @@ export interface CreateEmployeeData {
   phone?: string
   location?: string
   note?: string
+  additional_positions?: AdditionalPosition[]  // 추가 소속 (겸직)
 }
 
 export interface UpdateEmployeeData {
@@ -23,6 +39,7 @@ export interface UpdateEmployeeData {
   location?: string
   annual_leave_days: number
   used_days?: number
+  additional_positions?: AdditionalPosition[]  // 추가 소속 (겸직)
 }
 
 /**
@@ -191,6 +208,18 @@ export async function getEmployees() {
     // 모든 직원의 연차 계산
     const employeeIds = data?.map(emp => emp.id) || []
 
+    // 추가 소속(겸직) 조회
+    const { data: additionalPositions } = await adminSupabase
+      .from('employee_additional_positions')
+      .select(`
+        employee_id,
+        department_id,
+        role_id,
+        department:department_id(id, name, code),
+        role:role_id(id, name, code, level)
+      `)
+      .in('employee_id', employeeIds)
+
     // 모든 grant 조회 (연차 + 포상휴가)
     const { data: allGrants } = await adminSupabase
       .from('annual_leave_grant')
@@ -231,10 +260,33 @@ export async function getEmployees() {
       }
     })
 
-    // 직원 데이터에 연차 및 포상휴가 잔여일수 추가
+    // 직원 데이터에 연차 및 포상휴가 잔여일수 + 전체 소속 추가
     const enrichedData = data?.map(emp => {
       const annualBalance = annualBalanceMap.get(emp.id) || { total: 0, remaining: 0 }
       const awardBalance = awardBalanceMap.get(emp.id) || 0
+
+      // 추가 소속 필터링
+      const additional = additionalPositions?.filter(p => p.employee_id === emp.id) || []
+
+      // 전체 소속 목록 (주 소속 + 추가 소속)
+      const all_positions: EmployeePosition[] = [
+        // 주 소속 (항상 첫 번째)
+        {
+          department_id: emp.department_id,
+          department_name: emp.department?.name || '',
+          role_id: emp.role_id,
+          role_name: emp.role?.name || '',
+          is_primary: true
+        },
+        // 추가 소속들
+        ...additional.map(pos => ({
+          department_id: pos.department_id,
+          department_name: pos.department?.name || '',
+          role_id: pos.role_id,
+          role_name: pos.role?.name || '',
+          is_primary: false
+        }))
+      ]
 
       return {
         ...emp,
@@ -243,7 +295,8 @@ export async function getEmployees() {
           used_days: annualBalance.total - annualBalance.remaining,
           remaining_days: annualBalance.remaining
         }],
-        award_leave_balance: awardBalance
+        award_leave_balance: awardBalance,
+        all_positions  // 전체 소속 목록 추가
       }
     })
 

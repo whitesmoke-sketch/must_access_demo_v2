@@ -60,6 +60,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       position="top-center"
       closeButton
+      duration={2000}
       icons={{
         success: (
           <ToastIcon type="success">

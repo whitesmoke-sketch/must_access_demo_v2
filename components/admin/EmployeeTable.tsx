@@ -13,11 +13,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, Edit } from 'lucide-react'
+import { Search, Edit, Ellipsis } from 'lucide-react'
 import { EmployeeModal } from './EmployeeModal'
 import { toast } from 'sonner'
 import { getEmployees } from '@/app/actions/employee'
 import { createClient } from '@/lib/supabase/client'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface Department {
   id: number
@@ -141,10 +147,59 @@ export function EmployeeTable() {
                         {employee.name}
                       </TableCell>
                       <TableCell>
-                        <div>{employee.department?.name || '-'}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {employee.role?.name || '-'}
-                        </div>
+                        {employee.all_positions && employee.all_positions.length > 0 ? (
+                          (() => {
+                            const primary = employee.all_positions.find((p: any) => p.is_primary) || employee.all_positions[0]
+
+                            if (employee.all_positions.length === 1) {
+                              return (
+                                <>
+                                  <div>{primary.department_name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {primary.role_name}
+                                  </div>
+                                </>
+                              )
+                            }
+
+                            return (
+                              <div className="flex items-center gap-2">
+                                <div>
+                                  <div>{primary.department_name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {primary.role_name}
+                                  </div>
+                                </div>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors">
+                                        <Ellipsis className="w-3 h-3" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="space-y-1">
+                                        {employee.all_positions.map((pos: any, idx: number) => (
+                                          <div key={idx} className="text-sm">
+                                            {pos.department_name} - {pos.role_name}
+                                            {pos.is_primary && <span className="text-primary ml-1">(주 소속)</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            )
+                          })()
+                        ) : (
+                          <>
+                            <div>{employee.department?.name || '-'}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {employee.role?.name || '-'}
+                            </div>
+                          </>
+                        )}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={employee.status} />
