@@ -65,11 +65,11 @@ export function EmployeeModal({
     reward_leave: 0,
   })
 
-  // 추가 소속 관리용 상태
+  // 직무/부서 목록 (첫 번째 = 주 소속)
   const [positionsList, setPositionsList] = useState<Array<{
-    department_id: number | null
     role_id: number | null
-  }>>( [])
+    department_id: number | null
+  }>>([{ role_id: null, department_id: null }])
 
   // 모달이 열릴 때만 roles를 fetch (중복 호출 방지)
   useEffect(() => {
@@ -93,18 +93,25 @@ export function EmployeeModal({
         reward_leave: 0, // 하드코딩
       })
 
-      // 추가 소속 로드 (is_primary=false인 항목들)
-      if (employee.all_positions) {
-        const additionalPos = employee.all_positions
-          .filter((pos: any) => !pos.is_primary)
-          .map((pos: any) => ({
-            department_id: pos.department_id,
-            role_id: pos.role_id,
-          }))
-        setPositionsList(additionalPos)
+      // 전체 소속 로드 (all_positions 배열)
+      if (employee.all_positions && employee.all_positions.length > 0) {
+        const allPos = employee.all_positions.map((pos: any) => ({
+          role_id: pos.role_id,
+          department_id: pos.department_id,
+        }))
+        setPositionsList(allPos)
       } else {
-        setPositionsList([])
+        // all_positions 없으면 기존 department_id, role_id로 초기화
+        setPositionsList([
+          {
+            role_id: employee.role_id || null,
+            department_id: employee.department_id || null,
+          },
+        ])
       }
+    } else {
+      // 신규 생성 모드
+      setPositionsList([{ role_id: null, department_id: null }])
     }
   }, [employee])
 
@@ -143,26 +150,30 @@ export function EmployeeModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!formData.name || !formData.email || !formData.department_id || !formData.role_id) {
-      toast.error('필수 항목을 입력해주세요')
+    // 유효한 직무/부서 항목만 필터링
+    const validPositions = positionsList.filter(
+      (pos) => pos.role_id && pos.department_id
+    )
+
+    if (!formData.name || !formData.email || validPositions.length === 0) {
+      toast.error('필수 항목을 입력해주세요', {
+        description: '이름, 이메일, 최소 1개의 직무/부서는 필수입니다.',
+      })
       return
     }
 
-    // 추가 소속 데이터 정리 (빈 항목 제거, 주 소속과 중복 체크)
-    const validAdditionalPositions: AdditionalPosition[] = positionsList
-      .filter((pos) => pos.department_id && pos.role_id) // null 제거
-      .filter((pos) =>
-        // 주 소속과 동일한 부서/역할 조합 제거
-        !(pos.department_id === formData.department_id && pos.role_id === formData.role_id)
-      )
-      .map((pos) => ({
-        department_id: pos.department_id!,
-        role_id: pos.role_id!,
-      }))
+    // 첫 번째 항목 = 주 소속
+    const primaryPosition = validPositions[0]
+    const additionalPositions = validPositions.slice(1)
 
     const submitData = {
       ...formData,
-      additional_positions: validAdditionalPositions,
+      department_id: primaryPosition.department_id!,
+      role_id: primaryPosition.role_id!,
+      additional_positions: additionalPositions.map((pos) => ({
+        department_id: pos.department_id!,
+        role_id: pos.role_id!,
+      })),
     }
 
     setLoading(true)
@@ -243,97 +254,139 @@ export function EmployeeModal({
               />
             </div>
 
-            {/* 주 소속 섹션 */}
-            <div className="col-span-2 space-y-3">
-              <Label className="text-base font-semibold">주 소속</Label>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* 조직 (부서/팀 통합) */}
-                <div className="space-y-2 col-span-2">
-                  <Label>조직/부서 *</Label>
-                  <DepartmentCombobox
-                    value={formData.department_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, department_id: value })
-                    }
-                  />
-                </div>
-
-                {/* 역할 */}
-                <div className="space-y-2">
-                  <Label>역할 *</Label>
-                  <RoleSelect
-                    value={formData.role_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, role_id: value })
-                    }
-                  />
-                </div>
-              </div>
+            {/* 연락처 */}
+            <div className="space-y-2 col-span-2">
+              <Label
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 500,
+                  lineHeight: 1.5
+                }}
+              >
+                연락처
+              </Label>
+              <Input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                placeholder="010-1234-5678"
+                className="md:text-[var(--font-size-body)] text-[var(--font-size-caption)]"
+              />
             </div>
 
-            {/* 추가 소속 섹션 (겸직) */}
-            <div className="col-span-2 space-y-3">
+            {/* 직무/직책 + 부서 목록 */}
+            <div className="space-y-2 col-span-2">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">추가 소속 (겸직)</Label>
-                <span className="text-xs text-muted-foreground">선택사항</span>
+                <Label
+                  style={{
+                    fontSize: 'var(--font-size-caption)',
+                    fontWeight: 500,
+                    lineHeight: 1.5
+                  }}
+                >
+                  직무/직책 + 부서
+                </Label>
               </div>
 
-              {positionsList.length > 0 && (
-                <div className="space-y-3">
-                  {positionsList.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex gap-3 items-start p-3 bg-muted/50 rounded-lg border"
-                    >
-                      <div className="flex-1 grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-sm">부서</Label>
-                          <DepartmentCombobox
-                            value={item.department_id || undefined}
-                            onValueChange={(val) => updatePosition(index, 'department_id', val)}
-                            placeholder="부서 선택"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm">역할</Label>
-                          <RoleSelect
-                            value={item.role_id}
-                            onValueChange={(val) => updatePosition(index, 'role_id', val)}
-                            placeholder="역할 선택"
-                          />
-                        </div>
+              <div className="space-y-3">
+                {positionsList.map((item, index) => (
+                  <div key={index} className="flex gap-3 items-start">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label
+                          style={{
+                            fontSize: 'var(--font-size-caption)',
+                            fontWeight: 500,
+                            lineHeight: 1.5,
+                            color: 'var(--muted-foreground)'
+                          }}
+                        >
+                          직무/직책
+                        </Label>
+                        <RoleSelect
+                          value={item.role_id}
+                          onValueChange={(val) => updatePosition(index, 'role_id', val)}
+                          placeholder="선임연구원"
+                        />
                       </div>
+                      <div className="space-y-1">
+                        <Label
+                          style={{
+                            fontSize: 'var(--font-size-caption)',
+                            fontWeight: 500,
+                            lineHeight: 1.5,
+                            color: 'var(--muted-foreground)'
+                          }}
+                        >
+                          부서
+                        </Label>
+                        <DepartmentCombobox
+                          value={item.department_id || undefined}
+                          onValueChange={(val) => updatePosition(index, 'department_id', val)}
+                          placeholder="부서 선택"
+                        />
+                      </div>
+                    </div>
+                    {positionsList.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => removePosition(index)}
-                        className="mt-6 flex-shrink-0"
+                        style={{ height: '42px', width: '42px', marginTop: '24px' }}
                       >
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                        <Trash2 className="w-4 h-4" style={{ color: 'var(--destructive)' }} />
                       </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addPosition}
-                className="w-full"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                추가 소속 추가
-              </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addPosition}
+                  className="w-full"
+                  style={{ height: '42px' }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  직무/부서 추가
+                </Button>
+              </div>
             </div>
 
-            {/* 입사일 */}
+            {/* 팀, 입사일 */}
             <div className="space-y-2">
-              <Label htmlFor="employment_date">입사일</Label>
+              <Label
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 500,
+                  lineHeight: 1.5
+                }}
+              >
+                팀
+              </Label>
               <Input
-                id="employment_date"
+                value={formData.location || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                placeholder="백엔드팀"
+                className="md:text-[var(--font-size-body)] text-[var(--font-size-caption)]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                style={{
+                  fontSize: 'var(--font-size-caption)',
+                  fontWeight: 500,
+                  lineHeight: 1.5
+                }}
+              >
+                입사일
+              </Label>
+              <Input
                 type="date"
                 value={formData.employment_date}
                 onChange={(e) =>
@@ -342,44 +395,45 @@ export function EmployeeModal({
               />
             </div>
 
-            {/* 연락처 */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">연락처</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                placeholder="010-1234-5678"
-              />
-            </div>
 
-            {/* 연차 정보 (읽기 전용) */}
-            {mode === 'edit' && (
-              <div className="space-y-2 col-span-2">
-                <Label>현재 연차 현황</Label>
-                <div className="p-3 bg-gray-50 rounded-md border">
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground mb-1">총 연차</p>
-                      <p className="font-semibold">{formData.annual_leave_days}일</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground mb-1">사용</p>
-                      <p className="font-semibold">{formData.used_days}일</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground mb-1">잔여</p>
-                      <p className="font-semibold text-blue-600">
-                        {formData.annual_leave_days - formData.used_days}일
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    * 연차는 별도 관리 메뉴에서 부여/조정할 수 있습니다
-                  </p>
-                </div>
+            {/* 안내 문구 */}
+            {!employee && (
+              <div
+                className="p-3 rounded-lg col-span-2"
+                style={{
+                  backgroundColor: 'var(--primary-bg)',
+                  border: '1px solid var(--primary-border)'
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 'var(--font-size-caption)',
+                    lineHeight: 1.5,
+                    color: 'var(--muted-foreground)'
+                  }}
+                >
+                  💡 구성원 등록 시 Hubstaff 온보딩 API가 자동으로 트리거되어 계정 생성 및 초기 설정이 진행됩니다.
+                </p>
+              </div>
+            )}
+
+            {employee && (
+              <div
+                className="p-3 rounded-lg col-span-2"
+                style={{
+                  backgroundColor: 'var(--muted)',
+                  border: '1px solid var(--border)'
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 'var(--font-size-caption)',
+                    lineHeight: 1.5,
+                    color: 'var(--muted-foreground)'
+                  }}
+                >
+                  ℹ️ 구글 이메일은 수정할 수 없습니다. 변경이 필요한 경우 관리자에게 문의하세요.
+                </p>
               </div>
             )}
               </div>
