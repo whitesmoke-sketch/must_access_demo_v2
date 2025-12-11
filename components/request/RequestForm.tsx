@@ -343,6 +343,7 @@ const DOCUMENT_PRECAUTIONS: Record<string, string[]> = {
 export function RequestForm({ currentUser, balance, members, initialDocumentType }: RequestFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false)
 
   // Validate and set initial document type
   const validDocumentTypes: DocumentType[] = ['annual_leave', 'reward_leave', 'condolence', 'overtime', 'expense', 'budget', 'expense_proposal', 'resignation', 'overtime_report', 'work_type_change', 'other']
@@ -993,8 +994,7 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
 
   // 제출 처리
   const handleSubmit = async () => {
-    if (!validateForm()) return
-
+    setIsSubmitConfirmOpen(false)
     setIsSubmitting(true)
     setIsUploading(true)
 
@@ -2914,7 +2914,11 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
                 취소
               </Button>
               <Button
-                onClick={handleSubmit}
+                onClick={() => {
+                  if (validateForm()) {
+                    setIsSubmitConfirmOpen(true)
+                  }
+                }}
                 disabled={isSubmitting || isUploading}
                 className="flex-1"
                 style={{
@@ -3352,6 +3356,56 @@ export function RequestForm({ currentUser, balance, members, initialDocumentType
               disabled={tempSelectedDocs.length === 0}
             >
               선택 완료 ({tempSelectedDocs.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 제출 확인 모달 */}
+      <Dialog open={isSubmitConfirmOpen} onOpenChange={setIsSubmitConfirmOpen}>
+        <DialogContent
+          className="!p-6 !border-0"
+          style={{ backgroundColor: 'var(--background)', maxWidth: '360px' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{
+              fontSize: 'var(--font-size-h4)',
+              fontWeight: 600,
+              color: 'var(--foreground)',
+              lineHeight: 1.4,
+              textAlign: 'center',
+            }}>
+              제출하시겠습니까?
+            </DialogTitle>
+            <DialogDescription style={{
+              fontSize: 'var(--font-size-caption)',
+              lineHeight: 1.4,
+              color: 'var(--muted-foreground)',
+              textAlign: 'center',
+              marginTop: '8px',
+            }}>
+              제출 후에는 수정이 불가능합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsSubmitConfirmOpen(false)}
+              className="flex-1"
+              style={{ height: '42px' }}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="flex-1"
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+                height: '42px',
+              }}
+            >
+              제출
             </Button>
           </DialogFooter>
         </DialogContent>
