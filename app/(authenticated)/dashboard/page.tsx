@@ -258,20 +258,25 @@ export default async function DashboardPage() {
         {/* 3. 빠른 메뉴 */}
         <QuickActions />
 
-        {/* 4. 나의 예약 현황 */}
-        <MyReservationsCard employeeId={user.id} />
+        {/* 4. 나의 예약 현황 + 5. 결재 현황 (동일 높이) */}
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col lg:flex-row gap-6 items-stretch">
+          {/* 나의 예약 현황 */}
+          <div className="w-full lg:w-1/3 flex">
+            <MyReservationsCard employeeId={user.id} />
+          </div>
 
-        {/* 5. 결재 현황 (2열 차지) */}
-        <div className="md:col-span-2 lg:col-span-2">
-          <ApprovalStatusClient
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            myRequests={myRequests as any}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            pendingRequests={pendingRequests as any}
-            isAdmin={isAdmin}
-            userId={user.id}
-            approvalStepsMap={approvalStepsMap}
-          />
+          {/* 결재 현황 */}
+          <div className="w-full lg:w-2/3 flex">
+            <ApprovalStatusClient
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              myRequests={myRequests as any}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              pendingRequests={pendingRequests as any}
+              isAdmin={isAdmin}
+              userId={user.id}
+              approvalStepsMap={approvalStepsMap}
+            />
+          </div>
         </div>
 
         {/* 6. 오늘 연차인 멤버 */}

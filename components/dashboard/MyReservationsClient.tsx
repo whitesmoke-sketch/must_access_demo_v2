@@ -76,7 +76,7 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
   return (
     <TooltipProvider>
       <Card
-        className="rounded-2xl flex flex-col h-full"
+        className="rounded-2xl flex flex-col h-full w-full"
         style={{
           borderRadius: '16px',
           boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',

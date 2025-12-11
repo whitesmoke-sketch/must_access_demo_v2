@@ -108,7 +108,7 @@ export function ApprovalStatusClient({
 
   return (
     <Card
-      className="rounded-2xl md:col-span-2 lg:col-span-2 flex flex-col"
+      className="rounded-2xl flex flex-col h-full w-full"
     >
       <CardHeader style={{ paddingBottom: '12px' }}>
         <CardTitle style={{
