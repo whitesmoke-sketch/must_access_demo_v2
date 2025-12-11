@@ -1021,19 +1021,19 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                         key={time}
                         className="flex items-center gap-3 transition-all"
                         style={{
-                          padding: '8px 12px',
+                          padding: '10px 16px',
                           borderRadius: '8px',
                           backgroundColor: isBooked ? 'var(--disabled-bg)' : 'var(--muted)',
-                          border: '2px solid transparent',
+                          border: '1px solid transparent',
                           opacity: isBooked ? 'var(--disabled-opacity)' : 1,
                         }}
                       >
                         <div
                           style={{
-                            fontSize: '14px',
-                            fontWeight: 500,
+                            fontSize: 'var(--font-size-caption)',
+                            fontWeight: 600,
                             lineHeight: 1.4,
-                            color: isBooked ? 'var(--disabled-text)' : 'var(--foreground)',
+                            color: isBooked ? 'var(--disabled-text)' : 'var(--muted-foreground)',
                             minWidth: '50px',
                           }}
                         >
@@ -1043,8 +1043,8 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                           <div className="flex-1">
                             <p
                               style={{
-                                fontSize: '14px',
-                                fontWeight: 500,
+                                fontSize: 'var(--font-size-caption)',
+                                fontWeight: 600,
                                 lineHeight: 1.4,
                                 color: 'var(--disabled-text)',
                               }}
@@ -1053,9 +1053,10 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                             </p>
                             <p
                               style={{
-                                fontSize: '14px',
+                                fontSize: 'var(--font-size-caption)',
                                 lineHeight: 1.4,
                                 color: 'var(--disabled-text)',
+                                marginTop: '2px',
                               }}
                             >
                               {booking.bookedBy} · {booking.start.slice(0, 5)} - {booking.end.slice(0, 5)}
@@ -1065,9 +1066,9 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                           <div className="flex-1">
                             <p
                               style={{
-                                fontSize: '14px',
+                                fontSize: 'var(--font-size-caption)',
                                 lineHeight: 1.4,
-                                color: 'var(--foreground)',
+                                color: 'var(--muted-foreground)',
                               }}
                             >
                               예약 가능
@@ -1079,26 +1080,25 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                   })}
                 </div>
 
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button
+                    onClick={() => {
+                      setBookingModalOpen(false)
+                      handleBookRoom(selectedRoom?.id || '')
+                    }}
+                    style={{
+                      backgroundColor: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                      fontSize: 'var(--font-size-body)',
+                      fontWeight: 500,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    예약하기
+                  </Button>
+                </div>
               </>
             )}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={() => {
-                  setBookingModalOpen(false)
-                  handleBookRoom(selectedRoom?.id || '')
-                }}
-                style={{
-                  backgroundColor: 'var(--primary)',
-                  color: 'white',
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5,
-                }}
-              >
-                예약하기
-              </Button>
-            </div>
           </DialogBody>
         </DialogContent>
       </Dialog>
