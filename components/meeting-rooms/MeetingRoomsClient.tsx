@@ -931,7 +931,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             style={{
               borderRadius: '10px',
               boxShadow: '0px 10px 15px -3px rgba(0,0,0,0.1), 0px 4px 6px -4px rgba(0,0,0,0.1)',
-              backgroundColor: 'var(--background)',
+              backgroundColor: '#F6F8F9',
             }}
           >
           <DialogHeader>
@@ -954,9 +954,11 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           </DialogHeader>
 
           <DialogBody
-          style={{
-            backgroundColor: '#FFFFFF',
-          }}
+            className="bg-white overflow-clip"
+            style={{
+              borderRadius: '16px',
+              boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+            }}
           >
             {/* Date selector */}
             <div className="flex items-center justify-between px-4 py-3 rounded-lg" style={{ backgroundColor: '#F6F8F9', borderRadius: '10px', height: '56px' }}>
