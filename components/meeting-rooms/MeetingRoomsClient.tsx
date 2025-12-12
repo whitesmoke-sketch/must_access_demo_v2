@@ -955,7 +955,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
 
           <DialogBody>
             {/* Date selector */}
-            <div className="flex items-center justify-between px-4 py-3 rounded-lg" style={{ backgroundColor: 'var(--muted)', borderRadius: '10px', height: '56px' }}>
+            <div className="flex items-center justify-between px-4 py-3 rounded-lg" style={{ backgroundColor: '#FFF', borderRadius: '10px', height: '56px' }}>
               <Button
                 variant="outline"
                 size="sm"
