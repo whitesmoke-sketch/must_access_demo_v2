@@ -111,7 +111,7 @@ export function ApprovalStatusClient({
       className="rounded-2xl flex flex-col h-full w-full"
       style={{
         borderRadius: '16px',
-        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+        boxShadow: 'var(--shadow-md)',
       }}
     >
       <CardHeader style={{ paddingBottom: '12px' }}>
@@ -210,6 +210,7 @@ export function ApprovalStatusClient({
                         신청일: {new Date(request.requested_at).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
+                    {/* 승인/반려 버튼 - 주석처리
                     <div className="flex items-center gap-2 ml-4">
                       <button
                         className="px-3 py-1.5 transition-all flex items-center disabled:opacity-50"
@@ -242,6 +243,7 @@ export function ApprovalStatusClient({
                         반려
                       </button>
                     </div>
+                    */}
                   </div>
                 </div>
               ))

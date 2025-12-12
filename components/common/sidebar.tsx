@@ -68,13 +68,13 @@ export function Sidebar({
     //   href: '/resources/seats',
     //   implemented: true,
     // },
-    {
-      id: 'lockers',
-      label: '사물함',
-      icon: Lock,
-      href: '/resources/lockers',
-      implemented: false,
-    },
+    // {
+    //   id: 'lockers',
+    //   label: '사물함',
+    //   icon: Lock,
+    //   href: '/resources/lockers',
+    //   implemented: false,
+    // },
     {
       id: 'meeting-rooms',
       label: '공간 예약',
