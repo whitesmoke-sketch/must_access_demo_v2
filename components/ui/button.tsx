@@ -13,7 +13,7 @@ const variants = {
   primary: 'bg-primary text-white hover:brightness-90 focus-visible:outline-primary',
   secondary: 'bg-secondary text-white hover:brightness-90 focus-visible:outline-secondary',
   ghost: 'bg-transparent hover:bg-muted text-foreground',
-  outline: 'bg-white border border-border text-foreground hover:bg-muted',
+  outline: 'bg-[var(--input-background)] border border-border text-foreground hover:bg-muted',
   danger: 'bg-error text-white hover:brightness-90 focus-visible:outline-error',
 }
 

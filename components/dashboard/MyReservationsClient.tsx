@@ -178,7 +178,14 @@ export const MyReservationsClient: React.FC<MyReservationsClientProps> = ({
                 회의실 예약
               </p>
             </div>
-            <div className="space-y-2">
+            {/* 2개 이상일 때 스크롤 가능, 최대 높이 약 2개 아이템 */}
+            <div 
+              className="space-y-2"
+              style={{
+                maxHeight: meetingBookings.length > 2 ? '140px' : 'auto',
+                overflowY: meetingBookings.length > 2 ? 'auto' : 'visible',
+              }}
+            >
               {meetingBookings.length === 0 ? (
                 <p style={{ fontSize: '14px', lineHeight: '19.6px', color: '#9BA4AB', textAlign: 'center', padding: '16px 0' }}>
                   예약된 회의실이 없습니다

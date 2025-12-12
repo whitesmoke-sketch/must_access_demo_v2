@@ -947,18 +947,18 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           </DialogHeader>
 
           <DialogBody>
-            {/* 회색 배경 컨테이너 - 날짜, 타임슬롯, 버튼을 감싸는 부분 */}
+            {/* 흰색 배경 컨테이너 - 날짜, 타임슬롯, 버튼을 감싸는 부분 */}
             <div
               style={{
-                backgroundColor: 'var(--muted)',
+                backgroundColor: 'var(--card)',
                 borderRadius: '12px',
                 padding: '16px',
               }}
             >
-              {/* Date selector - 흰색 배경 */}
+              {/* Date selector - 회색 배경 */}
               <div 
                 className="flex items-center justify-between px-4 py-3 rounded-lg" 
-                style={{ backgroundColor: 'var(--background)' }}
+                style={{ backgroundColor: 'var(--muted)' }}
               >
                 <Button
                   variant="outline"
@@ -1022,14 +1022,10 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
               {/* Timeline */}
               {!isLoadingModalBookings && !modalBookingsError && (
                 <>
-                  {/* 타임슬롯 영역 - 흰색 배경 */}
+                  {/* 타임슬롯 영역 - 개별 슬롯이 분리되어 보이도록 */}
                   <div 
-                    className="space-y-1 max-h-96 overflow-y-auto mt-3"
-                    style={{
-                      backgroundColor: 'var(--background)',
-                      borderRadius: '8px',
-                      padding: '8px',
-                    }}
+                    className="max-h-96 overflow-y-auto"
+                    style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '5px' }}
                   >
                     {timeSlots.map((time) => {
                       const booking = isTimeSlotBooked(time, modalBookings)
@@ -1040,10 +1036,9 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                           key={time}
                           className="flex items-center gap-3 transition-all"
                           style={{
-                            padding: '10px 16px',
+                            padding: '12px 16px',
                             borderRadius: '8px',
                             backgroundColor: 'var(--background)',
-                            border: '1px solid transparent',
                             opacity: isBooked ? 'var(--disabled-opacity)' : '1',
                           }}
                         >
@@ -1099,27 +1094,30 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                     })}
                   </div>
 
-                  {/* 버튼 - 타임슬롯과 여백 */}
-                  <div className="flex justify-end mt-4">
-                    <Button
-                      onClick={() => {
-                        setBookingModalOpen(false)
-                        handleBookRoom(selectedRoom?.id || '')
-                      }}
-                      style={{
-                        backgroundColor: 'var(--primary)',
-                        color: 'var(--primary-foreground)',
-                        fontSize: 'var(--font-size-body)',
-                        fontWeight: 500,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      예약하기
-                    </Button>
-                  </div>
                 </>
               )}
             </div>
+
+            {/* 버튼 - 카드 밖에 위치 */}
+            {!isLoadingModalBookings && !modalBookingsError && (
+              <div className="flex justify-end mt-4">
+                <Button
+                  onClick={() => {
+                    setBookingModalOpen(false)
+                    handleBookRoom(selectedRoom?.id || '')
+                  }}
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: 'var(--primary-foreground)',
+                    fontSize: 'var(--font-size-body)',
+                    fontWeight: 500,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  예약하기
+                </Button>
+              </div>
+            )}
           </DialogBody>
         </DialogContent>
       </Dialog>

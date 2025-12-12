@@ -323,10 +323,20 @@ export async function createBooking(input: CreateBookingInput) {
 
   // Add attendees and create notifications
   if (input.attendee_ids.length > 0) {
+    // 예약자의 employee_id 조회 (employee.id = auth user id)
+    const { data: organizerEmployee } = await supabase
+      .from('employee')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    const organizerEmployeeId = organizerEmployee?.id
+
     const attendees = input.attendee_ids.map((employeeId) => ({
       booking_id: booking.id,
       employee_id: employeeId,
-      response_status: 'needsAction',
+      // 주최자(예약자)는 자동 참석 처리
+      response_status: employeeId === organizerEmployeeId ? 'accepted' : 'needsAction',
       calendar_synced: false
     }))
 
@@ -363,8 +373,9 @@ export async function createBooking(input: CreateBookingInput) {
         minute: '2-digit'
       })
 
-      // 각 참석자에게 알림 생성 (Admin 클라이언트 사용 - RLS 우회)
-      const notificationRecords = input.attendee_ids.map(empId => ({
+      // 각 참석자에게 알림 생성 (주최자 제외, Admin 클라이언트 사용 - RLS 우회)
+      const attendeeIdsExceptOrganizer = input.attendee_ids.filter(id => id !== organizerEmployeeId)
+      const notificationRecords = attendeeIdsExceptOrganizer.map(empId => ({
         recipient_id: empId,
         type: 'meeting_invitation',
         title: `${organizerName}님이 회의에 초대했습니다`,

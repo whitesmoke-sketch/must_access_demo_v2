@@ -1307,59 +1307,53 @@ export default function OrganizationManagementClient() {
 
       {/* 부서 삭제 다이얼로그 */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent
+          className="!p-6 !border-0"
+          style={{ backgroundColor: 'var(--background)', maxWidth: '360px' }}
+        >
           <DialogHeader>
-            <DialogTitle
-              style={{
-                fontSize: 'var(--font-size-h2)',
-                fontWeight: 'var(--font-weight-h2)',
-                lineHeight: 1.3,
-              }}
-            >
-              부서 삭제
+            <DialogTitle style={{
+              fontSize: 'var(--font-size-h4)',
+              fontWeight: 600,
+              color: 'var(--foreground)',
+              lineHeight: 1.4,
+              textAlign: 'center',
+            }}>
+              삭제하시겠습니까?
             </DialogTitle>
-            <DialogDescription style={{ fontSize: 'var(--font-size-body)', lineHeight: 1.5 }}>
-              정말로 이 부서를 삭제하시겠습니까?
+            <DialogDescription style={{
+              fontSize: 'var(--font-size-caption)',
+              lineHeight: 1.4,
+              color: 'var(--muted-foreground)',
+              textAlign: 'center',
+              marginTop: '8px',
+            }}>
+              삭제된 부서는 복구할 수 없습니다.
+              <br />
+              정말로 삭제하시겠습니까?
             </DialogDescription>
           </DialogHeader>
-
-          {deletingDepartment && (
-            <div className="py-4">
-              <div className="p-4 rounded-lg" style={{ backgroundColor: 'rgba(229,57,53,0.1)' }}>
-                <p
-                  style={{
-                    fontSize: 'var(--font-size-body)',
-                    fontWeight: 500,
-                    lineHeight: 1.5,
-                    marginBottom: '8px',
-                  }}
-                >
-                  {deletingDepartment.name}
-                </p>
-                <p
-                  style={{
-                    fontSize: 'var(--font-size-caption)',
-                    color: 'var(--muted-foreground)',
-                    lineHeight: 1.4,
-                  }}
-                >
-                  삭제된 부서는 복구할 수 없습니다.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
+          <DialogFooter className="flex gap-3 mt-4">
             <Button
               variant="outline"
               onClick={() => {
                 setIsDeleteDialogOpen(false)
                 setDeletingDepartment(null)
               }}
+              className="flex-1"
+              style={{ height: '42px' }}
             >
               취소
             </Button>
-            <Button onClick={handleDeleteDepartment} style={{ backgroundColor: '#E53935', color: 'white' }}>
+            <Button
+              onClick={handleDeleteDepartment}
+              className="flex-1"
+              style={{
+                backgroundColor: '#E53935',
+                color: 'white',
+                height: '42px',
+              }}
+            >
               삭제
             </Button>
           </DialogFooter>

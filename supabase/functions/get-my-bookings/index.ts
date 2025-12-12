@@ -111,11 +111,12 @@ Deno.serve(async (req) => {
       console.error('Error fetching my bookings:', myBookingsError)
     }
 
-    // 2. Get booking IDs where user is an attendee
+    // 2. Get booking IDs where user is an attendee (only accepted or pending)
     const { data: attendeeBookings, error: attendeeError } = await supabase
       .from('meeting_room_booking_attendee')
       .select('booking_id')
       .eq('employee_id', employeeId)
+      .in('response_status', ['accepted', 'needsAction'])
 
     if (attendeeError) {
       console.error('Error fetching attendee bookings:', attendeeError)
@@ -160,14 +161,14 @@ Deno.serve(async (req) => {
       }
     })
 
-    // 5. Sort by date/time and limit to 3
+    // 5. Sort by date/time and limit to 10
     const bookings = Array.from(allBookingsMap.values())
       .sort((a, b) => {
         const dateCompare = a.booking_date.localeCompare(b.booking_date)
         if (dateCompare !== 0) return dateCompare
         return a.start_time.localeCompare(b.start_time)
       })
-      .slice(0, 3)
+      .slice(0, 10)
 
     return new Response(
       JSON.stringify({

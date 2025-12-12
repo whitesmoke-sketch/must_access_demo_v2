@@ -72,9 +72,14 @@ interface MeetingRoomBookingClientProps {
     email: string
     department: { name: string } | null
   }>
+  currentUser: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
-export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> = ({ room, employees }) => {
+export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> = ({ room, employees, currentUser }) => {
   const router = useRouter()
 
   // Transform DB room to UI format
@@ -107,7 +112,8 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
-  const [attendees, setAttendees] = useState<Member[]>([])
+  // 본인을 기본 참석자로 포함
+  const [attendees, setAttendees] = useState<Member[]>([currentUser])
   const [purpose, setPurpose] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -369,21 +375,26 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     setMemberSearchQuery('')
   }
 
-  // Remove member
+  // Remove member (본인은 제거 불가)
   const handleRemoveMember = (memberId: string) => {
+    // 본인은 제거할 수 없음
+    if (memberId === currentUser.id) return
     setAttendees(attendees.filter(m => m.id !== memberId))
   }
 
-  // Filtered members
+  // Filtered members (본인 제외)
   const filteredMembers = useMemo(() => {
     return allEmployees.filter((member) => {
+      // 본인은 검색 결과에서 제외
+      if (member.id === currentUser.id) return false
+      
       const matchesSearch =
         member.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
         member.email.toLowerCase().includes(memberSearchQuery.toLowerCase())
       const notAdded = !attendees.find(a => a.id === member.id)
       return matchesSearch && notAdded
     })
-  }, [allEmployees, memberSearchQuery, attendees])
+  }, [allEmployees, memberSearchQuery, attendees, currentUser.id])
 
   // Helper function to add minutes to time
   const addMinutes = (time: string, minutes: number): string => {
@@ -965,43 +976,55 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
 
                 {attendees.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {attendees.map((attendee) => (
-                      <div
-                        key={attendee.id}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                        style={{
-                          backgroundColor: 'var(--muted)',
-                        }}
-                      >
+                    {attendees.map((attendee) => {
+                      const isCurrentUser = attendee.id === currentUser.id
+                      return (
                         <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
+                          key={attendee.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg"
                           style={{
-                            backgroundColor: 'var(--primary)',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
+                            backgroundColor: isCurrentUser ? 'var(--primary-bg)' : 'var(--muted)',
+                            border: isCurrentUser ? '1px solid var(--primary)' : 'none',
                           }}
                         >
-                          {attendee.name.charAt(0)}
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center"
+                            style={{
+                              backgroundColor: 'var(--primary)',
+                              color: 'white',
+                              fontSize: '12px',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {attendee.name.charAt(0)}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              lineHeight: 1.4,
+                              color: 'var(--foreground)',
+                            }}
+                          >
+                            {attendee.name}
+                            {isCurrentUser && (
+                              <span style={{ color: 'var(--primary)', marginLeft: '4px', fontSize: '12px' }}>
+                                (주최자)
+                              </span>
+                            )}
+                          </span>
+                          {/* 본인이 아닌 경우에만 제거 버튼 표시 */}
+                          {!isCurrentUser && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMember(attendee.id)}
+                              className="ml-1 hover:opacity-70 transition-opacity"
+                            >
+                              <X className="w-4 h-4" style={{ color: '#5B6A72' }} />
+                            </button>
+                          )}
                         </div>
-                        <span
-                          style={{
-                            fontSize: '14px',
-                            lineHeight: 1.4,
-                            color: 'var(--foreground)',
-                          }}
-                        >
-                          {attendee.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(attendee.id)}
-                          className="ml-1 hover:opacity-70 transition-opacity"
-                        >
-                          <X className="w-4 h-4" style={{ color: '#5B6A72' }} />
-                        </button>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <p
