@@ -947,161 +947,179 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
           </DialogHeader>
 
           <DialogBody>
-            {/* Date selector */}
-            <div 
-              className="flex items-center justify-between px-4 py-3 rounded-lg" 
-              style={{ backgroundColor: 'var(--muted)' }}
+            {/* 회색 배경 컨테이너 - 날짜, 타임슬롯, 버튼을 감싸는 부분 */}
+            <div
+              style={{
+                backgroundColor: 'var(--muted)',
+                borderRadius: '12px',
+                padding: '16px',
+              }}
             >
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleModalPreviousDay}
-                disabled={modalDate.toDateString() === new Date().toDateString()}
-                style={{ padding: '6px' }}
+              {/* Date selector - 흰색 배경 */}
+              <div 
+                className="flex items-center justify-between px-4 py-3 rounded-lg" 
+                style={{ backgroundColor: 'var(--background)' }}
               >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <div
-                style={{
-                  fontSize: 'var(--font-size-body)',
-                  fontWeight: 500,
-                  lineHeight: 1.5,
-                  color: 'var(--foreground)',
-                  minWidth: '120px',
-                  textAlign: 'center',
-                }}
-              >
-                {modalDate.toLocaleDateString('ko-KR', {
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleModalNextDay}
-                style={{ padding: '6px' }}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Loading state */}
-            {isLoadingModalBookings && (
-              <div className="py-8 text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <p className="mt-2" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
-                  예약 정보를 불러오는 중...
-                </p>
-              </div>
-            )}
-
-            {/* Error state */}
-            {modalBookingsError && !isLoadingModalBookings && (
-              <div
-                className="py-8 text-center rounded-lg"
-                style={{
-                  backgroundColor: 'var(--destructive-bg)',
-                  border: '1px solid var(--error)',
-                }}
-              >
-                <p style={{ fontSize: 'var(--font-size-body)', fontWeight: 500, color: 'var(--error)' }}>
-                  {modalBookingsError}
-                </p>
-              </div>
-            )}
-
-            {/* Timeline */}
-            {!isLoadingModalBookings && !modalBookingsError && (
-              <>
-                <div className="space-y-1 max-h-96 overflow-y-auto">
-                  {timeSlots.map((time) => {
-                    const booking = isTimeSlotBooked(time, modalBookings)
-                    const isBooked = !!booking
-
-                    return (
-                      <div
-                        key={time}
-                        className="flex items-center gap-3 transition-all"
-                        style={{
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          backgroundColor: isBooked ? 'var(--disabled-bg)' : 'var(--muted)',
-                          border: '1px solid transparent',
-                          opacity: isBooked ? 'var(--disabled-opacity)' : '1',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 'var(--font-size-caption)',
-                            fontWeight: 600,
-                            lineHeight: 1.4,
-                            color: isBooked ? 'var(--disabled-text)' : 'var(--muted-foreground)',
-                            minWidth: '50px',
-                          }}
-                        >
-                          {time}
-                        </div>
-                        {isBooked && booking ? (
-                          <div className="flex-1">
-                            <p
-                              style={{
-                                fontSize: 'var(--font-size-caption)',
-                                fontWeight: 600,
-                                lineHeight: 1.4,
-                                color: 'var(--disabled-text)',
-                              }}
-                            >
-                              {booking.title}
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 'var(--font-size-caption)',
-                                lineHeight: 1.4,
-                                color: 'var(--disabled-text)',
-                                marginTop: '2px',
-                              }}
-                            >
-                              {booking.bookedBy} • {booking.start.slice(0, 5)} - {booking.end.slice(0, 5)}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex-1">
-                            <p
-                              style={{
-                                fontSize: 'var(--font-size-caption)',
-                                lineHeight: 1.4,
-                                color: 'var(--muted-foreground)',
-                              }}
-                            >
-                              예약 가능
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleModalPreviousDay}
+                  disabled={modalDate.toDateString() === new Date().toDateString()}
+                  style={{ padding: '6px' }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div
+                  style={{
+                    fontSize: 'var(--font-size-body)',
+                    fontWeight: 500,
+                    lineHeight: 1.5,
+                    color: 'var(--foreground)',
+                    minWidth: '120px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {modalDate.toLocaleDateString('ko-KR', {
+                    month: 'long',
+                    day: 'numeric',
                   })}
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleModalNextDay}
+                  style={{ padding: '6px' }}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button
-                    onClick={() => {
-                      setBookingModalOpen(false)
-                      handleBookRoom(selectedRoom?.id || '')
-                    }}
+              {/* Loading state */}
+              {isLoadingModalBookings && (
+                <div className="py-8 text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <p className="mt-2" style={{ fontSize: 'var(--font-size-caption)', color: 'var(--muted-foreground)' }}>
+                    예약 정보를 불러오는 중...
+                  </p>
+                </div>
+              )}
+
+              {/* Error state */}
+              {modalBookingsError && !isLoadingModalBookings && (
+                <div
+                  className="py-8 text-center rounded-lg mt-3"
+                  style={{
+                    backgroundColor: 'var(--destructive-bg)',
+                    border: '1px solid var(--error)',
+                  }}
+                >
+                  <p style={{ fontSize: 'var(--font-size-body)', fontWeight: 500, color: 'var(--error)' }}>
+                    {modalBookingsError}
+                  </p>
+                </div>
+              )}
+
+              {/* Timeline */}
+              {!isLoadingModalBookings && !modalBookingsError && (
+                <>
+                  {/* 타임슬롯 영역 - 흰색 배경 */}
+                  <div 
+                    className="space-y-1 max-h-96 overflow-y-auto mt-3"
                     style={{
-                      backgroundColor: 'var(--primary)',
-                      color: 'var(--primary-foreground)',
-                      fontSize: 'var(--font-size-body)',
-                      fontWeight: 500,
-                      lineHeight: 1.5,
+                      backgroundColor: 'var(--background)',
+                      borderRadius: '8px',
+                      padding: '8px',
                     }}
                   >
-                    예약하기
-                  </Button>
-                </div>
-              </>
-            )}
+                    {timeSlots.map((time) => {
+                      const booking = isTimeSlotBooked(time, modalBookings)
+                      const isBooked = !!booking
+
+                      return (
+                        <div
+                          key={time}
+                          className="flex items-center gap-3 transition-all"
+                          style={{
+                            padding: '10px 16px',
+                            borderRadius: '8px',
+                            backgroundColor: 'var(--background)',
+                            border: '1px solid transparent',
+                            opacity: isBooked ? 'var(--disabled-opacity)' : '1',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 'var(--font-size-caption)',
+                              fontWeight: 600,
+                              lineHeight: 1.4,
+                              color: isBooked ? 'var(--disabled-text)' : 'var(--foreground)',
+                              minWidth: '50px',
+                            }}
+                          >
+                            {time}
+                          </div>
+                          {isBooked && booking ? (
+                            <div className="flex-1">
+                              <p
+                                style={{
+                                  fontSize: 'var(--font-size-caption)',
+                                  fontWeight: 600,
+                                  lineHeight: 1.4,
+                                  color: 'var(--disabled-text)',
+                                }}
+                              >
+                                {booking.title}
+                              </p>
+                              <p
+                                style={{
+                                  fontSize: 'var(--font-size-caption)',
+                                  lineHeight: 1.4,
+                                  color: 'var(--disabled-text)',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                {booking.bookedBy} • {booking.start.slice(0, 5)} - {booking.end.slice(0, 5)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex-1">
+                              <p
+                                style={{
+                                  fontSize: 'var(--font-size-caption)',
+                                  lineHeight: 1.4,
+                                  color: 'var(--foreground)',
+                                }}
+                              >
+                                예약 가능
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* 버튼 - 타임슬롯과 여백 */}
+                  <div className="flex justify-end mt-4">
+                    <Button
+                      onClick={() => {
+                        setBookingModalOpen(false)
+                        handleBookRoom(selectedRoom?.id || '')
+                      }}
+                      style={{
+                        backgroundColor: 'var(--primary)',
+                        color: 'var(--primary-foreground)',
+                        fontSize: 'var(--font-size-body)',
+                        fontWeight: 500,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      예약하기
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
           </DialogBody>
         </DialogContent>
       </Dialog>
