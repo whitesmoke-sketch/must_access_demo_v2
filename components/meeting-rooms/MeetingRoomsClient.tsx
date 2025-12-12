@@ -926,12 +926,18 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
 
       {/* Booking status modal */}
       <Dialog open={bookingModalOpen} onOpenChange={setBookingModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent
+          className="max-w-2xl"
+          style={{
+            borderRadius: '10px',
+            boxShadow: '0px 10px 15px -3px rgba(0,0,0,0.1), 0px 4px 6px -4px rgba(0,0,0,0.1)',
+          }}
+        >
           <DialogHeader>
             <DialogTitle
               style={{
-                fontSize: 'var(--font-size-h2)',
-                fontWeight: 'var(--font-weight-h2)',
+                fontSize: '20px',
+                fontWeight: 500,
                 lineHeight: 1.3,
                 color: '#29363D',
               }}
@@ -940,7 +946,7 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 mt-2">
               <MapPin className="w-4 h-4" style={{ color: '#5B6A72' }} />
-              <span style={{ fontSize: 'var(--font-size-caption)', color: '#5B6A72' }}>
+              <span style={{ fontSize: '14px', color: '#5B6A72', lineHeight: 1.4 }}>
                 {selectedRoom?.floor}층 • 최대 {selectedRoom?.capacity}명
               </span>
             </DialogDescription>
@@ -948,22 +954,33 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
 
           <DialogBody>
             {/* Date selector */}
-            <div className="flex items-center justify-between px-4 py-3 rounded-lg" style={{ backgroundColor: '#F6F8F9' }}>
+            <div className="flex items-center justify-between px-4 py-3 rounded-lg" style={{ backgroundColor: '#F6F8F9', borderRadius: '10px', height: '56px' }}>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleModalPreviousDay}
                 disabled={modalDate.toDateString() === new Date().toDateString()}
-                style={{ padding: '6px' }}
+                style={{
+                  width: '30px',
+                  height: '32px',
+                  padding: '0',
+                  minWidth: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#F6F8F9',
+                  borderColor: '#E5E8EB',
+                  borderRadius: '6.8px',
+                }}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <div
                 style={{
-                  fontSize: 'var(--font-size-body)',
+                  fontSize: '16px',
                   fontWeight: 500,
                   lineHeight: 1.5,
-                  color: 'var(--foreground)',
+                  color: '#29363D',
                   minWidth: '120px',
                   textAlign: 'center',
                 }}
@@ -977,7 +994,18 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={handleModalNextDay}
-                style={{ padding: '6px' }}
+                style={{
+                  width: '30px',
+                  height: '32px',
+                  padding: '0',
+                  minWidth: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#F6F8F9',
+                  borderColor: '#E5E8EB',
+                  borderRadius: '6.8px',
+                }}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -1011,50 +1039,52 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
             {/* Timeline */}
             {!isLoadingModalBookings && !modalBookingsError && (
               <>
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto space-y-1">
                   {timeSlots.map((time, index) => {
                     const booking = isTimeSlotBooked(time, modalBookings)
                     const isBooked = !!booking
-                    const isLastItem = index === timeSlots.length - 1
 
                     return (
                       <div
                         key={time}
-                        className="flex items-center gap-4"
+                        className="flex items-center gap-3"
                         style={{
-                          padding: '16px 8px',
-                          borderBottom: isLastItem ? 'none' : '1px solid var(--border)',
-                          backgroundColor: 'transparent',
+                          padding: isBooked ? '17px' : '11px 17px',
+                          backgroundColor: isBooked ? 'rgba(99, 91, 255, 0.08)' : 'rgba(246, 248, 249, 0.5)',
+                          border: isBooked ? '1px solid rgba(99, 91, 255, 0.2)' : '1px solid transparent',
+                          borderRadius: '8px',
+                          minHeight: isBooked ? '63px' : '41px',
                         }}
                       >
                         <div
                           style={{
-                            fontSize: 'var(--font-size-body)',
-                            fontWeight: 500,
-                            lineHeight: 1.5,
-                            color: isBooked ? 'var(--disabled-text)' : 'var(--foreground)',
-                            minWidth: '56px',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            lineHeight: 1.4,
+                            color: isBooked ? '#635BFF' : '#5B6A72',
+                            minWidth: '50px',
                           }}
                         >
                           {time.slice(0, 5)}
                         </div>
                         {isBooked && booking ? (
-                          <div className="flex-1">
+                          <div className="flex-1 space-y-0.5">
                             <p
                               style={{
-                                fontSize: 'var(--font-size-caption)',
-                                fontWeight: 400,
+                                fontSize: '14px',
+                                fontWeight: 600,
                                 lineHeight: 1.4,
-                                color: 'var(--disabled-text)',
+                                color: '#29363D',
                               }}
                             >
                               {booking.title}
                             </p>
                             <p
                               style={{
-                                fontSize: 'var(--font-size-caption)',
+                                fontSize: '14px',
+                                fontWeight: 400,
                                 lineHeight: 1.4,
-                                color: 'var(--disabled-text)',
+                                color: '#5B6A72',
                               }}
                             >
                               {booking.bookedBy} · {booking.start.slice(0, 5)} - {booking.end.slice(0, 5)}
@@ -1064,9 +1094,10 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                           <div className="flex-1">
                             <p
                               style={{
-                                fontSize: 'var(--font-size-caption)',
+                                fontSize: '14px',
+                                fontWeight: 400,
                                 lineHeight: 1.4,
-                                color: 'var(--foreground)',
+                                color: '#9BA4AB',
                               }}
                             >
                               예약 가능
@@ -1085,14 +1116,14 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                       handleBookRoom(selectedRoom?.id || '')
                     }}
                     style={{
-                      backgroundColor: 'var(--primary)',
-                      color: 'var(--primary-foreground)',
-                      fontSize: 'var(--font-size-body)',
+                      backgroundColor: '#635BFF',
+                      color: 'white',
+                      fontSize: '16px',
                       fontWeight: 500,
                       lineHeight: 1.5,
-                      height: '44px',
-                      padding: '0 24px',
-                      borderRadius: '22px',
+                      height: '36px',
+                      padding: '8px 16px',
+                      borderRadius: '6.8px',
                     }}
                   >
                     예약하기
