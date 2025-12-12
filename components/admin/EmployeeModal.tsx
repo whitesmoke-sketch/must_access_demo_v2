@@ -476,30 +476,30 @@ export function EmployeeModal({
         </Card>
 
         {/* 버튼 - 카드 밖으로 이동 */}
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={loading}
-          >
-            취소
-          </Button>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                  disabled={loading}
+                >
+                  취소
+                </Button>
           <Button 
             type="submit" 
             disabled={loading}
             onClick={handleSubmit}
             style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
           >
-            {loading
-              ? mode === 'create'
-                ? '추가 중...'
-                : '수정 중...'
-              : mode === 'create'
-              ? '추가'
-              : '수정'}
-          </Button>
-        </DialogFooter>
+                  {loading
+                    ? mode === 'create'
+                      ? '추가 중...'
+                      : '수정 중...'
+                    : mode === 'create'
+                    ? '추가'
+                    : '수정'}
+                </Button>
+              </DialogFooter>
       </DialogContent>
     </Dialog>
   )

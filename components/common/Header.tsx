@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import NotificationDropdown from '@/components/NotificationDropdown'
@@ -22,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
-import type { EmployeeWithRole, UserStatus } from '@/types/database'
+import type { EmployeeWithRole } from '@/types/database'
 
 interface HeaderProps {
   user: SupabaseUser
@@ -34,36 +33,6 @@ interface HeaderProps {
 export function Header({ user, employee, notifications = [], onMobileMenuClick }: HeaderProps) {
   const router = useRouter()
   const supabase = createClient()
-  // TODO: 추후 구현 예정
-  // const [darkMode, setDarkMode] = useState(false)
-  // const [searchQuery, setSearchQuery] = useState('')
-  // const [currentLang, setCurrentLang] = useState<'KR' | 'EN'>('KR')
-  const [currentStatus, setCurrentStatus] = useState<UserStatus>('online')
-
-  const getStatusInfo = (status: UserStatus) => {
-    switch (status) {
-      case 'online':
-        return { emoji: '🟢', label: '온라인', color: '#4CD471' }
-      case 'in_meeting':
-        return { emoji: '💬', label: '회의중', color: '#635BFF' }
-      case 'lunch':
-        return { emoji: '🍽️', label: '식사중', color: '#F8C653' }
-      case 'away':
-        return { emoji: '🚶', label: '이동중', color: '#A0ACB3' }
-      case 'offline':
-        return { emoji: '⚪', label: '오프라인', color: '#D3D9DC' }
-      case 'vacation':
-        return { emoji: '🌴', label: '휴가', color: '#16CDC7' }
-    }
-  }
-
-  const handleStatusChange = (newStatus: UserStatus) => {
-    setCurrentStatus(newStatus)
-    // TODO: DB에 상태 업데이트
-    toast.success(`상태가 "${getStatusInfo(newStatus).label}"(으)로 변경되었습니다`)
-  }
-
-  const statusInfo = getStatusInfo(currentStatus)
 
   async function handleLogout() {
     const { error } = await supabase.auth.signOut()
@@ -204,56 +173,28 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex items-center gap-3 p-1.5 pr-3 rounded-lg transition-all duration-150"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-all duration-150"
                 style={{
-                  transitionDuration: '150ms',
-                  transitionTimingFunction: 'ease-in-out',
+                  backgroundColor: 'var(--primary)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.1)'
+                  e.currentTarget.style.opacity = '0.85'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.opacity = '1'
                 }}
               >
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                  style={{ backgroundColor: '#635BFF' }}
-                >
-                  <User className="w-4 h-4" />
-                </div>
-                <div className="hidden md:flex flex-col items-start">
-                  <div
-                    style={{
-                      fontSize: '14px',
-                      lineHeight: 1.5,
-                      color: 'var(--card-foreground)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {employee?.name || user.email}
-                  </div>
-                  <div
-                    className="flex items-center gap-1.5"
-                    style={{
-                      fontSize: '12px',
-                      lineHeight: 1.4,
-                      color: 'var(--muted-foreground)',
-                    }}
-                  >
-                    <span>{statusInfo.emoji}</span>
-                    {statusInfo.label}
-                  </div>
-                </div>
+                <User className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <div className="px-4 py-3 border-b">
+              <div className="px-4 py-3">
                 <p
                   style={{
                     fontSize: 'var(--font-size-body)',
-                    color: '#29363D',
+                    color: 'var(--foreground)',
                     fontWeight: 600,
+                    lineHeight: 1.5,
                   }}
                 >
                   {employee?.name || user.email}
@@ -261,8 +202,9 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                 <p
                   style={{
                     fontSize: 'var(--font-size-caption)',
-                    color: '#5B6A72',
+                    color: 'var(--muted-foreground)',
                     marginTop: '2px',
+                    lineHeight: 1.4,
                   }}
                 >
                   {employee?.role?.code === 'super_admin'
@@ -271,60 +213,46 @@ export function Header({ user, employee, notifications = [], onMobileMenuClick }
                       ? '관리자'
                       : '구성원'}
                 </p>
-              </div>
-
-              {/* Status Selection */}
-              <div className="px-2 py-2">
                 <p
                   style={{
                     fontSize: 'var(--font-size-caption)',
-                    color: '#5B6A72',
-                    padding: '8px 12px',
+                    color: 'var(--muted-foreground)',
+                    marginTop: '4px',
+                    lineHeight: 1.4,
                   }}
                 >
-                  상태 변경
+                  {user.email}
                 </p>
-                {(
-                  [
-                    'online',
-                    'in_meeting',
-                    'lunch',
-                    'away',
-                    'offline',
-                    'vacation',
-                  ] as UserStatus[]
-                ).map((status) => {
-                  const info = getStatusInfo(status)
-                  const isActive = currentStatus === status
-                  return (
-                    <DropdownMenuItem
-                      key={status}
-                      className="cursor-pointer"
-                      onClick={() => handleStatusChange(status)}
-                      style={{
-                        backgroundColor: isActive
-                          ? 'rgba(99, 91, 255, 0.1)'
-                          : 'transparent',
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: info.color }}
-                        />
-                        <span style={{ fontSize: 'var(--font-size-caption)' }}>
-                          {info.emoji} {info.label}
-                        </span>
-                      </div>
-                    </DropdownMenuItem>
-                  )
-                })}
               </div>
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem className="cursor-pointer" onClick={() => router.push('/account')}>내 정보</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+              <DropdownMenuItem 
+                className="cursor-pointer transition-colors" 
+                onClick={() => router.push('/account')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--sidebar-accent)'
+                  e.currentTarget.style.color = 'var(--primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--foreground)'
+                }}
+              >
+                내 계정
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="cursor-pointer transition-colors" 
+                onClick={handleLogout}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--sidebar-accent)'
+                  e.currentTarget.style.color = 'var(--primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--foreground)'
+                }}
+              >
                 로그아웃
               </DropdownMenuItem>
             </DropdownMenuContent>

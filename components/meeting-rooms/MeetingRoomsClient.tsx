@@ -449,17 +449,29 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
     }
   }
 
-  // Time slots (09:00 ~ 18:00, 30min intervals)
+  // Time slots (09:00 ~ 19:00, 30min intervals)
   const timeSlots = useMemo(() => {
     const slots = []
-    for (let hour = 9; hour <= 18; hour++) {
+    for (let hour = 9; hour <= 19; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      if (hour < 18) {
+      if (hour < 19) {
         slots.push(`${hour.toString().padStart(2, '0')}:30`)
       }
     }
     return slots
   }, [])
+
+  // Get end time for a slot (30 minutes later)
+  const getSlotEndTime = (time: string): string => {
+    const [hour, minute] = time.split(':').map(Number)
+    let endHour = hour
+    let endMinute = minute + 30
+    if (endMinute >= 60) {
+      endMinute = 0
+      endHour += 1
+    }
+    return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+  }
 
   // Check if time slot is booked
   const isTimeSlotBooked = (time: string, bookings?: TimeSlot[]): TimeSlot | null => {
@@ -1048,10 +1060,10 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
                               fontWeight: 600,
                               lineHeight: 1.4,
                               color: isBooked ? 'var(--disabled-text)' : 'var(--foreground)',
-                              minWidth: '50px',
+                              minWidth: '100px',
                             }}
                           >
-                            {time}
+                            {time} ~ {getSlotEndTime(time)}
                           </div>
                           {isBooked && booking ? (
                             <div className="flex-1">

@@ -478,7 +478,7 @@ export async function softDeleteDepartment(id: number, reason?: string) {
     // RPC 함수 호출 (SECURITY DEFINER로 RLS 우회)
     const { data, error } = await supabase.rpc('soft_delete_department_rpc', {
       dept_id: id
-    })
+      })
 
     if (error) {
       console.error('Soft delete department RPC error:', error)
@@ -725,10 +725,10 @@ export async function validateDepartmentDeletion(id: number) {
 
     // Check for pending approvals - 먼저 해당 부서 직원 ID 조회
     const { data: deptEmployees } = await supabase
-      .from('employee')
-      .select('id')
-      .eq('department_id', id)
-      .is('deleted_at', null)
+          .from('employee')
+          .select('id')
+          .eq('department_id', id)
+          .is('deleted_at', null)
 
     if (deptEmployees && deptEmployees.length > 0) {
       const employeeIds = deptEmployees.map(e => e.id)
@@ -738,17 +738,17 @@ export async function validateDepartmentDeletion(id: number) {
         .select('id')
         .in('status', ['pending', 'in_progress'])
         .in('approver_id', employeeIds)
-        .limit(1)
+      .limit(1)
 
-      if (approvalError) {
-        console.error('Check approvals error:', approvalError)
-        return { success: false, error: approvalError.message }
-      }
+    if (approvalError) {
+      console.error('Check approvals error:', approvalError)
+      return { success: false, error: approvalError.message }
+    }
 
-      if (approvals && approvals.length > 0) {
-        return {
-          success: false,
-          error: '이 부서 소속 직원이 처리 중인 결재가 있습니다. 결재 완료 후 삭제해주세요.'
+    if (approvals && approvals.length > 0) {
+      return {
+        success: false,
+        error: '이 부서 소속 직원이 처리 중인 결재가 있습니다. 결재 완료 후 삭제해주세요.'
         }
       }
     }

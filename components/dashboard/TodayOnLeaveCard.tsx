@@ -49,30 +49,28 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
         className="rounded-2xl flex flex-col"
         style={{
           borderRadius: '16px',
-          boxShadow: '0px 2px 4px -1px rgba(175, 182, 201, 0.2)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
         <CardHeader style={{ paddingBottom: '12px' }}>
           <div className="flex items-center justify-between">
             <CardTitle
               style={{
-                fontSize: '16px',
+                fontSize: 'var(--font-size-body)',
                 fontWeight: 500,
                 lineHeight: '24px',
-                color: '#29363D',
+                color: 'var(--foreground)',
               }}
             >
               오늘 연차 멤버 ({members.length}명)
             </CardTitle>
             {members.length > 0 && (
               <button
-                className="flex items-center gap-1 transition-all"
+                className="flex items-center gap-1 transition-opacity"
                 style={{
-                  fontSize: '14px',
+                  fontSize: 'var(--font-size-caption)',
                   fontWeight: 600,
-                  color: '#635BFF',
-                  transitionDuration: '150ms',
-                  transitionTimingFunction: 'ease-in-out',
+                  color: 'var(--primary)',
                 }}
                 onClick={() => setIsModalOpen(true)}
                 onMouseEnter={(e) => {
@@ -93,9 +91,9 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
             <div className="flex items-center justify-center" style={{ height: '90px' }}>
               <p
                 style={{
-                  fontSize: '16px',
+                  fontSize: 'var(--font-size-body)',
                   lineHeight: '24px',
-                  color: '#5B6A72',
+                  color: 'var(--muted-foreground)',
                 }}
               >
                 오늘 연차인 멤버가 없습니다
@@ -108,7 +106,7 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                   key={member.id}
                   className="flex items-center gap-2.5 px-3 py-1.5"
                   style={{
-                    backgroundColor: '#F6F8F9',
+                    backgroundColor: 'var(--muted)',
                     borderRadius: '8px',
                   }}
                 >
@@ -118,15 +116,15 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                     style={{
                       width: '32px',
                       height: '32px',
-                      backgroundColor: '#E5E8EB',
-                      border: '2px solid #FFFFFF',
+                      backgroundColor: 'var(--muted)',
+                      border: '2px solid var(--card)',
                     }}
                   >
                     <span
                       style={{
                         fontSize: '12px',
                         fontWeight: 600,
-                        color: '#5B6A72',
+                        color: 'var(--muted-foreground)',
                       }}
                     >
                       {member.name.charAt(0)}
@@ -138,10 +136,10 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                     <p
                       className="truncate"
                       style={{
-                        fontSize: '16px',
+                        fontSize: 'var(--font-size-body)',
                         fontWeight: 500,
                         lineHeight: '24px',
-                        color: '#29363D',
+                        color: 'var(--foreground)',
                       }}
                     >
                       {member.name}
@@ -149,9 +147,9 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                     <p
                       className="truncate"
                       style={{
-                        fontSize: '14px',
+                        fontSize: 'var(--font-size-caption)',
                         lineHeight: '19.6px',
-                        color: '#5B6A72',
+                        color: 'var(--muted-foreground)',
                       }}
                     >
                       {member.department || member.team}
@@ -173,16 +171,16 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                 fontSize: '20px',
                 fontWeight: 500,
                 lineHeight: '26px',
-                color: '#29363D',
+                color: 'var(--foreground)',
               }}
             >
               오늘 연차인 멤버 ({members.length}명)
             </DialogTitle>
             <DialogDescription
               style={{
-                fontSize: '14px',
+                fontSize: 'var(--font-size-caption)',
                 lineHeight: '20px',
-                color: '#5B6A72',
+                color: 'var(--muted-foreground)',
               }}
             >
               오늘 연차인 멤버 목록입니다.
@@ -195,7 +193,7 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                   key={member.id}
                   className="flex items-center gap-3 p-3"
                   style={{
-                    backgroundColor: '#F6F8F9',
+                    backgroundColor: '#FFFFFF',
                     borderRadius: '8px',
                   }}
                 >
@@ -205,48 +203,49 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
                     style={{
                       width: '40px',
                       height: '40px',
-                      backgroundColor: '#635BFF',
+                      backgroundColor: 'var(--primary)',
                     }}
                   >
-                    <User className="w-5 h-5" style={{ color: 'white' }} />
+                    <User className="w-5 h-5" style={{ color: 'var(--primary-foreground)' }} />
                   </div>
 
                   {/* Member Info */}
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: 500,
-                          lineHeight: '24px',
-                          color: '#29363D',
-                        }}
-                      >
-                        {member.name}
-                      </p>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          color: '#635BFF',
-                          backgroundColor: 'rgba(99, 91, 255, 0.1)',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        {getLeaveTypeLabel(member.leaveType)}
-                      </span>
-                    </div>
                     <p
                       style={{
-                        fontSize: '14px',
+                        fontSize: 'var(--font-size-body)',
+                        fontWeight: 500,
+                        lineHeight: '24px',
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {member.name}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 'var(--font-size-caption)',
                         lineHeight: '19.6px',
-                        color: '#5B6A72',
+                        color: 'var(--muted-foreground)',
                       }}
                     >
                       {member.department}{member.team ? ` • ${member.team}` : ''}
                     </p>
                   </div>
+
+                  {/* Leave Type Badge */}
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--primary)',
+                      backgroundColor: 'rgba(99, 91, 255, 0.1)',
+                      padding: '4px 12px',
+                      borderRadius: '4px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {getLeaveTypeLabel(member.leaveType)}
+                  </span>
                 </div>
               ))}
             </div>

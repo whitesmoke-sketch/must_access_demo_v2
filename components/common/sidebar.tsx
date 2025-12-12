@@ -61,13 +61,13 @@ export function Sidebar({
       href: '/dashboard',
       implemented: true,
     },
-    {
-      id: 'seats',
-      label: '자유석',
-      icon: Armchair,
-      href: '/resources/seats',
-      implemented: true,
-    },
+    // {
+    //   id: 'seats',
+    //   label: '자유석',
+    //   icon: Armchair,
+    //   href: '/resources/seats',
+    //   implemented: true,
+    // },
     {
       id: 'lockers',
       label: '사물함',

@@ -159,17 +159,29 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     fetchBookings()
   }, [room.id, selectedDate])
 
-  // Time slots (09:00 ~ 18:00, 30min intervals)
+  // Time slots (09:00 ~ 19:00, 30min intervals)
   const timeSlots = useMemo(() => {
     const slots = []
-    for (let hour = 9; hour <= 18; hour++) {
+    for (let hour = 9; hour <= 19; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      if (hour < 18) {
+      if (hour < 19) {
         slots.push(`${hour.toString().padStart(2, '0')}:30`)
       }
     }
     return slots
   }, [])
+
+  // Get end time for a slot (30 minutes later)
+  const getSlotEndTime = (time: string): string => {
+    const [hour, minute] = time.split(':').map(Number)
+    let endHour = hour
+    let endMinute = minute + 30
+    if (endMinute >= 60) {
+      endMinute = 0
+      endHour += 1
+    }
+    return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+  }
 
   // Check if time is booked
   const isTimeBooked = (time: string): TimeSlot | null => {
@@ -263,7 +275,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     return false
   }
 
-  // Check if clicking this time would exceed 4 hours or has booking between
+  // Check if clicking this time would exceed 2 hours or has booking between
   const isTimeClickDisabled = (time: string): boolean => {
     if (selectedTimeSlots.length === 0) return false
     if (selectedTimeSlots.includes(time)) return false // Can always deselect
@@ -281,7 +293,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
       if (hasBookingBetween(maxTime, time)) return true
     }
 
-    // Check if adding this time exceeds 4 hours
+    // Check if adding this time exceeds 2 hours
     const newSlots = [...selectedTimeSlots, time].sort()
     const newMinTime = newSlots[0]
     const newMaxTime = newSlots[newSlots.length - 1]
@@ -291,8 +303,8 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     const [maxHour, maxMinute] = newMaxTime.split(':').map(Number)
     const diffMinutes = (maxHour * 60 + maxMinute) - (minHour * 60 + minMinute)
 
-    // Maximum 4 hours (240 minutes)
-    return diffMinutes > 240
+    // Maximum 2 hours (120 minutes)
+    return diffMinutes > 120
   }
 
   // Timeline slot click
@@ -300,7 +312,7 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
     const booking = isTimeBooked(time)
     if (booking) return // Already booked, can't click
 
-    // Check if disabled due to 4-hour limit or booking between
+    // Check if disabled due to 2-hour limit or booking between
     if (isTimeClickDisabled(time)) return
 
     setSelectedTimeSlots((prev) => {
@@ -424,13 +436,13 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
       return
     }
 
-    // Validate maximum 4 hours
+    // Validate maximum 2 hours
     const [startHour, startMinute] = calculatedStartTime.split(':').map(Number)
     const [endHour, endMinute] = calculatedEndTime.split(':').map(Number)
     const diffMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
 
-    if (diffMinutes > 240) {
-      toast.error('최대 예약 시간은 4시간입니다', {
+    if (diffMinutes > 120) {
+      toast.error('최대 예약 시간은 2시간입니다', {
         description: '더 짧은 시간을 선택해주세요',
       })
       return
@@ -814,10 +826,10 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                           fontWeight: 500,
                           lineHeight: 1.4,
                           color: isBooked || isDisabled ? '#9BA4AB' : isSelected ? 'var(--primary)' : '#29363D',
-                          minWidth: '50px',
+                          minWidth: '100px',
                         }}
                       >
-                        {time}
+                        {time} ~ {getSlotEndTime(time)}
                       </div>
                       {isBooked && booking ? (
                         <div className="flex-1">
@@ -1086,9 +1098,10 @@ export const MeetingRoomBookingClient: React.FC<MeetingRoomBookingClientProps> =
                         paddingLeft: '16px',
                       }}
                     >
-                      <li>예약 시간 10분 전까지 미사용 시 자동 취소</li>
-                      <li>사용 후 정리정돈 필수</li>
-                      <li>최대 예약 시간: 4시간</li>
+                      <li>회의실은 함께 쓰는 공간입니다. 항상 깨끗하게 정리해주세요.</li>
+                      <li>최대 예약 시간: 2시간</li>
+                      <li>장비에 문제가 있을 시 담당자에게 즉시 연락 주세요.</li>
+                      <li>다음 예약이 있을 시 최소 15분 전까지 비워주세요.</li>
                     </ul>
                   </div>
                 </div>
