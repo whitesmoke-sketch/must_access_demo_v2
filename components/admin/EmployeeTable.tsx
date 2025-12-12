@@ -13,6 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { Search, Edit, Ellipsis } from 'lucide-react'
 import { EmployeeModal } from './EmployeeModal'
 import { toast } from 'sonner'
@@ -32,10 +41,17 @@ export function EmployeeTable() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   useEffect(() => {
     loadData()
   }, [])
+
+  // 검색어 변경 시 페이지 리셋
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   async function loadData() {
     setLoading(true)
@@ -86,6 +102,13 @@ export function EmployeeTable() {
     )
   })
 
+  // 페이지네이션
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage)
+  const paginatedEmployees = filteredEmployees.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   if (loading) {
     return (
       <Card>
@@ -129,8 +152,8 @@ export function EmployeeTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((employee) => {
+              {paginatedEmployees.length > 0 ? (
+                paginatedEmployees.map((employee) => {
                   const balance = employee.annual_leave_balance?.[0]
                   const remainingDays = balance?.remaining_days || 0
                   const totalDays = balance?.total_days || 0
@@ -231,6 +254,72 @@ export function EmployeeTable() {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* 전체 건수 및 페이지네이션 */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground whitespace-nowrap">
+            전체 {filteredEmployees.length}명
+          </p>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(1)}
+                    isActive={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    1
+                  </PaginationLink>
+                </PaginationItem>
+                {currentPage > 3 && totalPages > 4 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+                {currentPage > 2 && currentPage < totalPages && (
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(currentPage)}
+                      isActive={true}
+                      className="cursor-pointer"
+                    >
+                      {currentPage}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+                {currentPage < totalPages - 2 && totalPages > 4 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+                {totalPages > 1 && (
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(totalPages)}
+                      isActive={currentPage === totalPages}
+                      className="cursor-pointer"
+                    >
+                      {totalPages}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       </CardContent>
     </Card>

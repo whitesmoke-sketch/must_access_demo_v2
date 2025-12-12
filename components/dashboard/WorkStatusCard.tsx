@@ -58,7 +58,9 @@ export async function WorkStatusCard({ employeeId }: WorkStatusCardProps) {
     <Card
       className="rounded-2xl"
       style={{
-        height: '182px'
+        height: '182px',
+        borderRadius: '16px',
+        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
       }}
     >
       <CardHeader style={{ paddingBottom: '12px' }}>

@@ -94,7 +94,7 @@ export function LeaveLedgerTable({ employeeId }: LeaveLedgerTableProps) {
   const [cancelReason, setCancelReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
-  const itemsPerPage = 20
+  const itemsPerPage = 10
 
   const loadLedgerData = useCallback(async () => {
     try {

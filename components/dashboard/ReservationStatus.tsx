@@ -45,7 +45,13 @@ export async function ReservationStatus({ employeeId }: ReservationStatusProps) 
     : null
 
   return (
-    <Card>
+    <Card
+      className="rounded-2xl"
+      style={{
+        borderRadius: '16px',
+        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+      }}
+    >
       <CardHeader>
         <CardTitle>나의 예약 현황</CardTitle>
       </CardHeader>

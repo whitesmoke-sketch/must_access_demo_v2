@@ -49,7 +49,7 @@ export function TodayOnLeaveCard({ members }: TodayOnLeaveCardProps) {
         className="rounded-2xl flex flex-col"
         style={{
           borderRadius: '16px',
-          boxShadow: 'var(--shadow-md)',
+          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
         }}
       >
         <CardHeader style={{ paddingBottom: '12px' }}>
