@@ -925,12 +925,13 @@ export const MeetingRoomsClient: React.FC<MeetingRoomsClientProps> = ({
       )}
 
       {/* Booking status modal */}
-      <Dialog open={bookingModalOpen} onOpenChange={setBookingModalOpen}>
+      <Dialog open={bookingModalOpen} onOpenChange={setBookingModalOpen} >
         <DialogContent
           className="max-w-2xl"
           style={{
             borderRadius: '10px',
             boxShadow: '0px 10px 15px -3px rgba(0,0,0,0.1), 0px 4px 6px -4px rgba(0,0,0,0.1)',
+            backgroundColor: 'var(--background)',
           }}
         >
           <DialogHeader>
